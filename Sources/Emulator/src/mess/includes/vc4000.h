@@ -8,11 +8,14 @@
 #define VC4000_H_
 
 #include "emu.h"
+#include "audio/vc4000snd.h"
 #include "cpu/s2650/s2650.h"
-#include "imagedev/cartslot.h"
 #include "imagedev/snapquik.h"
 #include "imagedev/cassette.h"
 #include "sound/wave.h"
+
+#include "bus/vc4000/slot.h"
+#include "bus/vc4000/rom.h"
 
 // define this to use digital inputs instead of the slow
 // autocentering analog mame joys
@@ -73,9 +76,10 @@ class vc4000_state : public driver_device
 public:
 	vc4000_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_cassette(*this, "cassette"),
 		m_maincpu(*this, "maincpu"),
 		m_screen(*this, "screen"),
+		m_cassette(*this, "cassette"),
+		m_cart(*this, "cartslot"),
 		m_keypad1_1(*this, "KEYPAD1_1"),
 		m_keypad1_2(*this, "KEYPAD1_2"),
 		m_keypad1_3(*this, "KEYPAD1_3"),
@@ -110,17 +114,18 @@ public:
 	UINT8 m_objects[512];
 	UINT8 m_irq_pause;
 	bitmap_ind16 *m_bitmap;
-	optional_device<cassette_image_device> m_cassette;
+	virtual void machine_start();
 	virtual void video_start();
 	DECLARE_PALETTE_INIT(vc4000);
 	UINT32 screen_update_vc4000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vc4000_video_line);
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER(vc4000_cart);
 	DECLARE_QUICKLOAD_LOAD_MEMBER(vc4000);
 
 protected:
 	required_device<cpu_device> m_maincpu;
 	required_device<screen_device> m_screen;
+	optional_device<cassette_image_device> m_cassette;
+	required_device<vc4000_cart_slot_device> m_cart;
 	required_ioport m_keypad1_1;
 	required_ioport m_keypad1_2;
 	required_ioport m_keypad1_3;
@@ -143,40 +148,5 @@ protected:
 	void vc4000_sprite_update(bitmap_ind16 &bitmap, UINT8 *collision, SPRITE *This);
 	inline void vc4000_draw_grid(UINT8 *collision);
 };
-
-/*----------- defined in audio/vc4000.c -----------*/
-
-//**************************************************************************
-//  TYPE DEFINITIONS
-//**************************************************************************
-
-// ======================> vc4000_sound_device
-
-class vc4000_sound_device : public device_t,
-							public device_sound_interface
-{
-public:
-	vc4000_sound_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-	~vc4000_sound_device() { }
-
-protected:
-	// device-level overrides
-	virtual void device_start();
-
-	// sound stream update overrides
-	virtual void sound_stream_update(sound_stream &stream, stream_sample_t **inputs, stream_sample_t **outputs, int samples);
-
-public:
-	void soundport_w(int mode, int data);
-
-private:
-	sound_stream *m_channel;
-	UINT8 m_reg[1];
-	int m_size;
-	int m_pos;
-	unsigned m_level;
-};
-
-extern const device_type VC4000;
 
 #endif /* VC4000_H_ */

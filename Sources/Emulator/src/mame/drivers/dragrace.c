@@ -1,6 +1,6 @@
 /***************************************************************************
 
-Atari Drag Race Driver
+    Atari Drag Race Driver
 
 ***************************************************************************/
 
@@ -14,20 +14,21 @@ Atari Drag Race Driver
 
 TIMER_DEVICE_CALLBACK_MEMBER(dragrace_state::dragrace_frame_callback)
 {
-	int i;
 	static const char *const portnames[] = { "P1", "P2" };
 
-	for (i = 0; i < 2; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		switch (ioport(portnames[i])->read())
 		{
-		case 0x01: m_gear[i] = 1; break;
-		case 0x02: m_gear[i] = 2; break;
-		case 0x04: m_gear[i] = 3; break;
-		case 0x08: m_gear[i] = 4; break;
-		case 0x10: m_gear[i] = 0; break;
+			case 0x01: m_gear[i] = 1; break;
+			case 0x02: m_gear[i] = 2; break;
+			case 0x04: m_gear[i] = 3; break;
+			case 0x08: m_gear[i] = 4; break;
+			case 0x10: m_gear[i] = 0; break;
 		}
 	}
+	output_set_value("P1gear", m_gear[0]);
+	output_set_value("P2gear", m_gear[1]);
 
 	/* watchdog is disabled during service mode */
 	machine().watchdog_enable(ioport("IN0")->read() & 0x20);
@@ -85,6 +86,10 @@ void dragrace_state::dragrace_update_misc_flags( address_space &space )
 	m_discrete->write(space, DRAGRACE_ATTRACT_EN, (m_misc_flags & 0x00001000) ? 1: 0); // Attract enable
 	m_discrete->write(space, DRAGRACE_LOTONE_EN, (m_misc_flags & 0x00002000) ? 1: 0);  // LoTone enable
 	m_discrete->write(space, DRAGRACE_HITONE_EN, (m_misc_flags & 0x20000000) ? 1: 0);  // HiTone enable
+
+	// the tachometers are driven from the same frequency generator that creates the engine sound
+	output_set_value("tachometer", ~m_misc_flags & 0x0000001f);
+	output_set_value("tachometer2", (~m_misc_flags & 0x001f0000) >> 0x10);
 }
 
 WRITE8_MEMBER(dragrace_state::dragrace_misc_w)
@@ -116,9 +121,7 @@ READ8_MEMBER(dragrace_state::dragrace_input_r)
 	UINT8 maskA = 1 << (offset % 8);
 	UINT8 maskB = 1 << (offset / 8);
 
-	int i;
-
-	for (i = 0; i < 2; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		int in = ioport(portnames[i])->read();
 
@@ -139,9 +142,7 @@ READ8_MEMBER(dragrace_state::dragrace_steering_r)
 	int bitB[2];
 	static const char *const dialnames[] = { "DIAL1", "DIAL2" };
 
-	int i;
-
-	for (i = 0; i < 2; i++)
+	for (int i = 0; i < 2; i++)
 	{
 		int dial = ioport(dialnames[i])->read();
 
@@ -347,7 +348,7 @@ static MACHINE_CONFIG_START( dragrace, dragrace_state )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(dragrace)
+	MCFG_DISCRETE_INTF(dragrace)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -369,6 +370,9 @@ ROM_START( dragrace )
 	ROM_LOAD( "8517dr.h0", 0x200, 0x200, CRC(8b5bff1f) SHA1(fdcd719c66bff7c4b9f3d56d1e635259dd8add61) )
 	ROM_LOAD( "8516dr.l0", 0x400, 0x200, CRC(d1e74af1) SHA1(f55a3bfd7d152ac9af128697f55c9a0c417779f5) )
 	ROM_LOAD( "8518dr.n0", 0x600, 0x200, CRC(b1369028) SHA1(598a8779982d532c9f34345e793a79fcb29cac62) )
+
+	ROM_REGION( 0x100, "sync", 0 )  /* sync prom located at L8, it's a 82s129 */
+	ROM_LOAD( "l8.bin", 0x000, 0x100, CRC(3610b453) SHA1(9e33ee04f22a9174c29fafb8e71781fa330a7a08) )
 ROM_END
 
 

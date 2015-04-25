@@ -53,6 +53,8 @@ public:
 	UINT8 m_schaser_background_select;
 	UINT16 m_claybust_gun_pos;
 
+	int m_invmulti_bank;
+
 
 	DECLARE_CUSTOM_INPUT_MEMBER(sflush_80_r);
 	DECLARE_INPUT_CHANGED_MEMBER(claybust_gun_trigger);
@@ -152,17 +154,15 @@ public:
 	inline void set_pixel( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, const pen_t *pens, UINT8 color );
 	inline void set_8_pixels( bitmap_rgb32 &bitmap, UINT8 y, UINT8 x, UINT8 data, const pen_t *pens, UINT8 fore_color, UINT8 back_color );
 	void clear_extra_columns( bitmap_rgb32 &bitmap, const pen_t *pens, UINT8 color );
+	void invmulti_bankswitch_restore();
 };
 
 
 /*----------- defined in audio/8080bw.c -----------*/
-extern const samples_interface lrescue_samples_interface;
-extern const samples_interface lupin3_samples_interface;
+extern const char *const lrescue_sample_names[];
+extern const char *const lupin3_sample_names[];
 
 DISCRETE_SOUND_EXTERN( ballbomb );
 DISCRETE_SOUND_EXTERN( indianbt );
 DISCRETE_SOUND_EXTERN( polaris );
-
-extern const sn76477_interface lupin3_sn76477_interface;
-extern const sn76477_interface schaser_sn76477_interface;
 DISCRETE_SOUND_EXTERN( schaser );

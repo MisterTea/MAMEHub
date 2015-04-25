@@ -49,7 +49,10 @@ TODO:
 - volume/panning is linear? volume slides are too steep
 - most music sounds tinny, probably due to missing DSP?
 - what is reg 0xa/0xc? seems related to volume
+- chip should running at 31khz (divider of 768 instead of 192)
 - identify sample flags
+  * bassdrum in shikigam level 1 music is a good hint: it should be one octave
+    lower, indicating possible stereo sample, or base octave(like in ymf278)
 - memory reads out of range sometimes
 
 */
@@ -68,6 +71,7 @@ const device_type ZSG2 = &device_creator<zsg2_device>;
 zsg2_device::zsg2_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, ZSG2, "ZSG-2", tag, owner, clock, "zsg2", __FILE__),
 		device_sound_interface(mconfig, *this),
+		m_mem_base(*this, DEVICE_SELF),
 		m_read_address(0),
 		m_ext_read_handler(*this)
 {
@@ -86,9 +90,7 @@ void zsg2_device::device_start()
 
 	m_stream = stream_alloc(0, 2, clock() / 192);
 
-	m_mem_base = *region();
-	m_mem_size = region()->bytes();
-	m_mem_blocks = m_mem_size / 4;
+	m_mem_blocks = m_mem_base.length();
 
 	m_mem_copy = auto_alloc_array_clear(machine(), UINT32, m_mem_blocks);
 	m_full_samples = auto_alloc_array_clear(machine(), INT16, m_mem_blocks * 4 + 4); // +4 is for empty block
@@ -133,6 +135,21 @@ void zsg2_device::device_reset()
 	for (int ch = 0; ch < 48; ch++)
 		for (int reg = 0; reg < 0x10; reg++)
 			chan_w(ch, reg, 0);
+
+#if 0
+	for (int i = 0; i < m_mem_blocks; i++)
+		prepare_samples(i);
+
+	FILE* f;
+
+	f = fopen("zoom_samples.bin","wb");
+	fwrite(m_mem_copy,1,m_mem_blocks*4,f);
+	fclose(f);
+
+	f = fopen("zoom_samples.raw","wb");
+	fwrite(m_full_samples,2,m_mem_blocks*4,f);
+	fclose(f);
+#endif
 }
 
 
@@ -448,6 +465,4 @@ READ16_MEMBER(zsg2_device::read)
 	{
 		return control_r(offset - 0x300);
 	}
-
-	return 0;
 }

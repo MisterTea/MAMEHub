@@ -1583,13 +1583,6 @@ static const char *const battles_sample_names[] =
 	0   /* end of array */
 };
 
-static const samples_interface battles_samples_interface =
-{
-	1,  /* one channel */
-	battles_sample_names
-};
-
-
 INTERRUPT_GEN_MEMBER(galaga_state::main_vblank_irq)
 {
 	if(m_main_irq_mask)
@@ -1682,7 +1675,7 @@ static MACHINE_CONFIG_START( bosco, bosco_state )
 
 	/* discrete circuit on the 54XX outputs */
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(bosco)
+	MCFG_DISCRETE_INTF(bosco)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
 
@@ -1746,7 +1739,7 @@ static MACHINE_CONFIG_START( galaga, galaga_state )
 
 	/* discrete circuit on the 54XX outputs */
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(galaga)
+	MCFG_DISCRETE_INTF(galaga)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
 
@@ -1834,7 +1827,7 @@ static MACHINE_CONFIG_START( xevious, xevious_state )
 
 	/* discrete circuit on the 54XX outputs */
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(galaga)
+	MCFG_DISCRETE_INTF(galaga)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
 
@@ -1867,7 +1860,9 @@ static MACHINE_CONFIG_DERIVED( battles, xevious )
 	/* sound hardware */
 	MCFG_DEVICE_REMOVE("discrete")
 
-	MCFG_SAMPLES_ADD("samples", battles_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(battles_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 

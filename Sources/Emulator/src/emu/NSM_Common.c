@@ -9,8 +9,8 @@
 #include "RakNet/PacketLogger.h"
 #include "RakNet/RakNetTypes.h"
 
-#include "lib7z/LzmaEnc.h"
-#include "lib7z/LzmaDec.h"
+#include "lzma/C/LzmaEnc.h"
+#include "lzma/C/LzmaDec.h"
 
 #define NO_MEM_TRACKING
 #include "emu.h"
@@ -800,7 +800,7 @@ void Common::receiveInputs(const PeerInputDataList *inputDataList) {
   if(peerData.find(peerID)==peerData.end()) {
     peerData[peerID] = PeerData("unknown", newAttotime(0,0));
   }
-    
+
   int nextGC = peerData[peerID].nextGC;
 
   list<PeerInputData> &availableInputs = peerData[peerID].availableInputs;
@@ -866,4 +866,3 @@ pair<int,nsm::Attotime> Common::getOldestPeerInputTime() {
   }
   return pair<int,nsm::Attotime>(i,t);
 }
-

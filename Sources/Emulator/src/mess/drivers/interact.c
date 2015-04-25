@@ -97,11 +97,6 @@ static ADDRESS_MAP_START(interact_mem, AS_PROGRAM, 8, interact_state )
 
 ADDRESS_MAP_END
 
-/* Discrete Sound */
-static DISCRETE_SOUND_START( hec2hrp )
-	DISCRETE_INPUT_LOGIC(NODE_01)
-	DISCRETE_OUTPUT(NODE_01, 5000)
-DISCRETE_SOUND_END
 
 MACHINE_RESET_MEMBER(interact_state,interact)
 {
@@ -143,20 +138,10 @@ static MACHINE_CONFIG_START( interact, interact_state )
 	MCFG_PALETTE_ADD("palette", 16)             /* 8 colours, but only 4 at a time*/
 
 	MCFG_VIDEO_START_OVERRIDE(interact_state,hec2hrp)
-		/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
-	MCFG_SOUND_ROUTE(0, "mono", 0.25)  /* Sound level for cassette, as it is in mono => output channel=0*/
 
-	MCFG_SOUND_ADD("sn76477", SN76477, 0)
-	MCFG_SOUND_CONFIG(hector_sn76477_interface)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.1)
+	MCFG_FRAGMENT_ADD(hector_audio)
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0) /* Son 1bit*/
-	MCFG_SOUND_CONFIG_DISCRETE( hec2hrp )
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-
-	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_ADD("cassette")
 	MCFG_CASSETTE_FORMATS(hector_cassette_formats)
 	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MASK_SPEAKER)
 	MCFG_CASSETTE_INTERFACE("interact_cass")
@@ -190,20 +175,10 @@ static MACHINE_CONFIG_START( hector1, interact_state )
 	MCFG_PALETTE_ADD("palette", 16)             /* 8 colours, but only 4 at a time*/
 
 	MCFG_VIDEO_START_OVERRIDE(interact_state,hec2hrp)
-		/* sound hardware */
-	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
-	MCFG_SOUND_ROUTE(0, "mono", 0.25)/* Sound level for cassette, as it is in mono => output channel=0*/
 
-	MCFG_SOUND_ADD("sn76477", SN76477, 0)
-	MCFG_SOUND_CONFIG(hector_sn76477_interface)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.1)
+	MCFG_FRAGMENT_ADD(hector_audio)
 
-	MCFG_SOUND_ADD("discrete", DISCRETE, 0) /* Son 1bit*/
-	MCFG_SOUND_CONFIG_DISCRETE( hec2hrp )
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
-
-	MCFG_CASSETTE_ADD( "cassette" )
+	MCFG_CASSETTE_ADD("cassette")
 	MCFG_CASSETTE_FORMATS(hector_cassette_formats)
 	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MASK_SPEAKER)
 	MCFG_CASSETTE_INTERFACE("interact_cass")

@@ -67,6 +67,7 @@ public:
 	DECLARE_READ16_MEMBER(astrocorp_unk_r);
 	DECLARE_WRITE16_MEMBER(astrocorp_sound_bank_w);
 	DECLARE_WRITE16_MEMBER(skilldrp_sound_bank_w);
+	DECLARE_DRIVER_INIT(astoneag);
 	DECLARE_DRIVER_INIT(showhanc);
 	DECLARE_DRIVER_INIT(showhand);
 	DECLARE_VIDEO_START(astrocorp);
@@ -466,6 +467,19 @@ GFXDECODE_END
 
 static const UINT16 showhand_default_eeprom[15] =   {0x0001,0x0007,0x000a,0x0003,0x0000,0x0009,0x0003,0x0000,0x0002,0x0001,0x0000,0x0000,0x0000,0x0000,0x0000};
 
+
+/*
+TODO: understand if later hardware uses different parameters (XTAL is almost surely NOT 20 MHz so ...). Also, weirdly enough, there's an unused
+6x PAL XTAL according to notes, but VSync = 58,85 Hz?
+*/
+#define ASTROCORP_PIXEL_CLOCK XTAL_20MHz/2
+#define ASTROCORP_HTOTAL 651
+#define ASTROCORP_HBEND 0
+//#define ASTROCORP_HBSTART 320
+#define ASTROCORP_VTOTAL 261
+#define ASTROCORP_VBEND 0
+#define ASTROCORP_VBSTART 240
+
 static MACHINE_CONFIG_START( showhand, astrocorp_state )
 
 	/* basic machine hardware */
@@ -479,10 +493,11 @@ static MACHINE_CONFIG_START( showhand, astrocorp_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(58.846)    // measured on pcb
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_SIZE(320, 240)
-	MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
+//  MCFG_SCREEN_REFRESH_RATE(58.846)    // measured on pcb
+//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
+//  MCFG_SCREEN_SIZE(320, 240)
+//  MCFG_SCREEN_VISIBLE_AREA(0, 320-1, 0, 240-1)
+	MCFG_SCREEN_RAW_PARAMS(ASTROCORP_PIXEL_CLOCK,ASTROCORP_HTOTAL,ASTROCORP_HBEND,320,ASTROCORP_VTOTAL,ASTROCORP_VBEND,ASTROCORP_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(astrocorp_state, screen_update_astrocorp)
 	MCFG_SCREEN_PALETTE("palette")
 
@@ -532,10 +547,11 @@ static MACHINE_CONFIG_START( skilldrp, astrocorp_state )
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(58.846)
-	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
-	MCFG_SCREEN_SIZE(0x200, 0x100)
-	MCFG_SCREEN_VISIBLE_AREA(0, 0x200-1, 0, 0xf0-1)
+//  MCFG_SCREEN_REFRESH_RATE(58.846)
+//  MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */)
+//  MCFG_SCREEN_SIZE(0x200, 0x100)
+//  MCFG_SCREEN_VISIBLE_AREA(0, 0x200-1, 0, 0xf0-1)
+	MCFG_SCREEN_RAW_PARAMS(ASTROCORP_PIXEL_CLOCK,ASTROCORP_HTOTAL,ASTROCORP_HBEND,512,ASTROCORP_VTOTAL,ASTROCORP_VBEND,ASTROCORP_VBSTART)
 	MCFG_SCREEN_UPDATE_DRIVER(astrocorp_state, screen_update_astrocorp)
 	MCFG_SCREEN_PALETTE("palette")
 
@@ -920,15 +936,15 @@ ROM_END
 
 ROM_START( winbingoa )
 	ROM_REGION( 0x40000, "maincpu", 0 )
-	ROM_LOAD16_BYTE( "f29c51001t(__alt).u31", 0x00000, 0x20000, CRC(c33676c3) SHA1(9f5b7d05d187cf59948a572f80c55cb8fa1f656f) )
-	ROM_LOAD16_BYTE( "f29c51001t(__alt).u25", 0x00001, 0x20000, CRC(43c7b2d8) SHA1(16ee79c34b7c485dfccecdf3e0ae9f18f8a20150) )
+	ROM_LOAD16_BYTE( "f29c51001t.u31", 0x00000, 0x20000, CRC(c33676c3) SHA1(9f5b7d05d187cf59948a572f80c55cb8fa1f656f) ) // sldh
+	ROM_LOAD16_BYTE( "f29c51001t.u25", 0x00001, 0x20000, CRC(43c7b2d8) SHA1(16ee79c34b7c485dfccecdf3e0ae9f18f8a20150) ) // sldh
 
 	ROM_REGION( 0x400000, "sprites", 0 )
 	ROM_LOAD( "mx29f1610mc.u26", 0x000000, 0x200000, CRC(ad1f61e7) SHA1(845aa01d49c50bcadaed16d76c0dd9131a425b46) )
 	ROM_LOAD( "mx29f1610mc.u30", 0x200000, 0x200000, CRC(31613d99) SHA1(1c720f8d981c3e9cb9d9b3b27eb95e7f72ccfc93) )
 
 	ROM_REGION( 0x80000, "oki", 0 )
-	ROM_LOAD( "mx27c4000pc(__alt).u35", 0x00000, 0x80000, CRC(e48ed57d) SHA1(11995b90e70e010b292ba9db2da0af4ebf795c1a) )
+	ROM_LOAD( "mx27c4000pc.u35", 0x00000, 0x80000, CRC(e48ed57d) SHA1(11995b90e70e010b292ba9db2da0af4ebf795c1a) ) // sldh
 ROM_END
 
 /***************************************************************************
@@ -1134,13 +1150,164 @@ DRIVER_INIT_MEMBER(astrocorp_state,showhanc)
 #endif
 }
 
+DRIVER_INIT_MEMBER(astrocorp_state,astoneag)
+{
+#if 0
+	UINT16 *rom = (UINT16*)memregion("maincpu")->base();
+	UINT16 x;
+	int i;
+
+	for (i = 0x25100/2; i < 0x25200/2; i++)
+	{
+		x = 0x0000;
+		if (  (i & 0x0001) )                    x |= 0x0200;
+		if (  (i & 0x0004) && !(i & 0x0001) )   x |= 0x0080;
+		if (  (i & 0x0040) ||  (i & 0x0001) )   x |= 0x0040;
+		if (  (i & 0x0010) && !(i & 0x0001) )   x |= 0x0020;
+		if ( !(i & 0x0020) ||  (i & 0x0001) )   x |= 0x0010;
+		if (  (i & 0x0002) ||  (i & 0x0001) )   x |= 0x0008;
+		if (  (i & 0x0008) && !(i & 0x0001) )   x |= 0x0004;
+		if ( !(i & 0x0040) && !(i & 0x0001) )   x |= 0x0002;
+		if (  (i & 0x0040) && !(i & 0x0001) )   x |= 0x0001;
+		rom[i] ^= x;
+	}
+
+/*
+    for (i = 0x25300/2; i < 0x25400/2; i++)
+    {
+        x = 0x1300;
+        rom[i] ^= x;
+    }
+*/
+
+	for (i = 0x25400/2; i < 0x25500/2; i++)
+	{
+		x = 0x4200;
+		if (  (i & 0x0001) )                    x |= 0x0400;
+		if (  (i & 0x0020) && !(i & 0x0001) )   x |= 0x0080;
+		if ( !(i & 0x0010) ||  (i & 0x0001) )   x |= 0x0040;
+		if (  (i & 0x0040) && !(i & 0x0001) )   x |= 0x0020;
+		if ( !(i & 0x0004) ||  (i & 0x0001) )   x |= 0x0010;
+		if ( !(i & 0x0040) && !(i & 0x0001) )   x |= 0x0004;
+		if (  (i & 0x0008) && !(i & 0x0001) )   x |= 0x0002;
+		if (  (i & 0x0002) ||  (i & 0x0001) )   x |= 0x0001;
+		rom[i] ^= x;
+	}
+
+	for (i = 0x25500/2; i < 0x25600/2; i++)
+	{
+		x = 0x4200;
+		if (  (i & 0x0001) )                    x |= 0x0400;
+		if (  (i & 0x0010) && !(i & 0x0001) )   x |= 0x0080;
+		if (  (i & 0x0040) && !(i & 0x0001) )   x |= 0x0040;
+		if ( !(i & 0x0002) && !(i & 0x0001) )   x |= 0x0020;
+		if ( !(i & 0x0040) && !(i & 0x0001) )   x |= 0x0010;
+		if (  (i & 0x0008) && !(i & 0x0001) )   x |= 0x0008;
+		if (  (i & 0x0020) && !(i & 0x0001) )   x |= 0x0004;
+		if (  (i & 0x0004) && !(i & 0x0001) )   x |= 0x0002;
+		if (  (i & 0x0001) )                    x |= 0x0001;
+		rom[i] ^= x;
+	}
+
+/*
+    for (i = 0x25700/2; i < 0x25800/2; i++)
+    {
+        x = 0x6800;
+        if ( !(i & 0x0001) )                    x |= 0x8000;
+
+        if ( !(i & 0x0040) || ((i & 0x0001) || !(i & 0x0001)) )                 x |= 0x0100;
+
+        rom[i] ^= x;
+    }
+*/
+
+	for (i = 0x25800/2; i < 0x25900/2; i++)
+	{
+		x = 0x8300;
+		if (  (i & 0x0040) ||  (i & 0x0001) )   x |= 0x2000;
+		if (  (i & 0x0002) ||  (i & 0x0001) )   x |= 0x0080;
+		if ( !(i & 0x0040) && !(i & 0x0001) )   x |= 0x0040;
+		if (  (i & 0x0020) && !(i & 0x0001) )   x |= 0x0020;
+		if ( !(i & 0x0004) ||  (i & 0x0001) )   x |= 0x0010;
+		if ( !(i & 0x0040) && !(i & 0x0001) )   x |= 0x0008;
+		if (  (i & 0x0010) && !(i & 0x0001) )   x |= 0x0004;
+		if (  (i & 0x0008) && !(i & 0x0001) )   x |= 0x0002;
+		if ( !(i & 0x0040) && !(i & 0x0001) )   x |= 0x0001;
+		rom[i] ^= x;
+	}
+
+//  for (i = 0x25900/2; i < 0x25a00/2; i++)
+
+	for (i = 0x25c00/2; i < 0x25d00/2; i++)
+	{
+		// changed from 25400
+//      x = 0x4200;
+		x = 0x4000;
+//      if (  (i & 0x0001) )                    x |= 0x0400;
+		if (  (i & 0x0020) && !(i & 0x0001) )   x |= 0x0080;
+		if ( !(i & 0x0010) ||  (i & 0x0001) )   x |= 0x0040;
+		if (  (i & 0x0040) && !(i & 0x0001) )   x |= 0x0020;
+		if ( !(i & 0x0004) ||  (i & 0x0001) )   x |= 0x0010;
+		if ( !(i & 0x0040) && !(i & 0x0001) )   x |= 0x0004;
+		if (  (i & 0x0008) && !(i & 0x0001) )   x |= 0x0002;
+		if (  (i & 0x0002) ||  (i & 0x0001) )   x |= 0x0001;
+		rom[i] ^= x;
+	}
+
+/*
+    for (i = 0x25d00/2; i < 0x25e00/2; i++)
+    {
+        x = 0x4000;
+        if ( !(i & 0x0040) )                                    x |= 0x0800;
+
+        if ( !(i & 0x0040) && !(i & 0x0001) )   x |= 0x0100;    // almost!!
+
+        if ( ((i & 0x0040)&&((i & 0x0020)||(i & 0x0010))) || !(i & 0x0001) )    x |= 0x0200;    // almost!!
+        if ( (!(i & 0x0040) || !(i & 0x0008)) && !(i & 0x0001) )    x |= 0x0008;
+        if (  (i & 0x0040) || !(i & 0x0020) ||  (i & 0x0001) )  x |= 0x0001;    // almost!!
+        rom[i] ^= x;
+    }
+*/
+
+/*
+    for (i = 0x25e00/2; i < 0x25f00/2; i++)
+    {
+        x = 0xa600;
+
+        if (  (i & 0x0040) &&  (i & 0x0001) )   x |= 0x4000;
+        if (  (i & 0x0040) &&  (i & 0x0001) )   x |= 0x0800;
+        if ( !(i & 0x0001) )                    x |= 0x0100;
+
+        if ( (  (i & 0x0040) &&  (i & 0x0008) && !(i & 0x0001)) ||
+             ( !(i & 0x0040) && ((i & 0x0004) ^ (i & 0x0002)) && !(i & 0x0001) ) )  x |= 0x0002;    // almost!!
+
+        if ( !(i & 0x0040) || !(i & 0x0002) ||  (i & 0x0001) )  x |= 0x0001;
+        rom[i] ^= x;
+    }
+*/
+
+	for (i = 0x26f00/2; i < 0x27000/2; i++)
+	{
+		x = 0xb94c;
+		rom[i] ^= x;
+	}
+
+	for (i = 0x27000/2; i < 0x27100/2; i++)
+	{
+		x = 0x5f10;
+		rom[i] ^= x;
+	}
+
+#endif
+}
+
 GAME( 2000,  showhand,  0,        showhand, showhand, astrocorp_state, showhand, ROT0, "Astro Corp.",        "Show Hand (Italy)",                GAME_SUPPORTS_SAVE )
 GAME( 2000,  showhanc,  showhand, showhanc, showhanc, astrocorp_state, showhanc, ROT0, "Astro Corp.",        "Wang Pai Dui Jue (China)",         GAME_SUPPORTS_SAVE )
 GAME( 2002,  skilldrp,  0,        skilldrp, skilldrp, driver_device,   0,        ROT0, "Astro Corp.",        "Skill Drop Georgia (Ver. G1.0S)",  GAME_SUPPORTS_SAVE )
 GAME( 2003,  speeddrp,  0,        speeddrp, skilldrp, driver_device,   0,        ROT0, "Astro Corp.",        "Speed Drop (Ver. 1.06)",           GAME_SUPPORTS_SAVE )
 
 // Encrypted games (not working):
-GAME( 2004?, astoneag,  0,        skilldrp, skilldrp, driver_device,   0,        ROT0, "Astro Corp.",        "Stone Age (Astro, Ver. ENG.03.A)", GAME_NOT_WORKING )
+GAME( 2004?, astoneag,  0,        skilldrp, skilldrp, astrocorp_state, astoneag, ROT0, "Astro Corp.",        "Stone Age (Astro, Ver. ENG.03.A)", GAME_NOT_WORKING )
 GAME( 2005?, winbingo,  0,        skilldrp, skilldrp, driver_device,   0,        ROT0, "Astro Corp.",        "Win Win Bingo (set 1)",            GAME_NOT_WORKING )
 GAME( 2005?, winbingoa, winbingo, skilldrp, skilldrp, driver_device,   0,        ROT0, "Astro Corp.",        "Win Win Bingo (set 2)",            GAME_NOT_WORKING )
 GAME( 2005?, hacher,    winbingo, skilldrp, skilldrp, driver_device,   0,        ROT0, "bootleg (Gametron)", "Hacher (hack of Win Win Bingo)",   GAME_NOT_WORKING )

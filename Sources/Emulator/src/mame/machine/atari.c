@@ -9,19 +9,15 @@
 ***************************************************************************/
 
 #include "emu.h"
-#include "cpu/m6502/m6502.h"
 #include "includes/atari.h"
 #include "sound/pokey.h"
-#include "sound/dac.h"
-#include "video/gtia.h"
 
 #define VERBOSE_POKEY   1
 #define VERBOSE_SERIAL  1
 #define VERBOSE_TIMERS  1
 
-static void pokey_reset(running_machine &machine);
 
-void atari_interrupt_cb(pokey_device *device, int mask)
+POKEY_INTERRUPT_CB_MEMBER(atari_common_state::interrupt_cb)
 {
 	if (VERBOSE_POKEY)
 	{
@@ -49,32 +45,8 @@ void atari_interrupt_cb(pokey_device *device, int mask)
 			logerror("atari interrupt_cb TIMR1\n");
 	}
 
-	device->machine().device("maincpu")->execute().set_input_line(0, HOLD_LINE);
+	m_maincpu->set_input_line(0, HOLD_LINE);
 }
-
-/**************************************************************
- *
- * Memory banking
- *
- **************************************************************/
-
-void atari_common_state::a600xl_mmu(UINT8 new_mmu)
-{
-	/* check if self-test ROM changed */
-	if ( new_mmu & 0x80 )
-	{
-		logerror("%s MMU SELFTEST RAM\n", machine().system().name);
-		machine().device("maincpu")->memory().space(AS_PROGRAM).nop_readwrite(0x5000, 0x57ff);
-	}
-	else
-	{
-		logerror("%s MMU SELFTEST ROM\n", machine().system().name);
-		machine().device("maincpu")->memory().space(AS_PROGRAM).install_read_bank(0x5000, 0x57ff, "bank2");
-		machine().device("maincpu")->memory().space(AS_PROGRAM).unmap_write(0x5000, 0x57ff);
-		machine().root_device().membank("bank2")->set_base(machine().root_device().memregion("maincpu")->base() + 0x5000);
-	}
-}
-
 
 
 /**************************************************************
@@ -114,13 +86,9 @@ void atari_common_state::a600xl_mmu(UINT8 new_mmu)
 
  **************************************************************/
 
-POKEY_KEYBOARD_HANDLER(atari_a800_keyboard)
+POKEY_KEYBOARD_CB_MEMBER(atari_common_state::a800_keyboard)
 {
 	int ipt;
-	static const char *const tag[] = {
-		"keyboard_0", "keyboard_1", "keyboard_2", "keyboard_3",
-		"keyboard_4", "keyboard_5", "keyboard_6", "keyboard_7"
-	};
 	UINT8 ret = 0x00;
 
 	/* decode special */
@@ -128,15 +96,15 @@ POKEY_KEYBOARD_HANDLER(atari_a800_keyboard)
 	{
 	case pokey_device::POK_KEY_BREAK:
 		/* special case ... */
-		ret |= ((device->machine().root_device().ioport(tag[0])->read_safe(0) & 0x08) ? 0x02 : 0x00);
+		ret |= ((m_keyboard[0]->read_safe(0) & 0x08) ? 0x02 : 0x00);
 		break;
 	case pokey_device::POK_KEY_CTRL:
 		/* CTRL */
-		ret |= ((device->machine().root_device().ioport("fake")->read_safe(0) & 0x02) ? 0x02 : 0x00);
+		ret |= ((m_fake->read_safe(0) & 0x02) ? 0x02 : 0x00);
 		break;
 	case pokey_device::POK_KEY_SHIFT:
 		/* SHIFT */
-		ret |= ((device->machine().root_device().ioport("fake")->read_safe(0) & 0x01) ? 0x02 : 0x00);
+		ret |= ((m_fake->read_safe(0) & 0x01) ? 0x02 : 0x00);
 		break;
 	}
 
@@ -145,7 +113,7 @@ POKEY_KEYBOARD_HANDLER(atari_a800_keyboard)
 		return ret;
 
 	/* decode regular key */
-	ipt = device->machine().root_device().ioport(tag[k543210 >> 3])->read_safe(0);
+	ipt = m_keyboard[k543210 >> 3]->read_safe(0);
 
 	if (ipt & (1 << (k543210 & 0x07)))
 		ret |= 0x01;
@@ -182,10 +150,9 @@ POKEY_KEYBOARD_HANDLER(atari_a800_keyboard)
 
  **************************************************************/
 
-POKEY_KEYBOARD_HANDLER(atari_a5200_keypads)
+POKEY_KEYBOARD_CB_MEMBER(atari_common_state::a5200_keypads)
 {
 	int ipt;
-	static const char *const tag[] = { "keypad_0", "keypad_1", "keypad_2", "keypad_3" };
 	UINT8 ret = 0x00;
 
 	/* decode special */
@@ -193,10 +160,14 @@ POKEY_KEYBOARD_HANDLER(atari_a5200_keypads)
 	{
 	case pokey_device::POK_KEY_BREAK:
 		/* special case ... */
-		ret |= ((device->machine().root_device().ioport(tag[0])->read_safe(0) & 0x01) ? 0x02 : 0x00);
+		ret |= ((m_keypad[0]->read_safe(0) & 0x01) ? 0x02 : 0x00);
 		break;
 	case pokey_device::POK_KEY_CTRL:
+		break;
 	case pokey_device::POK_KEY_SHIFT:
+		// button 2 from joypads
+		ipt = m_djoy_b->read() & (0x10 << ((k543210 >> 3) & 0x03));
+		ret |= !ipt ? 0x02 : 0;
 		break;
 	}
 
@@ -211,70 +182,10 @@ POKEY_KEYBOARD_HANDLER(atari_a5200_keypads)
 	if (k543210 == 0)
 		return ret;
 
-	ipt = device->machine().root_device().ioport(tag[k543210 >> 2])->read_safe(0);
+	ipt = m_keypad[k543210 >> 2]->read_safe(0);
 
-	if (ipt & (1 <<(k543210 & 0x03)))
+	if (ipt & (1 << (k543210 & 0x03)))
 		ret |= 0x01;
 
 	return ret;
-}
-
-
-/*************************************
- *
- *  Generic Atari Code
- *
- *************************************/
-
-
-static void pokey_reset(running_machine &machine)
-{
-	pokey_device *pokey = downcast<pokey_device *>(machine.device("pokey"));
-	pokey->write(15,0);
-}
-
-
-static UINT8 console_read(address_space &space)
-{
-	return space.machine().root_device().ioport("console")->read();
-}
-
-
-static void console_write(address_space &space, UINT8 data)
-{
-	dac_device *dac = space.machine().device<dac_device>("dac");
-	if (data & 0x08)
-		dac->write_unsigned8((UINT8)-120);
-	else
-		dac->write_unsigned8(+120);
-}
-
-
-static void _antic_reset(running_machine &machine)
-{
-	antic_reset();
-}
-
-
-void atari_common_state::atari_machine_start()
-{
-	gtia_interface gtia_intf;
-
-	/* GTIA */
-	memset(&gtia_intf, 0, sizeof(gtia_intf));
-	if (machine().root_device().ioport("console") != NULL)
-		gtia_intf.console_read = console_read;
-	if (machine().device<dac_device>("dac") != NULL)
-		gtia_intf.console_write = console_write;
-	gtia_init(machine(), &gtia_intf);
-
-	/* pokey */
-	machine().add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(pokey_reset), &machine()));
-
-	/* ANTIC */
-	machine().add_notifier(MACHINE_NOTIFY_RESET, machine_notify_delegate(FUNC(_antic_reset), &machine()));
-
-	/* save states */
-	machine().save().save_pointer(NAME((UINT8 *) &antic.r), sizeof(antic.r));
-	machine().save().save_pointer(NAME((UINT8 *) &antic.w), sizeof(antic.w));
 }

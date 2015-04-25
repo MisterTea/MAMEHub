@@ -11,13 +11,22 @@ class exterm_state : public driver_device
 public:
 	exterm_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_master_videoram(*this, "master_videoram"),
-		m_slave_videoram(*this, "slave_videoram"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_audioslave(*this, "audioslave"),
 		m_slave(*this, "slave"),
-		m_dac(*this, "dac") { }
+		m_dac(*this, "dac"),
+		m_master_videoram(*this, "master_videoram"),
+		m_slave_videoram(*this, "slave_videoram") { }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_audiocpu;
+	required_device<cpu_device> m_audioslave;
+	required_device<tms34010_device> m_slave;
+	required_device<dac_device> m_dac;
+
+	required_shared_ptr<UINT16> m_master_videoram;
+	required_shared_ptr<UINT16> m_slave_videoram;
 
 	UINT8 m_aimpos[2];
 	UINT8 m_trackball_old[2];
@@ -26,8 +35,7 @@ public:
 	UINT8 m_sound_control;
 	UINT8 m_dac_value[2];
 	UINT16 m_last;
-	required_shared_ptr<UINT16> m_master_videoram;
-	required_shared_ptr<UINT16> m_slave_videoram;
+
 	DECLARE_WRITE16_MEMBER(exterm_host_data_w);
 	DECLARE_READ16_MEMBER(exterm_host_data_r);
 	DECLARE_READ16_MEMBER(exterm_input_port_0_r);
@@ -44,17 +52,10 @@ public:
 	DECLARE_PALETTE_INIT(exterm);
 	TIMER_CALLBACK_MEMBER(sound_delayed_w);
 	TIMER_DEVICE_CALLBACK_MEMBER(master_sound_nmi_callback);
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_audiocpu;
-	required_device<cpu_device> m_audioslave;
-	required_device<tms34010_device> m_slave;
-	required_device<dac_device> m_dac;
+	TMS340X0_SCANLINE_IND16_CB_MEMBER(scanline_update);
+	TMS340X0_TO_SHIFTREG_CB_MEMBER(to_shiftreg_master);
+	TMS340X0_FROM_SHIFTREG_CB_MEMBER(from_shiftreg_master);
+	TMS340X0_TO_SHIFTREG_CB_MEMBER(to_shiftreg_slave);
+	TMS340X0_FROM_SHIFTREG_CB_MEMBER(from_shiftreg_slave);
+	UINT16 exterm_trackball_port_r(int which, UINT16 mem_mask);
 };
-
-/*----------- defined in video/exterm.c -----------*/
-void exterm_scanline_update(screen_device &screen, bitmap_ind16 &bitmap, int scanline, const tms34010_display_params *params);
-
-void exterm_to_shiftreg_master(address_space &space, UINT32 address, UINT16* shiftreg);
-void exterm_from_shiftreg_master(address_space &space, UINT32 address, UINT16* shiftreg);
-void exterm_to_shiftreg_slave(address_space &space, UINT32 address, UINT16* shiftreg);
-void exterm_from_shiftreg_slave(address_space &space, UINT32 address, UINT16* shiftreg);

@@ -99,6 +99,7 @@ public:
 			m_dspmaster(*this, "dspmaster"),
 			m_dspslave(*this, "dspslave"),
 			m_c68(*this, "c68"),
+			m_gpu(*this, "gpu"),
 			m_gametype(0),
 			m_c169_roz_videoram(*this, "rozvideoram", 0),
 			m_c169_roz_gfxbank(0),
@@ -116,10 +117,20 @@ public:
 	optional_device<cpu_device> m_dspmaster;
 	optional_device<cpu_device> m_dspslave;
 	optional_device<m37450_device> m_c68;
+	optional_device<cpu_device> m_gpu; //to be moved to namco21_state after disentangling
 
 	// game type helpers
 	bool is_system21();
 	int m_gametype;
+
+	emu_timer *m_posirq_timer;
+	int m_mcu_analog_ctrl;
+	int m_mcu_analog_data;
+	int m_mcu_analog_complete;
+	UINT8 *m_eeprom;
+	UINT16  m_68k_master_C148[0x20];
+	UINT16  m_68k_slave_C148[0x20];
+	UINT16  m_68k_gpu_C148[0x20];
 
 	// C123 Tilemap Emulation
 	// TODO: merge with namcos1.c implementation and convert to device
@@ -210,6 +221,10 @@ public:
 	INTERRUPT_GEN_MEMBER(namcos2_68k_gpu_vblank);
 	TIMER_CALLBACK_MEMBER(namcos2_posirq_tick);
 	void adjust_posirq_timer( int scanline );
+	void init_c148();
+	void reset_all_subcpus(int state);
+	UINT16 readwrite_c148( address_space &space, offs_t offset, UINT16 data, int bWrite );
+	int get_posirq_scanline();
 
 	DECLARE_WRITE8_MEMBER( namcos2_68k_eeprom_w );
 	DECLARE_READ8_MEMBER( namcos2_68k_eeprom_r );
@@ -338,6 +353,8 @@ public:
 	tilemap_t *m_tilemap_roz;
 	UINT16 m_gfx_ctrl;
 	UINT16 m_serial_comms_ctrl[0x8];
+	unsigned m_finallap_prot_count;
+	int m_sendval;
 
 	optional_device<namco_c45_road_device> m_c45_road;
 
@@ -350,12 +367,6 @@ public:
 /*----------- defined in video/namcos2.c -----------*/
 
 #define NAMCOS21_NUM_COLORS 0x8000
-
-/**************************************************************/
-/*  Shared video palette function handlers                    */
-/**************************************************************/
-
-#define VIRTUAL_PALETTE_BANKS 30
 
 /**************************************************************/
 /*  ROZ - Rotate & Zoom memory function handlers              */

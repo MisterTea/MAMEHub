@@ -336,7 +336,7 @@ Type 3 (PCMCIA Compact Flash Adaptor + Compact Flash card, sealed together with 
 #include "machine/intelfsh.h"
 #include "machine/mb3773.h"
 #include "machine/rf5c296.h"
-#include "machine/znsec.h"
+#include "machine/cat702.h"
 #include "machine/zndip.h"
 #include "sound/spu.h"
 #include "video/psx.h"
@@ -346,9 +346,10 @@ class taitogn_state : public driver_device
 public:
 	taitogn_state(const machine_config &mconfig, device_type type, const char *tag) :
 		driver_device(mconfig, type, tag),
-		m_znsec0(*this,"maincpu:sio0:znsec0"),
-		m_znsec1(*this,"maincpu:sio0:znsec1"),
-		m_zndip(*this,"maincpu:sio0:zndip"),
+		m_sio0(*this, "maincpu:sio0"),
+		m_cat702_1(*this, "cat702_1"),
+		m_cat702_2(*this, "cat702_2"),
+		m_zndip(*this, "zndip"),
 		m_maincpu(*this, "maincpu"),
 		m_mn10200(*this, "mn10200"),
 		m_flashbank(*this, "flashbank"),
@@ -358,10 +359,19 @@ public:
 		m_sndflash0(*this, "sndflash0"),
 		m_sndflash1(*this, "sndflash1"),
 		m_sndflash2(*this, "sndflash2"),
-		m_has_zoom(true)
+		m_has_zoom(true),
+		m_cat702_1_dataout(1),
+		m_cat702_2_dataout(1),
+		m_zndip_dataout(1)
 	{
 	}
 
+	DECLARE_WRITE_LINE_MEMBER(sio0_sck){ m_cat702_1->write_clock(state);  m_cat702_2->write_clock(state); m_zndip->write_clock(state); }
+	DECLARE_WRITE_LINE_MEMBER(sio0_txd){ m_cat702_1->write_datain(state);  m_cat702_2->write_datain(state); }
+	DECLARE_WRITE_LINE_MEMBER(cat702_1_dataout){ m_cat702_1_dataout = state; update_sio0_rxd(); }
+	DECLARE_WRITE_LINE_MEMBER(cat702_2_dataout){ m_cat702_2_dataout = state; update_sio0_rxd(); }
+	DECLARE_WRITE_LINE_MEMBER(zndip_dataout){ m_zndip_dataout = state; update_sio0_rxd(); }
+	void update_sio0_rxd() { m_sio0->write_rxd(m_cat702_1_dataout && m_cat702_2_dataout && m_zndip_dataout); }
 	DECLARE_READ8_MEMBER(control_r);
 	DECLARE_WRITE8_MEMBER(control_w);
 	DECLARE_WRITE16_MEMBER(control2_w);
@@ -384,8 +394,9 @@ protected:
 	virtual void machine_reset();
 
 private:
-	required_device<znsec_device> m_znsec0;
-	required_device<znsec_device> m_znsec1;
+	required_device<psxsio0_device> m_sio0;
+	required_device<cat702_device> m_cat702_1;
+	required_device<cat702_device> m_cat702_2;
 	required_device<zndip_device> m_zndip;
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_mn10200;
@@ -406,6 +417,10 @@ private:
 	UINT8 m_n_znsecsel;
 
 	UINT8 m_coin_info;
+
+	int m_cat702_1_dataout;
+	int m_cat702_2_dataout;
+	int m_zndip_dataout;
 };
 
 
@@ -511,9 +526,9 @@ READ8_MEMBER(taitogn_state::znsecsel_r)
 
 WRITE8_MEMBER(taitogn_state::znsecsel_w)
 {
-	m_znsec0->select( ( data >> 2 ) & 1 );
-	m_znsec1->select( ( data >> 3 ) & 1 );
-	m_zndip->select( ( data & 0x8c ) != 0x8c );
+	m_cat702_1->write_select((data >> 2) & 1);
+	m_cat702_2->write_select((data >> 3) & 1);
+	m_zndip->write_select((data & 0x8c) != 0x8c);
 
 	m_n_znsecsel = data;
 }
@@ -579,8 +594,8 @@ READ32_MEMBER(taitogn_state::zsg2_ext_r)
 
 void taitogn_state::driver_start()
 {
-	m_znsec0->init(tt10);
-	m_znsec1->init(tt16);
+	m_cat702_1->init(tt10);
+	m_cat702_2->init(tt16);
 }
 
 void taitogn_state::machine_reset()
@@ -657,9 +672,19 @@ static MACHINE_CONFIG_START( coh3002t, taitogn_state )
 	MCFG_RAM_MODIFY("maincpu:ram")
 	MCFG_RAM_DEFAULT_SIZE("4M")
 
-	MCFG_DEVICE_ADD("maincpu:sio0:znsec0", ZNSEC, 0)
-	MCFG_DEVICE_ADD("maincpu:sio0:znsec1", ZNSEC, 0)
-	MCFG_DEVICE_ADD("maincpu:sio0:zndip", ZNDIP, 0)
+	MCFG_DEVICE_MODIFY("maincpu:sio0")
+	MCFG_PSX_SIO_SCK_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, taitogn_state, sio0_sck))
+	MCFG_PSX_SIO_TXD_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, taitogn_state, sio0_txd))
+
+	MCFG_DEVICE_ADD("cat702_1", CAT702, 0)
+	MCFG_CAT702_DATAOUT_HANDLER(WRITELINE(taitogn_state, cat702_1_dataout))
+
+	MCFG_DEVICE_ADD("cat702_2", CAT702, 0)
+	MCFG_CAT702_DATAOUT_HANDLER(WRITELINE(taitogn_state, cat702_2_dataout))
+
+	MCFG_DEVICE_ADD("zndip", ZNDIP, 0)
+	MCFG_ZNDIP_DATAOUT_HANDLER(WRITELINE(taitogn_state, zndip_dataout))
+	MCFG_ZNDIP_DSR_HANDLER(DEVWRITELINE("maincpu:sio0", psxsio0_device, write_dsr))
 	MCFG_ZNDIP_DATA_HANDLER(IOPORT(":DSW"))
 
 	MCFG_AT28C16_ADD( "at28c16", 0 )
@@ -836,7 +861,7 @@ INPUT_PORTS_END
 	ROM_SYSTEM_BIOS( 0, "v1",   "G-NET Bios v1" ) \
 		ROM_LOAD16_WORD_BIOS(0, "flash.u30", 0x000000, 0x200000, CRC(c48c8236) SHA1(c6dad60266ce2ff635696bc0d91903c543273559) ) \
 	ROM_SYSTEM_BIOS( 1, "v2",   "G-NET Bios v2" ) \
-		ROM_LOAD16_WORD_BIOS(1, "flashv2.u30", 0x000000, 0x200000, CRC(CAE462D3) SHA1(f1b10846a8423d9fe021191c5876190857c3d2a4) ) \
+		ROM_LOAD16_WORD_BIOS(1, "flashv2.u30", 0x000000, 0x200000, CRC(cae462d3) SHA1(f1b10846a8423d9fe021191c5876190857c3d2a4) ) \
 	ROM_REGION( 0x80000, "mn10200", 0) \
 	ROM_FILL( 0, 0x80000, 0xff) \
 	ROM_REGION32_LE( 0x600000, "zsg2", 0) \

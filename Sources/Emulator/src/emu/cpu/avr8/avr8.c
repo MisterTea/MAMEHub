@@ -635,12 +635,13 @@ avr8_device::avr8_device(const machine_config &mconfig, const char *name, const 
 		m_program_config("program", ENDIANNESS_LITTLE, 8, 22),
 		m_data_config("data", ENDIANNESS_LITTLE, 8, 16, 0, internal_map),
 		m_io_config("io", ENDIANNESS_LITTLE, 8, 4),
+		m_eeprom_tag(NULL),
 		m_eeprom(NULL),
-	m_cpu_type(cpu_type),
-	m_lfuses(0x62),
-	m_hfuses(0x99),
-	m_efuses(0xFF),
-	m_lock_bits(0xFF),
+		m_cpu_type(cpu_type),
+		m_lfuses(0x62),
+		m_hfuses(0x99),
+		m_efuses(0xFF),
+		m_lock_bits(0xFF),
 		m_pc(0),
 		m_spi_active(false),
 		m_spi_prescale(0),
@@ -659,17 +660,6 @@ avr8_device::avr8_device(const machine_config &mconfig, const char *name, const 
 	}
 }
 
-
-//-------------------------------------------------
-//  static_set_config - set the configuration
-//  structure
-//-------------------------------------------------
-
-void avr8_device::static_set_config(device_t &device, const avr8_config &config)
-{
-	avr8_device &avr8 = downcast<avr8_device &>(device);
-	static_cast<avr8_config &>(avr8) = config;
-}
 
 //-------------------------------------------------
 //  static_set_low_fuses
@@ -833,7 +823,7 @@ void avr8_device::device_start()
 	// set our instruction counter
 	m_icountptr = &m_icount;
 
-	m_eeprom = machine().root_device().memregion(eeprom_region)->base();
+	m_eeprom = machine().root_device().memregion(m_eeprom_tag)->base();
 }
 
 //-------------------------------------------------
@@ -1038,10 +1028,11 @@ static const CInterruptCondition s_int_conditions[AVR8_INTIDX_COUNT] =
 
 void avr8_device::update_interrupt(int source)
 {
-	CInterruptCondition condition = s_int_conditions[source];
+	const CInterruptCondition &condition = s_int_conditions[source];
 
-	int intstate = (m_r[condition.m_regindex] & condition.m_regmask) ? 1 : 0;
-	intstate = (m_r[condition.m_intreg] & condition.m_intmask) ? intstate : 0;
+	int intstate = 0;
+	if (m_r[condition.m_intreg] & condition.m_intmask)
+		intstate = (m_r[condition.m_regindex] & condition.m_regmask) ? 1 : 0;
 
 	set_irq_line(condition.m_intindex, intstate);
 
@@ -1069,10 +1060,11 @@ static const CInterruptCondition s_mega644_int_conditions[AVR8_INTIDX_COUNT] =
 
 void atmega644_device::update_interrupt(int source)
 {
-	CInterruptCondition condition = s_mega644_int_conditions[source];
+	const CInterruptCondition &condition = s_mega644_int_conditions[source];
 
-	int intstate = (m_r[condition.m_regindex] & condition.m_regmask) ? 1 : 0;
-	intstate = (m_r[condition.m_intreg] & condition.m_intmask) ? intstate : 0;
+	int intstate = 0;
+	if (m_r[condition.m_intreg] & condition.m_intmask)
+		intstate = (m_r[condition.m_regindex] & condition.m_regmask) ? 1 : 0;
 
 	set_irq_line(condition.m_intindex << 1, intstate);
 
@@ -1085,10 +1077,11 @@ void atmega644_device::update_interrupt(int source)
 //TODO: review this!
 void atmega1280_device::update_interrupt(int source)
 {
-	CInterruptCondition condition = s_mega644_int_conditions[source];
+	const CInterruptCondition &condition = s_mega644_int_conditions[source];
 
-	int intstate = (m_r[condition.m_regindex] & condition.m_regmask) ? 1 : 0;
-	intstate = (m_r[condition.m_intreg] & condition.m_intmask) ? intstate : 0;
+	int intstate = 0;
+	if (m_r[condition.m_intreg] & condition.m_intmask)
+		intstate = (m_r[condition.m_regindex] & condition.m_regmask) ? 1 : 0;
 
 	set_irq_line(condition.m_intindex << 1, intstate);
 
@@ -1101,10 +1094,11 @@ void atmega1280_device::update_interrupt(int source)
 //TODO: review this!
 void atmega2560_device::update_interrupt(int source)
 {
-	CInterruptCondition condition = s_mega644_int_conditions[source];
+	const CInterruptCondition &condition = s_mega644_int_conditions[source];
 
-	int intstate = (m_r[condition.m_regindex] & condition.m_regmask) ? 1 : 0;
-	intstate = (m_r[condition.m_intreg] & condition.m_intmask) ? intstate : 0;
+	int intstate = 0;
+	if (m_r[condition.m_intreg] & condition.m_intmask)
+		intstate = (m_r[condition.m_regindex] & condition.m_regmask) ? 1 : 0;
 
 	set_irq_line(condition.m_intindex << 1, intstate);
 

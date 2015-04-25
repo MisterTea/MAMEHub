@@ -53,7 +53,7 @@ public:
 	DECLARE_WRITE32_MEMBER(analog_w);
 	DECLARE_WRITE32_MEMBER(invasn_gun_w);
 	DECLARE_READ32_MEMBER(invasn_gun_r);
-	DECLARE_READ8_MEMBER(PIC16C5X_T0_clk_r);
+	DECLARE_READ_LINE_MEMBER(PIC16C5X_T0_clk_r);
 	DECLARE_READ32_MEMBER(zeus_r);
 	DECLARE_WRITE32_MEMBER(zeus_w);
 	DECLARE_CUSTOM_INPUT_MEMBER(custom_49way_r);
@@ -83,6 +83,7 @@ private:
 
 	void log_fifo_command(const UINT32 *data, int numwords, const char *suffix);
 	void log_waveram(UINT32 length_and_base);
+	void update_gun_irq();
 };
 
 
@@ -97,6 +98,7 @@ public:
 	DECLARE_READ32_MEMBER( zeus2_r );
 	DECLARE_WRITE32_MEMBER( zeus2_w );
 private:
+	TIMER_CALLBACK_MEMBER(int_timer_callback);
 	void exit_handler2();
 	void zeus2_register32_w(offs_t offset, UINT32 data, int logit);
 	void zeus2_register_update(offs_t offset, UINT32 oldval, int logit);

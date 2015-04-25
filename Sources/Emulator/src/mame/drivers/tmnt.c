@@ -59,7 +59,6 @@ Updates:
 #include "sound/2151intf.h"
 #include "sound/okim6295.h"
 #include "sound/samples.h"
-#include "sound/k053260.h"
 #include "sound/k054539.h"
 #include "machine/nvram.h"
 #include "includes/tmnt.h"
@@ -163,16 +162,9 @@ INTERRUPT_GEN_MEMBER(tmnt_state::lgtnfght_interrupt)
 		device.execute().set_input_line(M68K_IRQ_5, HOLD_LINE);
 }
 
-READ8_MEMBER(tmnt_state::punkshot_sound_r)
-{
-	/* If the sound CPU is running, read the status, otherwise
-	   just make it pass the test */
-	return m_k053260->k053260_r(space, 2 + offset);
-}
-
 WRITE8_MEMBER(tmnt_state::glfgreat_sound_w)
 {
-	m_k053260->k053260_w(space, offset, data);
+	m_k053260->main_write(space, offset, data);
 
 	if (offset)
 		m_audiocpu->set_input_line_and_vector(0, HOLD_LINE, 0xff);
@@ -221,15 +213,12 @@ READ8_MEMBER(tmnt_state::tmnt_upd_busy_r)
 	return m_upd7759->busy_r() ? 1 : 0;
 }
 
-
-static SAMPLES_START( tmnt_decode_sample )
+SAMPLES_START_CB_MEMBER(tmnt_state::tmnt_decode_sample)
 {
-	running_machine &machine = device.machine();
-	tmnt_state *state = machine.driver_data<tmnt_state>();
 	int i;
-	UINT8 *source = state->memregion("title")->base();
+	UINT8 *source = memregion("title")->base();
 
-	state->save_item(NAME(state->m_sampledata));
+	save_item(NAME(m_sampledata));
 
 	/*  Sound sample for TMNT.D05 is stored in the following mode (ym3012 format):
 	 *
@@ -249,7 +238,7 @@ static SAMPLES_START( tmnt_decode_sample )
 
 		val <<= (expo - 3);
 
-		state->m_sampledata[i] = val;
+		m_sampledata[i] = val;
 	}
 }
 
@@ -489,8 +478,8 @@ static ADDRESS_MAP_START( cuebrick_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0b0400, 0x0b0401) AM_WRITE8(cuebrick_nvbank_w, 0xff00)
 	AM_RANGE(0x0c0000, 0x0c0003) AM_DEVREADWRITE8("ymsnd", ym2151_device, read, write, 0xff00)
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
-	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
-	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
+	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE8("k051960", k051960_device, k051937_r, k051937_w, 0xffff)
+	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE8("k051960", k051960_device, k051960_r, k051960_w, 0xffff)
 ADDRESS_MAP_END
 
 
@@ -511,8 +500,8 @@ static ADDRESS_MAP_START( mia_main_map, AS_PROGRAM, 16, tmnt_state )
 #endif
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
 //  AM_RANGE(0x10e800, 0x10e801) AM_WRITENOP ???
-	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
-	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
+	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE8("k051960", k051960_device, k051937_r, k051937_w, 0xffff)
+	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE8("k051960", k051960_device, k051960_r, k051960_w, 0xffff)
 ADDRESS_MAP_END
 
 
@@ -532,8 +521,8 @@ static ADDRESS_MAP_START( tmnt_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0c0000, 0x0c0001) AM_WRITE(tmnt_priority_w)
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
 //  AM_RANGE(0x10e800, 0x10e801) AM_WRITENOP ???
-	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
-	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
+	AM_RANGE(0x140000, 0x140007) AM_DEVREADWRITE8("k051960", k051960_device, k051937_r, k051937_w, 0xffff)
+	AM_RANGE(0x140400, 0x1407ff) AM_DEVREADWRITE8("k051960", k051960_device, k051960_r, k051960_w, 0xffff)
 ADDRESS_MAP_END
 
 
@@ -546,13 +535,12 @@ static ADDRESS_MAP_START( punkshot_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0a0004, 0x0a0005) AM_READ_PORT("P3/P4")
 	AM_RANGE(0x0a0006, 0x0a0007) AM_READ_PORT("P1/P2")
 	AM_RANGE(0x0a0020, 0x0a0021) AM_WRITE(punkshot_0a0020_w)
-	AM_RANGE(0x0a0040, 0x0a0043) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x0a0040, 0x0a0041) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
+	AM_RANGE(0x0a0040, 0x0a0043) AM_DEVREADWRITE8("k053260", k053260_device, main_read, main_write, 0x00ff)
 	AM_RANGE(0x0a0060, 0x0a007f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 	AM_RANGE(0x0a0080, 0x0a0081) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x100000, 0x107fff) AM_READWRITE(k052109_word_noA12_r, punkshot_k052109_word_noA12_w)
-	AM_RANGE(0x110000, 0x110007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
-	AM_RANGE(0x110400, 0x1107ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
+	AM_RANGE(0x110000, 0x110007) AM_DEVREADWRITE8("k051960", k051960_device, k051937_r, k051937_w, 0xffff)
+	AM_RANGE(0x110400, 0x1107ff) AM_DEVREADWRITE8("k051960", k051960_device, k051960_r, k051960_w, 0xffff)
 	AM_RANGE(0xfffffc, 0xffffff) AM_READ(punkshot_kludge_r)
 ADDRESS_MAP_END
 
@@ -568,8 +556,7 @@ static ADDRESS_MAP_START( lgtnfght_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x0a0008, 0x0a0009) AM_READ_PORT("DSW2")
 	AM_RANGE(0x0a0010, 0x0a0011) AM_READ_PORT("DSW3")
 	AM_RANGE(0x0a0018, 0x0a0019) AM_WRITE(lgtnfght_0a0018_w)
-	AM_RANGE(0x0a0020, 0x0a0023) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x0a0020, 0x0a0021) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
+	AM_RANGE(0x0a0020, 0x0a0023) AM_DEVREADWRITE8("k053260", k053260_device, main_read, main_write, 0x00ff)
 	AM_RANGE(0x0a0028, 0x0a0029) AM_WRITE(watchdog_reset16_w)
 	AM_RANGE(0x0b0000, 0x0b3fff) AM_READWRITE(k053245_scattered_word_r, k053245_scattered_word_w) AM_SHARE("spriteram")
 	AM_RANGE(0x0c0000, 0x0c001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
@@ -598,9 +585,8 @@ static ADDRESS_MAP_START( blswhstl_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x700006, 0x700007) AM_READ_PORT("EEPROM")
 	AM_RANGE(0x700200, 0x700201) AM_WRITE(blswhstl_eeprom_w)
 	AM_RANGE(0x700300, 0x700301) AM_WRITE(blswhstl_700300_w)
-	AM_RANGE(0x700400, 0x700401) AM_WRITE(watchdog_reset16_w)
-	AM_RANGE(0x780600, 0x780603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x780600, 0x780601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
+	AM_RANGE(0x700400, 0x700401) AM_READWRITE(watchdog_reset16_r, watchdog_reset16_w)
+	AM_RANGE(0x780600, 0x780603) AM_DEVREADWRITE8("k053260", k053260_device, main_read, main_write, 0x00ff)
 	AM_RANGE(0x780604, 0x780605) AM_WRITE(ssriders_soundkludge_w)
 	AM_RANGE(0x780700, 0x78071f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 ADDRESS_MAP_END
@@ -645,7 +631,7 @@ static ADDRESS_MAP_START( glfgreat_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x121000, 0x121001) AM_READ(glfgreat_ball_r)   /* returns the color of the center pixel of the roz layer */
 	AM_RANGE(0x122000, 0x122001) AM_WRITE(glfgreat_122000_w)
 	AM_RANGE(0x124000, 0x124001) AM_WRITE(watchdog_reset16_w)
-	AM_RANGE(0x125000, 0x125003) AM_READWRITE8(punkshot_sound_r, glfgreat_sound_w, 0xff00)  /* K053260 */
+	AM_RANGE(0x125000, 0x125003) AM_DEVREAD8("k053260", k053260_device, main_read, 0xff00) AM_WRITE8(glfgreat_sound_w, 0xff00)
 	AM_RANGE(0x200000, 0x207fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
 	AM_RANGE(0x300000, 0x3fffff) AM_READ(glfgreat_rom_r)
 ADDRESS_MAP_END
@@ -929,8 +915,7 @@ static ADDRESS_MAP_START( tmnt2_main_map, AS_PROGRAM, 16, tmnt_state )
 //  AM_RANGE(0x1c0800, 0x1c0801) AM_READ(ssriders_protection_r) /* protection device */
 	AM_RANGE(0x1c0800, 0x1c081f) AM_WRITE(tmnt2_1c0800_w) AM_SHARE("tmnt2_1c0800")  /* protection device */
 	AM_RANGE(0x5a0000, 0x5a001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
-	AM_RANGE(0x5c0600, 0x5c0603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x5c0600, 0x5c0601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
+	AM_RANGE(0x5c0600, 0x5c0603) AM_DEVREADWRITE8("k053260", k053260_device, main_read, main_write, 0x00ff)
 	AM_RANGE(0x5c0604, 0x5c0605) AM_WRITE(ssriders_soundkludge_w)
 	AM_RANGE(0x5c0700, 0x5c071f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE("k052109", k052109_device, word_r, word_w)
@@ -955,8 +940,7 @@ static ADDRESS_MAP_START( ssriders_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x1c0800, 0x1c0801) AM_READ(ssriders_protection_r)
 	AM_RANGE(0x1c0800, 0x1c0803) AM_WRITE(ssriders_protection_w)
 	AM_RANGE(0x5a0000, 0x5a001f) AM_READWRITE(k053244_word_noA1_r, k053244_word_noA1_w)
-	AM_RANGE(0x5c0600, 0x5c0603) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x5c0600, 0x5c0601) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
+	AM_RANGE(0x5c0600, 0x5c0603) AM_DEVREADWRITE8("k053260", k053260_device, main_read, main_write, 0x00ff)
 	AM_RANGE(0x5c0604, 0x5c0605) AM_WRITE(ssriders_soundkludge_w)
 	AM_RANGE(0x5c0700, 0x5c071f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
 	AM_RANGE(0x600000, 0x603fff) AM_DEVREADWRITE("k052109", k052109_device, word_r, word_w)
@@ -994,16 +978,15 @@ static ADDRESS_MAP_START( thndrx2_main_map, AS_PROGRAM, 16, tmnt_state )
 	AM_RANGE(0x100000, 0x103fff) AM_RAM /* main RAM */
 	AM_RANGE(0x200000, 0x200fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x300000, 0x30001f) AM_DEVWRITE("k053251", k053251_device, lsb_w)
-	AM_RANGE(0x400000, 0x400003) AM_READ8(punkshot_sound_r, 0x00ff) /* K053260 */
-	AM_RANGE(0x400000, 0x400001) AM_DEVWRITE8("k053260", k053260_device, k053260_w, 0x00ff)
+	AM_RANGE(0x400000, 0x400003) AM_DEVREADWRITE8("k053260", k053260_device, main_read, main_write, 0x00ff)
 	AM_RANGE(0x500000, 0x50003f) AM_DEVREADWRITE("k054000", k054000_device, lsb_r, lsb_w)
 	AM_RANGE(0x500100, 0x500101) AM_WRITE(thndrx2_eeprom_w)
 	AM_RANGE(0x500200, 0x500201) AM_READ_PORT("P1/COINS")
 	AM_RANGE(0x500202, 0x500203) AM_READ(thndrx2_eeprom_r)
 	AM_RANGE(0x500300, 0x500301) AM_WRITENOP    /* watchdog reset? irq enable? */
 	AM_RANGE(0x600000, 0x607fff) AM_READWRITE(k052109_word_noA12_r, k052109_word_noA12_w)
-	AM_RANGE(0x700000, 0x700007) AM_DEVREADWRITE("k051960", k051960_device, k051937_word_r, k051937_word_w)
-	AM_RANGE(0x700400, 0x7007ff) AM_DEVREADWRITE("k051960", k051960_device, k051960_word_r, k051960_word_w)
+	AM_RANGE(0x700000, 0x700007) AM_DEVREADWRITE8("k051960", k051960_device, k051937_r, k051937_w, 0xffff)
+	AM_RANGE(0x700400, 0x7007ff) AM_DEVREADWRITE8("k051960", k051960_device, k051960_r, k051960_w, 0xffff)
 ADDRESS_MAP_END
 
 
@@ -1035,7 +1018,7 @@ static ADDRESS_MAP_START( punkshot_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(sound_arm_nmi_w)
-	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
+	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -1043,14 +1026,14 @@ static ADDRESS_MAP_START( lgtnfght_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0x87ff) AM_RAM
 	AM_RANGE(0xa000, 0xa001) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xc000, 0xc02f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
+	AM_RANGE(0xc000, 0xc02f) AM_DEVREADWRITE("k053260", k053260_device, read, write)
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START( glfgreat_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
-	AM_RANGE(0xf800, 0xf82f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
+	AM_RANGE(0xf800, 0xf82f) AM_DEVREADWRITE("k053260", k053260_device, read, write)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(sound_arm_nmi_w)
 ADDRESS_MAP_END
 
@@ -1059,7 +1042,7 @@ static ADDRESS_MAP_START( ssriders_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0x0000, 0xefff) AM_ROM
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
-	AM_RANGE(0xfa00, 0xfa2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
+	AM_RANGE(0xfa00, 0xfa2f) AM_DEVREADWRITE("k053260", k053260_device, read, write)
 	AM_RANGE(0xfc00, 0xfc00) AM_WRITE(sound_arm_nmi_w)
 ADDRESS_MAP_END
 
@@ -1069,7 +1052,7 @@ static ADDRESS_MAP_START( thndrx2_audio_map, AS_PROGRAM, 8, tmnt_state )
 	AM_RANGE(0xf000, 0xf7ff) AM_RAM
 	AM_RANGE(0xf800, 0xf801) AM_MIRROR(0x0010) AM_DEVREADWRITE("ymsnd", ym2151_device, read, write)
 	AM_RANGE(0xfa00, 0xfa00) AM_WRITE(sound_arm_nmi_w)
-	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, k053260_r, k053260_w)
+	AM_RANGE(0xfc00, 0xfc2f) AM_DEVREADWRITE("k053260", k053260_device, read, write)
 ADDRESS_MAP_END
 
 
@@ -1950,13 +1933,6 @@ WRITE8_MEMBER(tmnt_state::volume_callback)
 	m_k007232->set_volume(1, 0, (data & 0x0f) * 0x11);
 }
 
-static const samples_interface tmnt_samples_interface =
-{
-	1,  /* 1 channel for the title music */
-	NULL,
-	tmnt_decode_sample
-};
-
 MACHINE_START_MEMBER(tmnt_state,common)
 {
 	save_item(NAME(m_toggle));
@@ -1966,6 +1942,7 @@ MACHINE_START_MEMBER(tmnt_state,common)
 	save_item(NAME(m_layer_colorbase));
 	save_item(NAME(m_layerpri));
 	save_item(NAME(m_sorted_layer));
+	save_item(NAME(m_irq5_mask));
 }
 
 MACHINE_RESET_MEMBER(tmnt_state,common)
@@ -1973,6 +1950,7 @@ MACHINE_RESET_MEMBER(tmnt_state,common)
 	m_toggle = 0;
 	m_last = 0;
 	m_tmnt_soundlatch = 0;
+	m_irq5_mask = 0;
 }
 
 
@@ -2141,7 +2119,9 @@ static MACHINE_CONFIG_START( tmnt, tmnt_state )
 	MCFG_SOUND_ADD("upd", UPD7759, XTAL_640kHz)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.60)
 
-	MCFG_SAMPLES_ADD("samples", tmnt_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1) /* 1 channel for the title music */
+	MCFG_SAMPLES_START_CB(tmnt_state, tmnt_decode_sample)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -2886,6 +2866,40 @@ ROM_START( tmhta )
 	ROM_LOAD16_BYTE( "963-s24.k17",   0x00001, 0x20000, CRC(bcb8ce8b) SHA1(d9a74627598e29110002ea5d81a4f165d7566329) )
 	ROM_LOAD16_BYTE( "963-s21.j15",   0x40000, 0x10000, CRC(0b88bfa6) SHA1(22d552c0aaab336cd7c36d57fde22a64257a0633) )
 	ROM_LOAD16_BYTE( "963-s22.k15",   0x40001, 0x10000, CRC(44ce6d4b) SHA1(17e3baa33ab182f21b2686786ba570514830ed83) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )
+	ROM_LOAD( "963e20.g13",      0x00000, 0x08000, CRC(1692a6d6) SHA1(68c3419012b2863e91a7d7e479fce5ceabb10b88) )
+
+	ROM_REGION( 0x100000, "k052109", 0 )    /* tiles */
+	ROM_LOAD32_WORD( "963a28.h27",      0x000000, 0x80000, CRC(db4769a8) SHA1(810811914f9c1fbf2320d5a9030cbf124f6d78cf) )
+	ROM_LOAD32_WORD( "963a29.k27",      0x000002, 0x80000, CRC(8069cd2e) SHA1(54095d3546119ccd1e8814d692aceb1327c9369f) )
+
+	ROM_REGION( 0x200000, "k051960", 0 )    /* sprites */
+	ROM_LOAD32_WORD( "963a17.h4",      0x000000, 0x80000, CRC(b5239a44) SHA1(84e94807e7c51aa652b4e4b827b36be59a53d0d6) )
+	ROM_LOAD32_WORD( "963a15.k4",      0x000002, 0x80000, CRC(1f324eed) SHA1(971a675578518fffa341a943d0cc4fdea005fde0) )
+	ROM_LOAD32_WORD( "963a18.h6",      0x100000, 0x80000, CRC(dd51adef) SHA1(5010c0911b0b9e4f23a785e8a751a0bde5be5be0) )
+	ROM_LOAD32_WORD( "963a16.k6",      0x100002, 0x80000, CRC(d4bd9984) SHA1(d780ae7f72e16767c3a492544f02f0f1a332ab22) )
+
+	ROM_REGION( 0x0200, "proms", 0 )
+	ROM_LOAD( "963a30.g7",      0x0000, 0x0100, CRC(abd82680) SHA1(945a71e6ec65202f13209b45d45b616372d6c0f5) )  /* sprite address decoder */
+	ROM_LOAD( "963a31.g19",      0x0100, 0x0100, CRC(f8004a1c) SHA1(ed6694b8eebfe0238b50ebd05007d519f6e57b1b) ) /* priority encoder (not used) */
+
+	ROM_REGION( 0x20000, "k007232", 0 ) /* 128k for the samples */
+	ROM_LOAD( "963a26.c13",      0x00000, 0x20000, CRC(e2ac3063) SHA1(5bb294c46fb5eaba9935a18c0aa5d3931168f474) ) /* samples for 007232 */
+
+	ROM_REGION( 0x20000, "upd", 0 ) /* 128k for the samples */
+	ROM_LOAD( "963a27.d18",      0x00000, 0x20000, CRC(2dfd674b) SHA1(bbec5896c70056964fbc972a84bd5b0dfc6af257) ) /* samples for UPD7759C */
+
+	ROM_REGION( 0x80000, "title", 0 )   /* 512k for the title music sample */
+	ROM_LOAD( "963a25.d5",      0x00000, 0x80000, CRC(fca078c7) SHA1(3e1124d72c9db4cb11d8de6c44b7aeca967f44e1) )
+ROM_END
+
+ROM_START( tmhtb ) // the code is closest to tmntua near the start, and the data is closest to all the UK sets, especially tmhta, so I'm guessing it's a UK revision of the tmntua codebase
+	ROM_REGION( 0x60000, "maincpu", 0 ) /* 2*128k and 2*64k for 68000 code */
+	ROM_LOAD16_BYTE( "unk3.i17",   0x00000, 0x20000, CRC(537eb047) SHA1(97e6dbc486c7d057355db7fcbdc0a2c2cad2c653) ) /* unknown 963 xxx Konami code for this set */
+	ROM_LOAD16_BYTE( "unk4.k17",   0x00001, 0x20000, CRC(5afae564) SHA1(8d5fbf9530ad8d095c12b7e0f8c499c1436c4d47) )
+	ROM_LOAD16_BYTE( "unk2.j15",   0x40000, 0x10000, CRC(ee34de05) SHA1(507d7fb178dbbe87dd373a81ad3f350ee2f7d923) )
+	ROM_LOAD16_BYTE( "unk5.k15",   0x40001, 0x10000, CRC(5ef58d4e) SHA1(5df71c61a90c3e9d28ec3b8055d7ee97bc283e01) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
 	ROM_LOAD( "963e20.g13",      0x00000, 0x08000, CRC(1692a6d6) SHA1(68c3419012b2863e91a7d7e479fce5ceabb10b88) )
@@ -4086,6 +4100,7 @@ GAME( 1989, tmntu,       tmnt,     tmnt,     tmnt,      tmnt_state,    tmnt,    
 GAME( 1989, tmntua,      tmnt,     tmnt,     tmnt,      tmnt_state,    tmnt,     ROT0,   "Konami", "Teenage Mutant Ninja Turtles (US 4 Players, set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1989, tmht,        tmnt,     tmnt,     tmnt,      tmnt_state,    tmnt,     ROT0,   "Konami", "Teenage Mutant Hero Turtles (UK 4 Players, set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1989, tmhta,       tmnt,     tmnt,     tmnt,      tmnt_state,    tmnt,     ROT0,   "Konami", "Teenage Mutant Hero Turtles (UK 4 Players, set 2)", GAME_SUPPORTS_SAVE )
+GAME( 1989, tmhtb,       tmnt,     tmnt,     tmnt,      tmnt_state,    tmnt,     ROT0,   "Konami", "Teenage Mutant Hero Turtles (UK 4 Players, set 3)", GAME_SUPPORTS_SAVE )
 GAME( 1990, tmntj,       tmnt,     tmnt,     tmnt,      tmnt_state,    tmnt,     ROT0,   "Konami", "Teenage Mutant Ninja Turtles (Japan 4 Players)", GAME_SUPPORTS_SAVE )
 GAME( 1989, tmht2p,      tmnt,     tmnt,     tmnt2p,    tmnt_state,    tmnt,     ROT0,   "Konami", "Teenage Mutant Hero Turtles (UK 2 Players, set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1989, tmht2pa,     tmnt,     tmnt,     tmnt2p,    tmnt_state,    tmnt,     ROT0,   "Konami", "Teenage Mutant Hero Turtles (UK 2 Players, set 2)", GAME_SUPPORTS_SAVE )

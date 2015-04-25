@@ -71,6 +71,12 @@ void kaneko16_sprite_device::device_start()
 	m_first_sprite = auto_alloc_array(machine(), struct tempsprite, 0x400);
 	m_sprites_regs = auto_alloc_array_clear(machine(), UINT16, 0x20/2);
 	m_screen->register_screen_bitmap(m_sprites_bitmap);
+
+	save_item(NAME(m_sprite_flipx));
+	save_item(NAME(m_sprite_flipy));
+	save_pointer(NAME(m_sprites_regs), 0x20/2);
+	save_item(NAME(m_keep_sprites));
+	save_item(NAME(m_sprites_bitmap));
 }
 
 
@@ -185,7 +191,7 @@ void kaneko_vu002_sprite_device::get_sprite_attributes(struct tempsprite *s, UIN
 }
 
 
-int kaneko16_sprite_device::kaneko16_parse_sprite_type012(running_machine &machine, int i, struct tempsprite *s, UINT16* spriteram16, int spriteram16_bytes)
+int kaneko16_sprite_device::kaneko16_parse_sprite_type012(int i, struct tempsprite *s, UINT16* spriteram16, int spriteram16_bytes)
 {
 	int attr, xoffs, offs;
 
@@ -336,7 +342,7 @@ void kaneko16_sprite_device::kaneko16_draw_sprites_custom(_BitmapClass &dest_bmp
 
 /* Build a list of sprites to display & draw them */
 template<class _BitmapClass>
-void kaneko16_sprite_device::kaneko16_draw_sprites(running_machine &machine, _BitmapClass &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes)
+void kaneko16_sprite_device::kaneko16_draw_sprites(_BitmapClass &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes)
 {
 	/* Sprites *must* be parsed from the first in RAM to the last,
 	   because of the multisprite feature. But they *must* be drawn
@@ -367,7 +373,7 @@ void kaneko16_sprite_device::kaneko16_draw_sprites(running_machine &machine, _Bi
 	{
 		int flags;
 
-		flags = kaneko16_parse_sprite_type012(machine, i,s, spriteram16, spriteram16_bytes);
+		flags = kaneko16_parse_sprite_type012(i,s, spriteram16, spriteram16_bytes);
 
 		if (flags == -1)    // End of Sprites
 			break;
@@ -587,11 +593,11 @@ void kaneko16_sprite_device::kaneko16_copybitmap(bitmap_rgb32 &bitmap, const rec
 
 
 
-void kaneko16_sprite_device::kaneko16_render_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes) { kaneko16_render_sprites_common(machine, bitmap, cliprect, priority_bitmap, spriteram16, spriteram16_bytes); }
-void kaneko16_sprite_device::kaneko16_render_sprites(running_machine &machine, bitmap_rgb32 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes) { kaneko16_render_sprites_common(machine, bitmap, cliprect, priority_bitmap, spriteram16, spriteram16_bytes); }
+void kaneko16_sprite_device::kaneko16_render_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes) { kaneko16_render_sprites_common(bitmap, cliprect, priority_bitmap, spriteram16, spriteram16_bytes); }
+void kaneko16_sprite_device::kaneko16_render_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes) { kaneko16_render_sprites_common(bitmap, cliprect, priority_bitmap, spriteram16, spriteram16_bytes); }
 
 template<class _BitmapClass>
-void kaneko16_sprite_device::kaneko16_render_sprites_common(running_machine &machine, _BitmapClass &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes)
+void kaneko16_sprite_device::kaneko16_render_sprites_common(_BitmapClass &bitmap, const rectangle &cliprect, bitmap_ind8 &priority_bitmap, UINT16* spriteram16, int spriteram16_bytes)
 {
 	/* Sprites last (rendered with pdrawgfx, so they can slip
 	   in between the layers) */
@@ -599,13 +605,13 @@ void kaneko16_sprite_device::kaneko16_render_sprites_common(running_machine &mac
 	if(m_keep_sprites)
 	{
 		/* keep sprites on screen - used by mgcrystl when you get the first gem and it shows instructions */
-		kaneko16_draw_sprites(machine,m_sprites_bitmap, cliprect, priority_bitmap, spriteram16, spriteram16_bytes);
+		kaneko16_draw_sprites(m_sprites_bitmap, cliprect, priority_bitmap, spriteram16, spriteram16_bytes);
 		kaneko16_copybitmap(bitmap,cliprect);
 	}
 	else
 	{
 		m_sprites_bitmap.fill(0, cliprect);
-		kaneko16_draw_sprites(machine,bitmap,cliprect, priority_bitmap, spriteram16, spriteram16_bytes);
+		kaneko16_draw_sprites(bitmap,cliprect, priority_bitmap, spriteram16, spriteram16_bytes);
 	}
 }
 
@@ -617,4 +623,43 @@ kaneko_vu002_sprite_device::kaneko_vu002_sprite_device(const machine_config &mco
 kaneko_kc002_sprite_device::kaneko_kc002_sprite_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: kaneko16_sprite_device(mconfig, tag, owner, clock, KANEKO_KC002_SPRITE)
 {
+}
+
+// this is a bootleg implementation, used by Gals Hustler and Zip Zap, the latter not really working at all well with the original
+// link features (assuming the bad program roms aren't the cause)  it's clearly derived from this sprite system tho.
+void kaneko16_sprite_device::bootleg_draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT16* spriteram16, int spriteram16_bytes)
+{
+//  UINT16 *spriteram16 = m_spriteram;
+	int offs;
+	int sx=0, sy=0;
+
+	for (offs = 0;offs < spriteram16_bytes/2;offs += 4)
+	{
+		int code,color,flipx,flipy;
+
+		code = spriteram16[offs + 1] & 0x1fff;
+		color = (spriteram16[offs] & 0x003c) >> 2;
+		flipx = spriteram16[offs] & 0x0002;
+		flipy = spriteram16[offs] & 0x0001;
+
+		if((spriteram16[offs] & 0x6000) == 0x6000) /* Link bits */
+		{
+			sx += spriteram16[offs + 2] >> 6;
+			sy += spriteram16[offs + 3] >> 6;
+		}
+		else
+		{
+			sx = spriteram16[offs + 2] >> 6;
+			sy = spriteram16[offs + 3] >> 6;
+		}
+
+		sx = (sx&0x1ff) - (sx&0x200);
+		sy = (sy&0x1ff) - (sy&0x200);
+
+		m_gfxdecode->gfx(0)->transpen(bitmap,cliprect,
+				code,
+				color,
+				flipx,flipy,
+				sx,sy,0);
+	}
 }

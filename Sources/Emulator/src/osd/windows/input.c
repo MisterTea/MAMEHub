@@ -506,12 +506,15 @@ void windows_osd_interface::input_resume()
 void windows_osd_interface::input_exit()
 {
 	// acquire the lock and turn off input (this ensures everyone is done)
-	osd_lock_acquire(input_lock);
-	input_enabled = false;
-	osd_lock_release(input_lock);
+	if (input_lock != NULL)
+	{
+		osd_lock_acquire(input_lock);
+		input_enabled = false;
+		osd_lock_release(input_lock);
 
-	// free the lock
-	osd_lock_free(input_lock);
+		// free the lock
+		osd_lock_free(input_lock);
+	}
 }
 
 
@@ -571,7 +574,7 @@ bool wininput_should_hide_mouse(void)
 		return false;
 
 	// if the window has a menu, no
-	if (win_window_list != NULL && win_has_menu(win_window_list))
+	if (win_window_list != NULL && win_window_list->win_has_menu())
 		return false;
 
 	// otherwise, yes
@@ -614,10 +617,10 @@ BOOL wininput_handle_mouse_button(int button, int down, int x, int y)
 		POINT mousepos;
 
 		// get the position relative to the window
-		GetClientRect(win_window_list->hwnd, &client_rect);
+		GetClientRect(win_window_list->m_hwnd, &client_rect);
 		mousepos.x = x;
 		mousepos.y = y;
-		ScreenToClient(win_window_list->hwnd, &mousepos);
+		ScreenToClient(win_window_list->m_hwnd, &mousepos);
 
 		// convert to absolute coordinates
 		devinfo->mouse.state.lX = normalize_absolute_axis(mousepos.x, client_rect.left, client_rect.right);
@@ -1043,8 +1046,8 @@ static void win32_lightgun_poll(device_info *devinfo)
 		RECT client_rect;
 
 		// get the position relative to the window
-		GetClientRect(win_window_list->hwnd, &client_rect);
-		ScreenToClient(win_window_list->hwnd, &mousepos);
+		GetClientRect(win_window_list->m_hwnd, &client_rect);
+		ScreenToClient(win_window_list->m_hwnd, &mousepos);
 
 		// convert to absolute coordinates
 		xpos = normalize_absolute_axis(mousepos.x, client_rect.left, client_rect.right);
@@ -1218,7 +1221,7 @@ static device_info *dinput_device_create(running_machine &machine, device_info *
 	}
 
 	// set the cooperative level
-	result = IDirectInputDevice_SetCooperativeLevel(devinfo->dinput.device, win_window_list->hwnd, cooperative_level);
+	result = IDirectInputDevice_SetCooperativeLevel(devinfo->dinput.device, win_window_list->m_hwnd, cooperative_level);
 	if (result != DI_OK)
 		goto error;
 	return devinfo;
@@ -1485,7 +1488,7 @@ static BOOL CALLBACK dinput_joystick_enum(LPCDIDEVICEINSTANCE instance, LPVOID r
 	device_info *devinfo;
 	HRESULT result;
 
-	if (win_window_list != NULL && win_has_menu(win_window_list)) {
+	if (win_window_list != NULL && win_window_list->win_has_menu()) {
 		cooperative_level = DISCL_BACKGROUND | DISCL_NONEXCLUSIVE;
 	}
 	// allocate and link in a new device
@@ -1702,7 +1705,7 @@ static void rawinput_init(running_machine &machine)
 		reglist[regcount].usUsagePage = 0x01;
 		reglist[regcount].usUsage = 0x06;
 		reglist[regcount].dwFlags = RIDEV_INPUTSINK;
-		reglist[regcount].hwndTarget = win_window_list->hwnd;
+		reglist[regcount].hwndTarget = win_window_list->m_hwnd;
 		regcount++;
 	}
 	if (mouse_list != NULL)
@@ -1710,7 +1713,7 @@ static void rawinput_init(running_machine &machine)
 		reglist[regcount].usUsagePage = 0x01;
 		reglist[regcount].usUsage = 0x02;
 		reglist[regcount].dwFlags = 0;
-		reglist[regcount].hwndTarget = win_window_list->hwnd;
+		reglist[regcount].hwndTarget = win_window_list->m_hwnd;
 		regcount++;
 	}
 

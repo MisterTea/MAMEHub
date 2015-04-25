@@ -8,7 +8,6 @@
     - memory bank size is smaller (128K)
 
     TODO (ec1841)
-    - add chargen upload support for MDA
     - hard disk is connected but requires changes to isa_hdc.c
 
 ***************************************************************************/
@@ -18,6 +17,7 @@
 
 #include "includes/genpc.h"
 
+#include "bus/isa/xsu_cards.h"
 #include "bus/pc_kbd/keyboards.h"
 #include "cpu/i86/i86.h"
 #include "machine/ram.h"
@@ -178,7 +178,6 @@ static ADDRESS_MAP_START( ec1841_map, AS_PROGRAM, 16, ec184x_state )
 	AM_RANGE(0xa0000, 0xbffff) AM_NOP
 	AM_RANGE(0xc0000, 0xc7fff) AM_ROM
 	AM_RANGE(0xc8000, 0xcffff) AM_ROM
-	AM_RANGE(0xdc000, 0xdffff) AM_RAM       // monochrome chargen
 	AM_RANGE(0xf0000, 0xfffff) AM_ROM
 ADDRESS_MAP_END
 
@@ -232,12 +231,12 @@ static MACHINE_CONFIG_START( ec1840, ec184x_state )
 	MCFG_IBM5150_MOTHERBOARD_ADD("mb","maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(ec1840)
 
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "mda", false)   // cga is? an option
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "fdc_xt", false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, NULL, false)    // native variant(s?) not emulated
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, NULL, false)    // native serial not emulated
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, NULL, false)    // native mouse port not emulated
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, false)    // game port is an option
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", ec184x_isa8_cards, "ec1840.0002", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", ec184x_isa8_cards, "ec1841.0003", false)   // actually ec1840.0003 -- w/o mouse port
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", ec184x_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", ec184x_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", ec184x_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", ec184x_isa8_cards, NULL, false)
 
 	MCFG_SOFTWARE_LIST_ADD("flop_list","ec1841")
 
@@ -253,18 +252,17 @@ static MACHINE_CONFIG_START( ec1841, ec184x_state )
 	MCFG_CPU_IO_MAP(ec1841_io)
 	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("mb:pic8259", pic8259_device, inta_cb)
 
-//  MCFG_MACHINE_START_OVERRIDE(ec184x_state, ec184x)
 	MCFG_MACHINE_RESET_OVERRIDE(ec184x_state, ec184x)
 
 	MCFG_EC1841_MOTHERBOARD_ADD("mb", "maincpu")
 	MCFG_DEVICE_INPUT_DEFAULTS(ec1841)
 
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", pc_isa8_cards, "cga_ec1841", false)// mda is an option
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", pc_isa8_cards, "fdc_xt", false)
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", pc_isa8_cards, NULL, false)    // native variants not emulated
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", pc_isa8_cards, NULL, false)    // native serial not emulated
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", pc_isa8_cards, NULL, false)    // native mouse port not emulated
-	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", pc_isa8_cards, NULL, false)    // game port is? an option
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa1", ec184x_isa8_cards, "ec1841.0002", false)   // cga
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa2", ec184x_isa8_cards, "ec1841.0003", false)   // fdc + mouse port
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa3", ec184x_isa8_cards, "hdc", false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa4", ec184x_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa5", ec184x_isa8_cards, NULL, false)
+	MCFG_ISA8_SLOT_ADD("mb:isa", "isa6", ec184x_isa8_cards, NULL, false)
 
 	MCFG_SOFTWARE_LIST_ADD("flop_list","ec1841")
 
@@ -300,11 +298,19 @@ MACHINE_CONFIG_END
 
 ROM_START( ec1840 )
 	ROM_REGION16_LE(0x100000,"maincpu", 0)
-	ROM_SYSTEM_BIOS(0, "v4", "EC-1840.04")
-	ROMX_LOAD( "000-04-971b.bin", 0xfe000, 0x0800, CRC(06aeaee8) SHA1(9f954e4c48156d573a8e0109e7ca652be9e6036a), ROM_SKIP(1) | ROM_BIOS(1))
-	ROMX_LOAD( "001-04-92b7.bin", 0xff000, 0x0800, CRC(3fae650a) SHA1(c98b777fdeceadd72d6eb9465b3501b9ead55a08), ROM_SKIP(1) | ROM_BIOS(1))
-	ROMX_LOAD( "002-04-9e17.bin", 0xfe001, 0x0800, CRC(d59712df) SHA1(02ea1b3ae9662f5c64c58920a32ca9db0f6fbd12), ROM_SKIP(1) | ROM_BIOS(1))
-	ROMX_LOAD( "003-04-3ccb.bin", 0xff001, 0x0800, CRC(7fc362c7) SHA1(538e13639ad2b4c30bd72582e323181e63513306), ROM_SKIP(1) | ROM_BIOS(1))
+	ROM_DEFAULT_BIOS("v4")
+	// supports MDA only
+	ROM_SYSTEM_BIOS(0, "v1", "EC-1840.01")
+	ROMX_LOAD( "000-01.bin", 0xfe000, 0x0800, CRC(c3ab1fad) SHA1(8168bdee30698f4f9aa7bbb6dfabe62dd723cec5), ROM_SKIP(1) | ROM_BIOS(1))
+	ROMX_LOAD( "001-01.bin", 0xff000, 0x0800, CRC(601d1155) SHA1(9684d33b92743749704587a48e679ef7a3b20f9c), ROM_SKIP(1) | ROM_BIOS(1))
+	ROMX_LOAD( "002-01.bin", 0xfe001, 0x0800, CRC(ce4dddb7) SHA1(f9b1da60c848e68ff1c154d695a36a0833de4804), ROM_SKIP(1) | ROM_BIOS(1))
+	ROMX_LOAD( "003-01.bin", 0xff001, 0x0800, CRC(14b40431) SHA1(ce7fffa41897405ee64fd4e86015e774f8bd108a), ROM_SKIP(1) | ROM_BIOS(1))
+
+	ROM_SYSTEM_BIOS(1, "v4", "EC-1840.04")
+	ROMX_LOAD( "000-04-971b.bin", 0xfe000, 0x0800, CRC(06aeaee8) SHA1(9f954e4c48156d573a8e0109e7ca652be9e6036a), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD( "001-04-92b7.bin", 0xff000, 0x0800, CRC(3fae650a) SHA1(c98b777fdeceadd72d6eb9465b3501b9ead55a08), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD( "002-04-9e17.bin", 0xfe001, 0x0800, CRC(d59712df) SHA1(02ea1b3ae9662f5c64c58920a32ca9db0f6fbd12), ROM_SKIP(1) | ROM_BIOS(2))
+	ROMX_LOAD( "003-04-3ccb.bin", 0xff001, 0x0800, CRC(7fc362c7) SHA1(538e13639ad2b4c30bd72582e323181e63513306), ROM_SKIP(1) | ROM_BIOS(2))
 
 	ROM_REGION(0x2000,"gfx1", ROMREGION_ERASE00)
 ROM_END

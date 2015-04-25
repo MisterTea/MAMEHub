@@ -141,12 +141,15 @@ Pipi & Bibis     | Fix Eight        | V-Five           | Snow Bros. 2     |
  The alternative option of allowing sprites to render a priority level higher than tilemaps breaks at least the
  'Welcome to..' screen in Batrider after selecting your character.
 
+ Batrider Gob-Robo boss however definitely requires SPRITES to still have 16 levels of priority against other
+ sprites, see http://mametesters.org/view.php?id=5832
+
  It is unknown if the current solution breaks anything.  The majority of titles don't make extensive use of the
  priority system.
 
 */
-#define GP9001_PRIMASK (0x000e)
-
+#define GP9001_PRIMASK (0x000f)
+#define GP9001_PRIMASK_TMAPS (0x000e)
 
 WRITE16_MEMBER( gp9001vdp_device::gp9001_bg_tmap_w )
 {
@@ -171,8 +174,8 @@ DEVICE_ADDRESS_MAP_START( map, 16, gp9001vdp_device )
 	AM_RANGE(0x0000, 0x0fff) AM_RAM_WRITE(gp9001_bg_tmap_w) AM_SHARE("vram_bg")
 	AM_RANGE(0x1000, 0x1fff) AM_RAM_WRITE(gp9001_fg_tmap_w) AM_SHARE("vram_fg")
 	AM_RANGE(0x2000, 0x2fff) AM_RAM_WRITE(gp9001_top_tmap_w) AM_SHARE("vram_top")
-	AM_RANGE(0x3000, 0x37ff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x3800, 0x3fff) AM_RAM // sprite mirror?
+	AM_RANGE(0x3000, 0x37ff) AM_RAM AM_SHARE("spriteram") AM_MIRROR(0x0800)
+//  AM_RANGE(0x3800, 0x3fff) AM_RAM // sprite mirror?
 ADDRESS_MAP_END
 
 
@@ -669,7 +672,7 @@ WRITE16_MEMBER( gp9001vdp_device::pipibibi_bootleg_spriteram16_w )
     Sprite Handlers
 ***************************************************************************/
 
-void gp9001vdp_device::draw_sprites( running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, const UINT8* primap )
+void gp9001vdp_device::draw_sprites( bitmap_ind16 &bitmap, const rectangle &cliprect, const UINT8* primap )
 {
 	const UINT16 primask = (GP9001_PRIMASK << 8);
 
@@ -677,9 +680,8 @@ void gp9001vdp_device::draw_sprites( running_machine &machine, bitmap_ind16 &bit
 
 	if (sp.use_sprite_buffer) source = sp.vram16_buffer;
 	else source = m_spriteram;
-	gfx_element *spritegfx = gfx(1);
-	int total_elements = spritegfx->elements();
-	int total_colors = spritegfx->colors();
+	int total_elements = m_gfx[1]->elements();
+	int total_colors = m_gfx[1]->colors();
 
 	int old_x = (-(sp.scrollx)) & 0x1ff;
 	int old_y = (-(sp.scrolly)) & 0x1ff;
@@ -780,10 +782,10 @@ void gp9001vdp_device::draw_sprites( running_machine &machine, bitmap_ind16 &bit
 					*/
 					sprite %= total_elements;
 					color %= total_colors;
-					const pen_t *paldata = &palette()->pen(color * 16);
+					const pen_t *paldata = &m_palette->pen(color * 16);
 					{
 						int yy, xx;
-						const UINT8* srcdata = spritegfx->get_data(sprite);
+						const UINT8* srcdata = m_gfx[1]->get_data(sprite);
 						int count = 0;
 						int ystart, yend, yinc;
 						int xstart, xend, xinc;
@@ -860,10 +862,10 @@ void gp9001vdp_device::draw_sprites( running_machine &machine, bitmap_ind16 &bit
     Draw the game screen in the given bitmap_ind16.
 ***************************************************************************/
 
-void gp9001vdp_device::gp9001_draw_custom_tilemap(running_machine& machine, bitmap_ind16 &bitmap, tilemap_t* tilemap, const UINT8* priremap, const UINT8* pri_enable )
+void gp9001vdp_device::gp9001_draw_custom_tilemap( bitmap_ind16 &bitmap, tilemap_t* tilemap, const UINT8* priremap, const UINT8* pri_enable )
 {
-	int width = machine.first_screen()->width();
-	int height = machine.first_screen()->height();
+	int width = m_screen->width();
+	int height = m_screen->height();
 	int y,x;
 	bitmap_ind16 &tmb = tilemap->pixmap();
 	UINT16* srcptr;
@@ -886,7 +888,7 @@ void gp9001vdp_device::gp9001_draw_custom_tilemap(running_machine& machine, bitm
 			int realx = (x+scrollx)&0x1ff;
 
 			UINT16 pixdat = srcptr[realx];
-			UINT8 pixpri = ((pixdat & (GP9001_PRIMASK<<12))>>12);
+			UINT8 pixpri = ((pixdat & (GP9001_PRIMASK_TMAPS<<12))>>12);
 
 			if (pri_enable[pixpri])
 			{
@@ -913,7 +915,7 @@ static const UINT8 gp9001_sprprimap1[16] =  { 0x00, 0x04, 0x08, 0x0c, 0x10, 0x14
 
 static const UINT8 batsugun_prienable0[16]={ 1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1,    1 };
 
-void gp9001vdp_device::gp9001_render_vdp(running_machine& machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void gp9001vdp_device::gp9001_render_vdp(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	if (gp9001_gfxrom_is_banked && gp9001_gfxrom_bank_dirty)
 	{
@@ -922,10 +924,10 @@ void gp9001vdp_device::gp9001_render_vdp(running_machine& machine, bitmap_ind16 
 		gp9001_gfxrom_bank_dirty = 0;
 	}
 
-	gp9001_draw_custom_tilemap( machine, bitmap, bg.tmap, gp9001_primap1, batsugun_prienable0);
-	gp9001_draw_custom_tilemap( machine, bitmap, fg.tmap, gp9001_primap1, batsugun_prienable0);
-	gp9001_draw_custom_tilemap( machine, bitmap, top.tmap, gp9001_primap1, batsugun_prienable0);
-	draw_sprites( machine,bitmap,cliprect, gp9001_sprprimap1);
+	gp9001_draw_custom_tilemap(bitmap, bg.tmap, gp9001_primap1, batsugun_prienable0);
+	gp9001_draw_custom_tilemap(bitmap, fg.tmap, gp9001_primap1, batsugun_prienable0);
+	gp9001_draw_custom_tilemap(bitmap, top.tmap, gp9001_primap1, batsugun_prienable0);
+	draw_sprites(bitmap,cliprect, gp9001_sprprimap1);
 }
 
 

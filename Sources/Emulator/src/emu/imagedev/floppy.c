@@ -93,6 +93,15 @@ const device_type SONY_OA_D31V = &device_creator<sony_oa_d31v>;
 const device_type SONY_OA_D32W = &device_creator<sony_oa_d32w>;
 const device_type SONY_OA_D32V = &device_creator<sony_oa_d32v>;
 
+// teac 5.25" drives
+#if 0
+const device_type TEAC_FD_55A = &device_creator<teac_fd_55a>;
+const device_type TEAC_FD_55B = &device_creator<teac_fd_55b>;
+const device_type TEAC_FD_55E = &device_creator<teac_fd_55e>;
+#endif
+const device_type TEAC_FD_55F = &device_creator<teac_fd_55f>;
+const device_type TEAC_FD_55G = &device_creator<teac_fd_55g>;
+
 // ALPS 5.25" drives
 const device_type ALPS_3255190x = &device_creator<alps_3255190x>;
 
@@ -105,6 +114,8 @@ const floppy_format_type floppy_image_device::default_floppy_formats[] = {
 	FLOPPY_MFI_FORMAT,
 	FLOPPY_MFM_FORMAT,
 	FLOPPY_TD0_FORMAT,
+	FLOPPY_CQM_FORMAT,
+	FLOPPY_DSK_FORMAT,
 	NULL
 };
 
@@ -151,6 +162,7 @@ floppy_image_device::floppy_image_device(const machine_config &mconfig, device_t
 		fif_list(NULL)
 {
 	extension_list[0] = '\0';
+	m_err = IMAGE_ERROR_INVALIDIMAGE;
 }
 
 //-------------------------------------------------
@@ -273,6 +285,7 @@ void floppy_image_device::device_start()
 	mon = 1;
 
 	cyl = 0;
+	subcyl = 0;
 	ss  = 0;
 	stp = 1;
 	wpt = 0;
@@ -283,6 +296,9 @@ void floppy_image_device::device_start()
 	ready_counter = 0;
 
 	setup_characteristics();
+
+	save_item(NAME(cyl));
+	save_item(NAME(subcyl));
 }
 
 void floppy_image_device::device_reset()
@@ -535,7 +551,49 @@ void floppy_image_device::stp_w(int state)
 				if (dskchg==0) dskchg = 1;
 			}
 		}
+		subcyl = 0;
 	}
+}
+
+void floppy_image_device::seek_phase_w(int phases)
+{
+	int cur_pos = (cyl << 2) | subcyl;
+	int req_pos;
+	switch(phases) {
+	case 0x1: req_pos = 0; break;
+	case 0x3: req_pos = 1; break;
+	case 0x2: req_pos = 2; break;
+	case 0x6: req_pos = 3; break;
+	case 0x4: req_pos = 4; break;
+	case 0xc: req_pos = 5; break;
+	case 0x8: req_pos = 6; break;
+	case 0x9: req_pos = 7; break;
+	default: return;
+	}
+
+	// Opposite phase, don't move
+	if(((cur_pos ^ req_pos) & 7) == 4)
+		return;
+
+	int next_pos = (cur_pos & ~7) | req_pos;
+	if(next_pos < cur_pos-4)
+		next_pos += 8;
+	else if(next_pos > cur_pos+4)
+		next_pos -= 8;
+	if(next_pos < 0)
+		next_pos = 0;
+	else if(next_pos > (tracks-1)*4)
+		next_pos = (tracks-1)*4;
+	cyl = next_pos >> 2;
+	subcyl = next_pos & 3;
+
+	if(TRACE_STEP && (next_pos != cur_pos))
+		logerror("%s: track %d.%d\n", tag(), cyl, subcyl);
+
+	/* Update disk detection if applicable */
+	if (exists())
+		if (dskchg==0)
+			dskchg = 1;
 }
 
 int floppy_image_device::find_index(UINT32 position, const UINT32 *buf, int buf_size)
@@ -571,7 +629,7 @@ UINT32 floppy_image_device::find_position(attotime &base, const attotime &when)
 		base -= rev_time;
 	}
 
-	return (delta*floppy_ratio_1 + attotime::from_nsec(500)).as_ticks(1000000000/1000);
+	return (delta*floppy_ratio_1).as_ticks(1000000000/1000);
 }
 
 attotime floppy_image_device::get_next_transition(const attotime &from_when)
@@ -579,14 +637,14 @@ attotime floppy_image_device::get_next_transition(const attotime &from_when)
 	if(!image || mon)
 		return attotime::never;
 
-	int cells = image->get_track_size(cyl, ss);
+	int cells = image->get_track_size(cyl, ss, subcyl);
 	if(cells <= 1)
 		return attotime::never;
 
 	attotime base;
 	UINT32 position = find_position(base, from_when);
 
-	const UINT32 *buf = image->get_buffer(cyl, ss);
+	const UINT32 *buf = image->get_buffer(cyl, ss, subcyl);
 	int index = find_index(position, buf, cells);
 
 	if(index == -1)
@@ -617,16 +675,16 @@ void floppy_image_device::write_flux(const attotime &start, const attotime &end,
 	for(int i=0; i != transition_count; i++)
 		trans_pos[i] = find_position(base, transitions[i]);
 
-	int cells = image->get_track_size(cyl, ss);
-	UINT32 *buf = image->get_buffer(cyl, ss);
+	int cells = image->get_track_size(cyl, ss, subcyl);
+	UINT32 *buf = image->get_buffer(cyl, ss, subcyl);
 
 	int index;
 	if(cells)
 		index = find_index(start_pos, buf, cells);
 	else {
 		index = 0;
-		image->set_track_size(cyl, ss, 1);
-		buf = image->get_buffer(cyl, ss);
+		image->set_track_size(cyl, ss, 1, subcyl);
+		buf = image->get_buffer(cyl, ss, subcyl);
 		buf[cells++] = floppy_image::MG_N;
 	}
 
@@ -640,9 +698,9 @@ void floppy_image_device::write_flux(const attotime &start, const attotime &end,
 	UINT32 pos = start_pos;
 	int ti = 0;
 	while(pos != end_pos) {
-		if(image->get_track_size(cyl, ss) < cells+10) {
-			image->set_track_size(cyl, ss, cells+200);
-			buf = image->get_buffer(cyl, ss);
+		if(image->get_track_size(cyl, ss, subcyl) < cells+10) {
+			image->set_track_size(cyl, ss, cells+200, subcyl);
+			buf = image->get_buffer(cyl, ss, subcyl);
 		}
 		UINT32 next_pos;
 		if(ti != transition_count)
@@ -660,7 +718,7 @@ void floppy_image_device::write_flux(const attotime &start, const attotime &end,
 		cur_mg = cur_mg == floppy_image::MG_A ? floppy_image::MG_B : floppy_image::MG_A;
 	}
 
-	image->set_track_size(cyl, ss, cells);
+	image->set_track_size(cyl, ss, cells, subcyl);
 }
 
 void floppy_image_device::write_zone(UINT32 *buf, int &cells, int &index, UINT32 spos, UINT32 epos, UINT32 mg)
@@ -764,10 +822,12 @@ void floppy_image_device::write_zone(UINT32 *buf, int &cells, int &index, UINT32
 
 void floppy_image_device::set_write_splice(const attotime &when)
 {
-	image_dirty = true;
-	attotime base;
-	int splice_pos = find_position(base, when);
-	image->set_write_splice_position(cyl, ss, splice_pos);
+	if(image) {
+		image_dirty = true;
+		attotime base;
+		int splice_pos = find_position(base, when);
+		image->set_write_splice_position(cyl, ss, splice_pos, subcyl);
+	}
 }
 
 UINT32 floppy_image_device::get_form_factor() const
@@ -826,49 +886,21 @@ void ui_menu_control_floppy_image::do_load_create()
 	}
 }
 
-astring ui_menu_control_floppy_image::try_file(astring location, astring name, bool has_crc, UINT32 crc)
-{
-	emu_file fd(machine().options().media_path(), OPEN_FLAG_READ);
-	file_error filerr;
-	if(has_crc)
-		filerr = fd.open(location.cstr(), PATH_SEPARATOR, name.cstr(), crc);
-	else
-		filerr = fd.open(location.cstr(), PATH_SEPARATOR, name.cstr());
-	if(filerr != FILERR_NONE)
-		return "";
-	return fd.fullpath();
-}
-
 void ui_menu_control_floppy_image::hook_load(astring filename, bool softlist)
 {
-	input_filename = filename;
 	if (softlist)
 	{
-		astring swlist_name, swinfo_name, swpart_name;
-		device_image_interface::software_name_split(filename.cstr(), swlist_name, swinfo_name, swpart_name);
-		software_list_device *swlistdev = software_list_device::find_by_name(machine().config(), swlist_name);
-		software_info *swinfo = swlistdev->find(swinfo_name);
-		software_part *swpart = swinfo->find_part(swpart_name);
-		const char *parentname = swinfo->parentname();
-		for(const rom_entry *region = swpart->romdata(); region; region = rom_next_region(region)) {
-			const rom_entry *romp = region + 1;
-			UINT32 crc = 0;
-			bool has_crc = hash_collection(ROM_GETHASHDATA(romp)).crc(crc);
-
-			filename = try_file(astring(swlistdev->list_name()) + PATH_SEPARATOR + astring(swinfo_name), ROM_GETNAME(romp), has_crc, crc);
-			if(filename == "")
-				filename = try_file(astring(swlist_name) + PATH_SEPARATOR + astring(parentname), ROM_GETNAME(romp), has_crc, crc);
-			if(filename == "")
-				filename = try_file(swinfo_name, ROM_GETNAME(romp), has_crc, crc);
-			if(filename == "")
-				filename = try_file(parentname, ROM_GETNAME(romp), has_crc, crc);
-			if(filename != "")
-				break;
-		}
+		popmessage("When loaded from software list, the disk is Read-only.\n");
+		image->load(filename);
+		ui_menu::stack_pop(machine());
+		return;
 	}
 
+	input_filename = filename;
 	input_format = static_cast<floppy_image_device *>(image)->identify(filename);
-	if(!input_format) {
+
+	if (!input_format)
+	{
 		popmessage("Error: %s\n", image->error());
 		ui_menu::stack_pop(machine());
 		return;
@@ -894,7 +926,7 @@ void ui_menu_control_floppy_image::hook_load(astring filename, bool softlist)
 void ui_menu_control_floppy_image::handle()
 {
 	floppy_image_device *fd = static_cast<floppy_image_device *>(image);
-	switch(state) {
+	switch (state) {
 	case DO_CREATE: {
 		floppy_image_format_t *fif_list = fd->get_formats();
 		int ext_match = 0, total_usable = 0;
@@ -949,12 +981,12 @@ void ui_menu_control_floppy_image::handle()
 			break;
 
 		case ui_menu_select_rw::WRITE_OTHER:
-			ui_menu::stack_push(auto_alloc_clear(machine(), ui_menu_file_create(machine(), container, image, current_directory, current_file)));
-			state = CREATE_FILE;
+			ui_menu::stack_push(auto_alloc_clear(machine(), ui_menu_file_create(machine(), container, image, current_directory, current_file, &create_ok)));
+			state = CHECK_CREATE;
 			break;
 
 		case -1:
-			ui_menu::stack_pop(machine());
+			state = START_FILE;
 			break;
 		}
 		break;
@@ -1744,6 +1776,81 @@ void sony_oa_d32v::handled_variants(UINT32 *variants, int &var_count) const
 	variants[var_count++] = floppy_image::SSDD;
 }
 
+//-------------------------------------------------
+//  teac fd-55f
+//
+//  track to track: 3 ms
+//  average: 94 ms
+//  setting time: 15 ms
+//  motor start time: 400 ms
+//
+//-------------------------------------------------
+
+teac_fd_55f::teac_fd_55f(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	floppy_image_device(mconfig, TEAC_FD_55F, "TEAC FD-55F FDD", tag, owner, clock, "teac_fd_55f", __FILE__)
+{
+}
+
+teac_fd_55f::~teac_fd_55f()
+{
+}
+
+void teac_fd_55f::setup_characteristics()
+{
+	form_factor = floppy_image::FF_525;
+	tracks = 80;
+	sides = 2;
+	set_rpm(300);
+}
+
+void teac_fd_55f::handled_variants(UINT32 *variants, int &var_count) const
+{
+	var_count = 0;
+	variants[var_count++] = floppy_image::SSSD;
+	variants[var_count++] = floppy_image::SSDD;
+	variants[var_count++] = floppy_image::SSQD;
+	variants[var_count++] = floppy_image::DSSD;
+	variants[var_count++] = floppy_image::DSDD;
+	variants[var_count++] = floppy_image::DSQD;
+}
+
+//-------------------------------------------------
+//  teac fd-55g
+//
+//  track to track: 3 ms
+//  average: 91 ms
+//  setting time: 15 ms
+//  motor start time: 400 ms
+//
+//-------------------------------------------------
+
+teac_fd_55g::teac_fd_55g(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	floppy_image_device(mconfig, TEAC_FD_55G, "TEAC FD-55G FDD", tag, owner, clock, "teac_fd_55g", __FILE__)
+{
+}
+
+teac_fd_55g::~teac_fd_55g()
+{
+}
+
+void teac_fd_55g::setup_characteristics()
+{
+	form_factor = floppy_image::FF_525;
+	tracks = 77;
+	sides = 2;
+	set_rpm(360);
+}
+
+void teac_fd_55g::handled_variants(UINT32 *variants, int &var_count) const
+{
+	var_count = 0;
+	variants[var_count++] = floppy_image::SSSD;
+	variants[var_count++] = floppy_image::SSDD;
+	variants[var_count++] = floppy_image::SSQD;
+	variants[var_count++] = floppy_image::DSDD;
+	variants[var_count++] = floppy_image::DSQD;
+	variants[var_count++] = floppy_image::DSHD;
+}
 
 //-------------------------------------------------
 //  ALPS 32551901 (black) / 32551902 (brown)

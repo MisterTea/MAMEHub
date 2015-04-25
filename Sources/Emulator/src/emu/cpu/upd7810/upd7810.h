@@ -24,7 +24,8 @@ enum
 	UPD7810_ANM, UPD7810_MKL, UPD7810_MKH, UPD7810_ZCM,
 	UPD7810_TXB, UPD7810_RXB, UPD7810_CR0, UPD7810_CR1, UPD7810_CR2, UPD7810_CR3,
 	UPD7810_AN0, UPD7810_AN1, UPD7810_AN2, UPD7810_AN3, UPD7810_AN4, UPD7810_AN5, UPD7810_AN6, UPD7810_AN7,
-	UPD7810_TXD, UPD7810_RXD, UPD7810_SCK, UPD7810_TI, UPD7810_TO, UPD7810_CI, UPD7810_CO0, UPD7810_CO1
+	UPD7810_TXD, UPD7810_RXD, UPD7810_SCK, UPD7810_TI, UPD7810_TO, UPD7810_CI, UPD7810_CO0, UPD7810_CO1,
+	UPD7810_LV0, UPD7810_LV1
 };
 
 /* port numbers for PA,PB,PC,PD and PF */
@@ -49,6 +50,12 @@ enum
 
 #define MCFG_UPD7810_TO(_devcb) \
 	upd7810_device::set_to_func(*device, DEVCB_##_devcb);
+
+#define MCFG_UPD7810_CO0(_devcb) \
+	upd7810_device::set_co0_func(*device, DEVCB_##_devcb);
+
+#define MCFG_UPD7810_CO1(_devcb) \
+	upd7810_device::set_co1_func(*device, DEVCB_##_devcb);
 
 #define MCFG_UPD7810_TXD(_devcb) \
 	upd7810_device::set_txd_func(*device, DEVCB_##_devcb);
@@ -90,6 +97,8 @@ public:
 
 	// static configuration helpers
 	template<class _Object> static devcb_base &set_to_func(device_t &device, _Object object) { return downcast<upd7810_device &>(device).m_to_func.set_callback(object); }
+	template<class _Object> static devcb_base &set_co0_func(device_t &device, _Object object) { return downcast<upd7810_device &>(device).m_co0_func.set_callback(object); }
+	template<class _Object> static devcb_base &set_co1_func(device_t &device, _Object object) { return downcast<upd7810_device &>(device).m_co1_func.set_callback(object); }
 	template<class _Object> static devcb_base &set_txd_func(device_t &device, _Object object) { return downcast<upd7810_device &>(device).m_txd_func.set_callback(object); }
 	template<class _Object> static devcb_base &set_rxd_func(device_t &device, _Object object) { return downcast<upd7810_device &>(device).m_rxd_func.set_callback(object); }
 	template<class _Object> static devcb_base &set_an0_func(device_t &device, _Object object) { return downcast<upd7810_device &>(device).m_an0_func.set_callback(object); }
@@ -169,17 +178,25 @@ protected:
 	virtual void handle_timers(int cycles);
 	virtual void upd7810_take_irq();
 
+	void upd7810_handle_timer0(int cycles, int clkdiv);
+	void upd7810_handle_timer1(int cycles, int clkdiv);
+
+	void upd7810_co0_output_change();
+	void upd7810_co1_output_change();
+
 	devcb_write_line  m_to_func;
+	devcb_write_line  m_co0_func;
+	devcb_write_line  m_co1_func;
 	devcb_write_line  m_txd_func;
 	devcb_read_line   m_rxd_func;
-	devcb_read_line   m_an0_func;
-	devcb_read_line   m_an1_func;
-	devcb_read_line   m_an2_func;
-	devcb_read_line   m_an3_func;
-	devcb_read_line   m_an4_func;
-	devcb_read_line   m_an5_func;
-	devcb_read_line   m_an6_func;
-	devcb_read_line   m_an7_func;
+	devcb_read8       m_an0_func;
+	devcb_read8       m_an1_func;
+	devcb_read8       m_an2_func;
+	devcb_read8       m_an3_func;
+	devcb_read8       m_an4_func;
+	devcb_read8       m_an5_func;
+	devcb_read8       m_an6_func;
+	devcb_read8       m_an7_func;
 
 	typedef void (upd7810_device::*opcode_func)();
 
@@ -287,12 +304,15 @@ protected:
 	UINT8   m_ti;
 	UINT8   m_to;
 	UINT8   m_ci;
+	UINT8   m_lv0;    /* level flip flop for co0 */
+	UINT8   m_lv1;    /* level flip flop for co1 */
 	UINT8   m_co0;
 	UINT8   m_co1;
 	UINT16  m_irr;    /* interrupt request register */
 	UINT16  m_itf;    /* interrupt test flag register */
-	int     m_int1;   /* keep track of current int1 state. Needed for 7801 irq checking. */
-	int     m_int2;   /* keep track to current int2 state. Needed for 7801 irq checking. */
+	int     m_nmi;    /* keep track of current nmi state. Needed for 7810 irq checking. */
+	int     m_int1;   /* keep track of current int1 state. Needed for irq checking. */
+	int     m_int2;   /* keep track to current int2 state. Needed for irq checking. */
 
 	/* internal helper variables */
 	UINT16  m_txs;    /* transmitter shift register */
@@ -308,6 +328,8 @@ protected:
 	UINT8   m_edges;  /* rising/falling edge flag for serial I/O */
 	UINT16  m_adcnt;  /* A/D converter cycle count */
 	UINT8   m_adtot;  /* A/D converter total cycles per conversion */
+	UINT8   m_tmpcr;  /* temporary analog digital conversion register */
+	int     m_shdone; /* A/D converter sample and hold done */
 	int     m_adout;  /* currently selected A/D converter output register */
 	int     m_adin;   /* currently selected A/D converter input */
 	int     m_adrange;/* in scan mode, A/D converter range (AN0-AN3 or AN4-AN7) */

@@ -161,7 +161,7 @@ void nes_cony_device::device_timer(emu_timer &timer, device_timer_id id, int par
 		{
 			if (!m_irq_count)
 			{
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 				m_irq_enable = 0;
 				m_irq_count = 0xffff;
 			}

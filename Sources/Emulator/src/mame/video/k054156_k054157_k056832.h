@@ -125,11 +125,13 @@ private:
 	tilemap_t   *m_tilemap[K056832_PAGE_COUNT];
 	bitmap_ind16  *m_pixmap[K056832_PAGE_COUNT];
 
+	dynamic_array<UINT16> m_videoram;
+
 	UINT16    m_regs[0x20];   // 157/832 regs group 1
 	UINT16    m_regsb[4]; // 157/832 regs group 2, board dependent
 
 	UINT8 *   m_rombase;  // pointer to tile gfx data
-	UINT16 *  m_videoram;
+
 	int       m_num_gfx_banks;    // depends on size of graphics ROMs
 	int       m_cur_gfx_banks;        // cached info for K056832_regs[0x1a]
 
@@ -211,9 +213,9 @@ private:
 	template<class _BitmapClass>
 	void tilemap_draw_common(screen_device &screen, _BitmapClass &bitmap, const rectangle &cliprect, int layer, UINT32 flags, UINT32 priority);
 
-	void create_gfx(running_machine &machine, const char *gfx_memory_region, int bpp, int big);
-	void create_tilemaps(running_machine &machine);
-	void finalize_init(running_machine &machine);
+	void create_gfx(const char *gfx_memory_region, int bpp, int big);
+	void create_tilemaps();
+	void finalize_init();
 
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;

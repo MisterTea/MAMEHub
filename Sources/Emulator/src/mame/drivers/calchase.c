@@ -3,8 +3,17 @@
 /************************************************************************************
 
 California Chase (c) 1999 The Game Room
+Eggs Playing Chicken (c) 2002 The Game Room
+Host Invaders (c) 1998 The Game Room
 
 driver by Angelo Salese & Grull Osgo
+
+Hardware is known as "AUSCOM System 1" hardware.
+
+Other games known to be on this hardware (if ever finished):
+- Agro (c) The Game Room
+- Tiger Odds (c) The Game Room
+- one other unnamed/unfinished game
 
 TODO:
 - get Win 98 to boot (most of Windows 98 copy is damaged inside current HDD dump);
@@ -50,6 +59,7 @@ connectors for COM1, COM2, LPT1, IDE0, IDE1, floppy etc
 uses standard AT PSU
 
 Video card is Trident TGUI9680 with 512k on-board VRAM
+Card is branded "Union UTD73" - these are all over eBay, for instance
 RAM is AS4C256K16EO-50JC (x2)
 Trident BIOS V5.5 (DIP28). Actual size unknown, dumped as 64k, 128k, 256k and 512k (can only be one of these sizes)
 6.5536MHz xtal
@@ -76,6 +86,10 @@ HDD is WD Caviar 2170. C/H/S = 1010/6/55. Capacity = 170.6MB
 The HDD is DOS-readable and in fact the OS is just Windows 98 DOS and can
 be easily copied. Tested with another HDD.... formatted with DOS, copied
 all files across to new HDD, boots up fine.
+
+
+Host Invaders is the same motherboard and video card as above, but instead of an HDD,
+there is a CD-ROM drive.
 
 ************************************************************************************/
 /*
@@ -115,12 +129,14 @@ something wrong in the disk geometry reported by calchase.chd (20,255,63) since 
 
 #include "emu.h"
 #include "cpu/i386/i386.h"
-#include "machine/pci.h"
+#include "machine/lpci.h"
 #include "machine/pckeybrd.h"
 #include "machine/idectrl.h"
 #include "video/pc_vga.h"
 #include "sound/dac.h"
 #include "machine/pcshare.h"
+#include "machine/ds128x.h"
+#include "bus/isa/trident.h"
 
 
 class calchase_state : public pcat_base_state
@@ -135,7 +151,7 @@ public:
 
 	UINT32 *m_bios_ram;
 	UINT32 *m_bios_ext_ram;
-	UINT8 m_mxtc_config_reg[256];
+	UINT8 m_mtxc_config_reg[256];
 	UINT8 m_piix4_config_reg[4][256];
 
 	UINT32 m_idle_skip_ram;
@@ -151,6 +167,7 @@ public:
 	DECLARE_WRITE16_MEMBER(calchase_dac_l_w);
 	DECLARE_WRITE16_MEMBER(calchase_dac_r_w);
 	DECLARE_DRIVER_INIT(calchase);
+	DECLARE_DRIVER_INIT(hostinv);
 	virtual void machine_start();
 	virtual void machine_reset();
 	void intel82439tx_init();
@@ -158,21 +175,21 @@ public:
 	required_device<dac_device> m_dac_r;
 };
 
-// Intel 82439TX System Controller (MXTC)
+// Intel 82439TX System Controller (MTXC)
 // TODO: change with a VIA82C585VPX (North Bridge - APOLLO Chipset)
 
-static UINT8 mxtc_config_r(device_t *busdevice, device_t *device, int function, int reg)
+static UINT8 mtxc_config_r(device_t *busdevice, device_t *device, int function, int reg)
 {
 	calchase_state *state = busdevice->machine().driver_data<calchase_state>();
-//  osd_printf_debug("MXTC: read %d, %02X\n", function, reg);
+//  osd_printf_debug("MTXC: read %d, %02X\n", function, reg);
 
-	return state->m_mxtc_config_reg[reg];
+	return state->m_mtxc_config_reg[reg];
 }
 
-static void mxtc_config_w(device_t *busdevice, device_t *device, int function, int reg, UINT8 data)
+static void mtxc_config_w(device_t *busdevice, device_t *device, int function, int reg, UINT8 data)
 {
 	calchase_state *state = busdevice->machine().driver_data<calchase_state>();
-//  osd_printf_debug("%s:MXTC: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
+//  osd_printf_debug("%s:MTXC: write %d, %02X, %02X\n", machine.describe_context(), function, reg, data);
 
 	/*
 	memory banking with North Bridge:
@@ -196,17 +213,17 @@ static void mxtc_config_w(device_t *busdevice, device_t *device, int function, i
 			state->membank("bios_ext")->set_base(state->memregion("bios")->base() + 0);
 	}
 
-	state->m_mxtc_config_reg[reg] = data;
+	state->m_mtxc_config_reg[reg] = data;
 }
 
 void calchase_state::intel82439tx_init()
 {
-	m_mxtc_config_reg[0x60] = 0x02;
-	m_mxtc_config_reg[0x61] = 0x02;
-	m_mxtc_config_reg[0x62] = 0x02;
-	m_mxtc_config_reg[0x63] = 0x02;
-	m_mxtc_config_reg[0x64] = 0x02;
-	m_mxtc_config_reg[0x65] = 0x02;
+	m_mtxc_config_reg[0x60] = 0x02;
+	m_mtxc_config_reg[0x61] = 0x02;
+	m_mtxc_config_reg[0x62] = 0x02;
+	m_mtxc_config_reg[0x63] = 0x02;
+	m_mtxc_config_reg[0x64] = 0x02;
+	m_mtxc_config_reg[0x65] = 0x02;
 }
 
 static UINT32 intel82439tx_pci_r(device_t *busdevice, device_t *device, int function, int reg, UINT32 mem_mask)
@@ -218,19 +235,19 @@ static UINT32 intel82439tx_pci_r(device_t *busdevice, device_t *device, int func
 
 	if (ACCESSING_BITS_24_31)
 	{
-		r |= mxtc_config_r(busdevice, device, function, reg + 3) << 24;
+		r |= mtxc_config_r(busdevice, device, function, reg + 3) << 24;
 	}
 	if (ACCESSING_BITS_16_23)
 	{
-		r |= mxtc_config_r(busdevice, device, function, reg + 2) << 16;
+		r |= mtxc_config_r(busdevice, device, function, reg + 2) << 16;
 	}
 	if (ACCESSING_BITS_8_15)
 	{
-		r |= mxtc_config_r(busdevice, device, function, reg + 1) << 8;
+		r |= mtxc_config_r(busdevice, device, function, reg + 1) << 8;
 	}
 	if (ACCESSING_BITS_0_7)
 	{
-		r |= mxtc_config_r(busdevice, device, function, reg + 0) << 0;
+		r |= mtxc_config_r(busdevice, device, function, reg + 0) << 0;
 	}
 	return r;
 }
@@ -239,19 +256,19 @@ static void intel82439tx_pci_w(device_t *busdevice, device_t *device, int functi
 {
 	if (ACCESSING_BITS_24_31)
 	{
-		mxtc_config_w(busdevice, device, function, reg + 3, (data >> 24) & 0xff);
+		mtxc_config_w(busdevice, device, function, reg + 3, (data >> 24) & 0xff);
 	}
 	if (ACCESSING_BITS_16_23)
 	{
-		mxtc_config_w(busdevice, device, function, reg + 2, (data >> 16) & 0xff);
+		mtxc_config_w(busdevice, device, function, reg + 2, (data >> 16) & 0xff);
 	}
 	if (ACCESSING_BITS_8_15)
 	{
-		mxtc_config_w(busdevice, device, function, reg + 1, (data >> 8) & 0xff);
+		mtxc_config_w(busdevice, device, function, reg + 1, (data >> 8) & 0xff);
 	}
 	if (ACCESSING_BITS_0_7)
 	{
-		mxtc_config_w(busdevice, device, function, reg + 0, (data >> 0) & 0xff);
+		mtxc_config_w(busdevice, device, function, reg + 0, (data >> 0) & 0xff);
 	}
 }
 
@@ -320,7 +337,7 @@ static void intel82371ab_pci_w(device_t *busdevice, device_t *device, int functi
 
 WRITE32_MEMBER(calchase_state::bios_ram_w)
 {
-	if (m_mxtc_config_reg[0x63] & 0x10)       // write to RAM if this region is write-enabled
+	if (m_mtxc_config_reg[0x63] & 0x10)       // write to RAM if this region is write-enabled
 	{
 		COMBINE_DATA(m_bios_ram + offset);
 	}
@@ -328,7 +345,7 @@ WRITE32_MEMBER(calchase_state::bios_ram_w)
 
 WRITE32_MEMBER(calchase_state::bios_ext_ram_w)
 {
-	if (m_mxtc_config_reg[0x63] & 0x40)       // write to RAM if this region is write-enabled
+	if (m_mtxc_config_reg[0x63] & 0x40)       // write to RAM if this region is write-enabled
 	{
 		COMBINE_DATA(m_bios_ext_ram + offset);
 	}
@@ -435,10 +452,10 @@ static ADDRESS_MAP_START( calchase_io, AS_IO, 32, calchase_state )
 	AM_RANGE(0x0a78, 0x0a7b) AM_WRITENOP//AM_WRITE(pnp_data_w)
 	AM_RANGE(0x0cf8, 0x0cff) AM_DEVREADWRITE("pcibus", pci_bus_legacy_device, read, write)
 	AM_RANGE(0x42e8, 0x43ef) AM_NOP //To debug
-	AM_RANGE(0x43c0, 0x43cf) AM_RAM AM_SHARE("share1")
+	AM_RANGE(0x43c4, 0x43cb) AM_DEVREADWRITE8("vga", trident_vga_device, port_43c6_r, port_43c6_w, 0xffffffff)  // Trident Memory and Video Clock register
 	AM_RANGE(0x46e8, 0x46ef) AM_NOP //To debug
 	AM_RANGE(0x4ae8, 0x4aef) AM_NOP //To debug
-	AM_RANGE(0x83c0, 0x83cf) AM_RAM AM_SHARE("share1")
+	AM_RANGE(0x83c4, 0x83cb) AM_DEVREADWRITE8("vga", trident_vga_device, port_83c6_r, port_83c6_w, 0xffffffff)  // Trident LUTDAC
 	AM_RANGE(0x92e8, 0x92ef) AM_NOP //To debug
 ADDRESS_MAP_END
 
@@ -563,9 +580,7 @@ static INPUT_PORTS_START( calchase )
 	PORT_DIPNAME( 0x1000, 0x1000, DEF_STR( Unknown ) )
 	PORT_DIPSETTING(    0x1000, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x2000, 0x2000, DEF_STR( Unknown ) )
-	PORT_DIPSETTING(    0x2000, DEF_STR( Off ) )
-	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_CUSTOM ) PORT_VBLANK("screen") //eggsplc
 	PORT_DIPNAME( 0x4000, 0x4000, DEF_STR( Unknown ) )
 	PORT_DIPSETTING(    0x4000, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x0000, DEF_STR( On ) )
@@ -655,6 +670,37 @@ static MACHINE_CONFIG_START( calchase, calchase_state )
 	/* video hardware */
 	MCFG_FRAGMENT_ADD( pcvideo_trident_vga )
 
+	MCFG_DEVICE_REMOVE("rtc")
+	MCFG_DS12885_ADD("rtc")
+	MCFG_MC146818_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir0_w))
+	MCFG_MC146818_CENTURY_INDEX(0x32)
+
+	/* sound hardware */
+	MCFG_SPEAKER_STANDARD_STEREO("lspeaker","rspeaker")
+	MCFG_DAC_ADD("dac_l")
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.5)
+	MCFG_DAC_ADD("dac_r")
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.5)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_START( hostinv, calchase_state )
+	MCFG_CPU_ADD("maincpu", PENTIUM, 133000000) // Cyrix 686MX-PR200 CPU
+	MCFG_CPU_PROGRAM_MAP(calchase_map)
+	MCFG_CPU_IO_MAP(calchase_io)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("pic8259_1", pic8259_device, inta_cb)
+
+	MCFG_FRAGMENT_ADD( pcat_common )
+
+	MCFG_IDE_CONTROLLER_32_ADD("ide", ata_devices, "cdrom", NULL, true)
+	MCFG_ATA_INTERFACE_IRQ_HANDLER(DEVWRITELINE("pic8259_2", pic8259_device, ir6_w))
+
+	MCFG_PCI_BUS_LEGACY_ADD("pcibus", 0)
+	MCFG_PCI_BUS_LEGACY_DEVICE(0, NULL, intel82439tx_pci_r, intel82439tx_pci_w)
+	MCFG_PCI_BUS_LEGACY_DEVICE(7, NULL, intel82371ab_pci_r, intel82371ab_pci_w)
+
+	/* video hardware */
+	MCFG_FRAGMENT_ADD( pcvideo_trident_vga )
+
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker","rspeaker")
 	MCFG_DAC_ADD("dac_l")
@@ -686,6 +732,13 @@ DRIVER_INIT_MEMBER(calchase_state,calchase)
 	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x3f0b160, 0x3f0b163, read32_delegate(FUNC(calchase_state::calchase_idle_skip_r),this), write32_delegate(FUNC(calchase_state::calchase_idle_skip_w),this));
 }
 
+DRIVER_INIT_MEMBER(calchase_state, hostinv)
+{
+	m_bios_ram = auto_alloc_array(machine(), UINT32, 0x20000/4);
+
+	intel82439tx_init();
+}
+
 ROM_START( calchase )
 	ROM_REGION( 0x40000, "bios", 0 )
 	ROM_LOAD( "mb_bios.bin", 0x00000, 0x20000, CRC(dea7a51b) SHA1(e2028c00bfa6d12959fc88866baca8b06a1eab68) )
@@ -701,4 +754,36 @@ ROM_START( calchase )
 	DISK_IMAGE_READONLY( "calchase", 0,BAD_DUMP SHA1(6ae51a9b3f31cf4166322328a98c0235b0874eb3) )
 ROM_END
 
+ROM_START( hostinv )
+	ROM_REGION( 0x40000, "bios", 0 )
+	ROM_LOAD( "hostinv_bios.bin", 0x000000, 0x020000, CRC(5111e4b8) SHA1(20ab93150b61fd068f269368450734bba5dcb284) )
+
+	ROM_REGION( 0x8000, "video_bios", 0 )
+	ROM_LOAD16_BYTE( "trident_tgui9680_bios.bin", 0x0000, 0x4000, CRC(1eebde64) SHA1(67896a854d43a575037613b3506aea6dae5d6a19) )
+	ROM_CONTINUE(                                 0x0001, 0x4000 )
+
+	ROM_REGION( 0x800, "nvram", ROMREGION_ERASEFF )
+	ROM_LOAD( "ds1220y_hostinv.bin", 0x000, 0x800, NO_DUMP )
+
+	DISK_REGION( "ide:0:cdrom:image" )
+	DISK_IMAGE_READONLY( "hostinv", 0, SHA1(3cb86c62e80be98a717172b717f7276a0e5f6830) )
+ROM_END
+
+ROM_START( eggsplc )
+	ROM_REGION( 0x40000, "bios", 0 )
+	ROM_LOAD( "hostinv_bios.bin", 0x000000, 0x020000, CRC(5111e4b8) SHA1(20ab93150b61fd068f269368450734bba5dcb284) )
+
+	ROM_REGION( 0x8000, "video_bios", 0 )
+	ROM_LOAD16_BYTE( "trident_tgui9680_bios.bin", 0x0000, 0x4000, CRC(1eebde64) SHA1(67896a854d43a575037613b3506aea6dae5d6a19) )
+	ROM_CONTINUE(                                 0x0001, 0x4000 )
+
+	ROM_REGION( 0x800, "nvram", ROMREGION_ERASEFF )
+	ROM_LOAD( "ds1220y_eggsplc.bin", 0x000, 0x800, NO_DUMP )
+
+	DISK_REGION( "ide:0:hdd:image" )
+	DISK_IMAGE_READONLY( "eggsplc", 0, SHA1(fa38dd6b0d25cde644f68cf639768f137c607eb5) )
+ROM_END
+
+GAME( 1998, hostinv,   0,    hostinv,  calchase, calchase_state,  hostinv,  ROT0, "The Game Room", "Host Invaders", GAME_NOT_WORKING|GAME_IMPERFECT_GRAPHICS )
 GAME( 1999, calchase,  0,    calchase, calchase, calchase_state,  calchase, ROT0, "The Game Room", "California Chase", GAME_NOT_WORKING|GAME_IMPERFECT_GRAPHICS )
+GAME( 2002, eggsplc,   0,    calchase, calchase, calchase_state,  hostinv,  ROT0, "The Game Room", "Eggs Playing Chicken", 0 )

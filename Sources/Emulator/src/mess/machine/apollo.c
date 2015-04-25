@@ -922,7 +922,7 @@ MACHINE_CONFIG_FRAGMENT( common )
 	MCFG_APOLLO_SIO_IRQ_CALLBACK(WRITELINE(apollo_state, sio2_irq_handler))
 
 	MCFG_DEVICE_ADD(APOLLO_ISA_TAG, ISA16, 0)
-	MCFG_ISA16_CPU(":"MAINCPU)
+	MCFG_ISA16_CPU(":" MAINCPU)
 	MCFG_ISA16_BUS_CUSTOM_SPACES()
 	MCFG_ISA_OUT_IRQ2_CB(DEVWRITELINE(APOLLO_PIC2_TAG, pic8259_device, ir2_w)) // in place of irq 2 on at irq 9 is used
 	MCFG_ISA_OUT_IRQ3_CB(DEVWRITELINE(APOLLO_PIC1_TAG, pic8259_device, ir3_w))
@@ -949,6 +949,8 @@ MACHINE_CONFIG_FRAGMENT( common )
 	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa5", apollo_isa_cards, NULL, false)
 	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa6", apollo_isa_cards, NULL, false)
 	MCFG_ISA16_SLOT_ADD(APOLLO_ISA_TAG, "isa7", apollo_isa_cards, NULL, false)
+
+	MCFG_SOFTWARE_LIST_ADD("ctape_list", "apollo_ctape")
 MACHINE_CONFIG_END
 
 // for machines with the keyboard and a graphics head

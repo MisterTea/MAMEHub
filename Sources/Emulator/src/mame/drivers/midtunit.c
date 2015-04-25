@@ -43,7 +43,10 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, midtunit_state )
 	AM_RANGE(0x01000000, 0x013fffff) AM_RAM
 	AM_RANGE(0x01400000, 0x0141ffff) AM_READWRITE(midtunit_cmos_r, midtunit_cmos_w) AM_SHARE("nvram")
 	AM_RANGE(0x01480000, 0x014fffff) AM_WRITE(midtunit_cmos_enable_w)
-	AM_RANGE(0x01600000, 0x0160003f) AM_READ(midtunit_input_r)
+	AM_RANGE(0x01600000, 0x0160000f) AM_READ_PORT("IN0")
+	AM_RANGE(0x01600010, 0x0160001f) AM_READ_PORT("IN1")
+	AM_RANGE(0x01600020, 0x0160002f) AM_READ_PORT("IN2")
+	AM_RANGE(0x01600030, 0x0160003f) AM_READ_PORT("DSW")
 	AM_RANGE(0x01800000, 0x0187ffff) AM_RAM_WRITE(midtunit_paletteram_w) AM_SHARE("paletteram")
 	AM_RANGE(0x01a80000, 0x01a800ff) AM_READWRITE(midtunit_dma_r, midtunit_dma_w)
 	AM_RANGE(0x01b00000, 0x01b0001f) AM_WRITE(midtunit_control_w)
@@ -573,26 +576,6 @@ static INPUT_PORTS_START( nbajamte )
 INPUT_PORTS_END
 
 
-/*************************************
- *
- *  34010 configuration
- *
- *************************************/
-
-static const tms340x0_config tms_config =
-{
-	FALSE,                          /* halt on reset */
-	"screen",                       /* the screen operated on */
-	PIXEL_CLOCK,                    /* pixel clock */
-	2,                              /* pixels per clock */
-	midtunit_scanline_update,       /* scanline updater (indexed16) */
-	NULL,                           /* scanline updater (rgb32) */
-	NULL,                           /* generate interrupt */
-	midtunit_to_shiftreg,           /* write to shiftreg function */
-	midtunit_from_shiftreg          /* read from shiftreg function */
-};
-
-
 
 /*************************************
  *
@@ -604,8 +587,13 @@ static MACHINE_CONFIG_START( tunit_core, midtunit_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, CPU_CLOCK)
-	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(main_map)
+	MCFG_TMS340X0_HALT_ON_RESET(FALSE) /* halt on reset */
+	MCFG_TMS340X0_PIXEL_CLOCK(PIXEL_CLOCK) /* pixel clock */
+	MCFG_TMS340X0_PIXELS_PER_CLOCK(2) /* pixels per clock */
+	MCFG_TMS340X0_SCANLINE_IND16_CB(midtunit_state, scanline_update)       /* scanline updater (indexed16) */
+	MCFG_TMS340X0_TO_SHIFTREG_CB(midtunit_state, to_shiftreg)           /* write to shiftreg function */
+	MCFG_TMS340X0_FROM_SHIFTREG_CB(midtunit_state, from_shiftreg)          /* read from shiftreg function */
 
 	MCFG_MACHINE_RESET_OVERRIDE(midtunit_state,midtunit)
 	MCFG_NVRAM_ADD_0FILL("nvram")
@@ -614,7 +602,8 @@ static MACHINE_CONFIG_START( tunit_core, midtunit_state )
 	MCFG_PALETTE_ADD("palette", 32768)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK * 2, 505, 0, 399, 289, 0, 253)
+	// from TMS340 registers
+	MCFG_SCREEN_RAW_PARAMS(PIXEL_CLOCK * 2, 506, 100, 500, 289, 20, 274)
 	MCFG_SCREEN_UPDATE_DEVICE("maincpu", tms34010_device, tms340x0_ind16)
 	MCFG_SCREEN_PALETTE("palette")
 

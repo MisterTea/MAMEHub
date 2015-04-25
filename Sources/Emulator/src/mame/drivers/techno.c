@@ -1,11 +1,14 @@
+// license:MAME
+// copyright-holders:Robbbert
 /**********************************************************************************
 
-    Pinball
+    PINBALL
     Technoplay "2-2C 8008 LS" (68000 CPU)
     Schematic and PinMAME used as references
 
 ToDo:
-- Once game starts, nothing responds
+- Once you press the credit button, nothing responds (game requires 4 balls)
+- Sliding display is too fast to read (much better if cpu xtal changed to 4MHz)
 - No sound due to missing roms
 
 ***********************************************************************************/
@@ -15,14 +18,14 @@ ToDo:
 #include "cpu/m68000/m68000.h"
 #include "techno.lh"
 
-#define TECHNO_MAINCLK 8e6
 
 class techno_state : public driver_device
 {
 public:
 	techno_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-	m_maincpu(*this, "maincpu")
+		: driver_device(mconfig, type, tag)
+		, m_maincpu(*this, "maincpu")
+		, m_switch(*this, "SWITCH")
 	{ }
 
 	DECLARE_READ16_MEMBER(key_r);
@@ -36,20 +39,15 @@ public:
 	DECLARE_WRITE16_MEMBER(sol1_w);
 	DECLARE_WRITE16_MEMBER(sol2_w);
 	DECLARE_WRITE16_MEMBER(sound_w);
-	UINT16 m_digit;
-	UINT8 m_vector;
-protected:
-
-	// devices
-	required_device<cpu_device> m_maincpu;
-
-	// driver_device overrides
-	virtual void machine_reset();
+	INTERRUPT_GEN_MEMBER(techno_intgen);
 private:
 	bool m_digwait;
 	UINT8 m_keyrow;
-public:
-	INTERRUPT_GEN_MEMBER(techno_intgen);
+	UINT16 m_digit;
+	UINT8 m_vector;
+	virtual void machine_reset();
+	required_device<cpu_device> m_maincpu;
+	required_ioport_array<8> m_switch;
 };
 
 
@@ -139,9 +137,7 @@ WRITE16_MEMBER( techno_state::setout_w )
 // inputs
 READ16_MEMBER( techno_state::key_r )
 {
-	char kbdrow[6];
-	sprintf(kbdrow,"X%X",m_keyrow);
-	return ioport(kbdrow)->read();
+	return m_switch[m_keyrow]->read();
 }
 
 // unknown
@@ -157,7 +153,7 @@ READ16_MEMBER( techno_state::sound_r )
 }
 
 static INPUT_PORTS_START( techno )
-	PORT_START("X0")
+	PORT_START("SWITCH.0")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Letter select+") PORT_CODE(KEYCODE_F5)
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_COIN3 )
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_COIN2 )
@@ -166,7 +162,7 @@ static INPUT_PORTS_START( techno )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_TILT2 )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Test-") PORT_CODE(KEYCODE_F7)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Test+") PORT_CODE(KEYCODE_F8)
-	PORT_START("X1")
+	PORT_START("SWITCH.1")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix top target right")
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Horizontal rail right")
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_UNUSED )
@@ -175,7 +171,7 @@ static INPUT_PORTS_START( techno )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_TILT )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_START )
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Letter select+") PORT_CODE(KEYCODE_F6)
-	PORT_START("X2")
+	PORT_START("SWITCH.2")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Inner Canal Left") PORT_CODE(KEYCODE_O)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Exit Canal Right") PORT_CODE(KEYCODE_OPENBRACE)
@@ -184,7 +180,7 @@ static INPUT_PORTS_START( techno )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Ball 3")
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Ball 4")
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Out Hole") PORT_CODE(KEYCODE_X)
-	PORT_START("X3")
+	PORT_START("SWITCH.3")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Top Bumper") PORT_CODE(KEYCODE_Q)
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Bottom Bumper") PORT_CODE(KEYCODE_W)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Top Right Kicker") PORT_CODE(KEYCODE_E)
@@ -193,7 +189,7 @@ static INPUT_PORTS_START( techno )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Exit Canal Left") PORT_CODE(KEYCODE_U)
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Inner Canal Right") PORT_CODE(KEYCODE_I)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_START("X4")
+	PORT_START("SWITCH.4")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix left target bottom") PORT_CODE(KEYCODE_A)
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Left rollover") PORT_CODE(KEYCODE_S)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Barrier 1 Target") PORT_CODE(KEYCODE_D)
@@ -202,7 +198,7 @@ static INPUT_PORTS_START( techno )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Barrier 3 Target") PORT_CODE(KEYCODE_G)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Left Bumper") PORT_CODE(KEYCODE_H)
-	PORT_START("X5")
+	PORT_START("SWITCH.5")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix right target top") PORT_CODE(KEYCODE_J)
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix right target middle-top") PORT_CODE(KEYCODE_K)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Spinning Target") PORT_CODE(KEYCODE_L)
@@ -211,7 +207,7 @@ static INPUT_PORTS_START( techno )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix left target top") PORT_CODE(KEYCODE_CLOSEBRACE)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix left target centre") PORT_CODE(KEYCODE_BACKSLASH)
-	PORT_START("X6")
+	PORT_START("SWITCH.6")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix top left target left") PORT_CODE(KEYCODE_Z)
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Ball 1 Bridge")
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Ball 2 Bridge")
@@ -220,7 +216,7 @@ static INPUT_PORTS_START( techno )
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix right target middle-bottom") PORT_CODE(KEYCODE_C)
 	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix right target bottom") PORT_CODE(KEYCODE_V)
-	PORT_START("X7")
+	PORT_START("SWITCH.7")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix top target middle-right") PORT_CODE(KEYCODE_B)
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix top target middle-left") PORT_CODE(KEYCODE_N)
 	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Fix top target Left") PORT_CODE(KEYCODE_M)
@@ -249,11 +245,11 @@ void techno_state::machine_reset()
 
 static MACHINE_CONFIG_START( techno, techno_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, TECHNO_MAINCLK)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_8MHz)
 	MCFG_CPU_PROGRAM_MAP(techno_map)
-	MCFG_CPU_PERIODIC_INT_DRIVER(techno_state, techno_intgen,  TECHNO_MAINCLK/256) // 31250Hz
+	MCFG_CPU_PERIODIC_INT_DRIVER(techno_state, techno_intgen,  XTAL_8MHz/256) // 31250Hz
 	MCFG_NVRAM_ADD_0FILL("nvram")
-	//MCFG_CPU_ADD("cpu2", TMS7000, 4000000)
+	//MCFG_CPU_ADD("cpu2", TMS7000, XTAL_4MHz)
 	//MCFG_CPU_PROGRAM_MAP(techno_sub_map)
 
 	/* Video */
@@ -261,12 +257,12 @@ static MACHINE_CONFIG_START( techno, techno_state )
 MACHINE_CONFIG_END
 
 ROM_START(xforce)
-	ROM_REGION(0x1000000, "maincpu", 0)
-	ROM_LOAD16_BYTE("ic15", 0x000001, 0x8000, CRC(fb8d2853) SHA1(0b0004abfe32edfd3ac15d66f90695d264c97eba))
-	ROM_LOAD16_BYTE("ic17", 0x000000, 0x8000, CRC(122ef649) SHA1(0b425f81869bc359841377a91c39f44395502bff))
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD16_BYTE("ic15", 0x0001, 0x8000, CRC(fb8d2853) SHA1(0b0004abfe32edfd3ac15d66f90695d264c97eba))
+	ROM_LOAD16_BYTE("ic17", 0x0000, 0x8000, CRC(122ef649) SHA1(0b425f81869bc359841377a91c39f44395502bff))
 
 	//ROM_REGION(0x20000), "cpu2", 0)
 	// 5 x 27256 roms are undumped
 ROM_END
 
-GAME(1987,  xforce,  0,  techno,  techno, driver_device,  0,  ROT0,  "Tecnoplay", "X Force", GAME_MECHANICAL | GAME_NO_SOUND | GAME_IMPERFECT_KEYBOARD)
+GAME(1987,  xforce,  0,  techno,  techno, driver_device,  0,  ROT0,  "Tecnoplay", "X Force", GAME_IS_SKELETON_MECHANICAL)

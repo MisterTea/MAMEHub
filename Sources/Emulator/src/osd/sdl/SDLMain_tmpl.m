@@ -7,7 +7,7 @@
     Feel free to customize this file to suit your needs
 */
 
-#import "SDL/SDL.h"
+#import "sdlinc.h"
 #import "SDLMain_tmpl.h"
 #import <sys/param.h> /* for MAXPATHLEN */
 #import <unistd.h>
@@ -285,7 +285,6 @@ static void CustomApplicationMain (int argc, char **argv)
     return TRUE;
 }
 
-int RunApp(int argc, char *argv[]);
 
 /* Called when the internal event loop has just started running */
 - (void) applicationDidFinishLaunching: (NSNotification *) note
@@ -302,7 +301,7 @@ int RunApp(int argc, char *argv[]);
 
     /* Hand off to main application code */
     gCalledAppMainline = TRUE;
-    status = RunApp(gArgc, gArgv);
+    status = SDL_main (gArgc, gArgv);
 
     /* We're done, thank you for playing */
     exit(status);
@@ -357,7 +356,7 @@ int RunApp(int argc, char *argv[]);
 
 
 /* Main entry point to executable - should *not* be SDL_main! */
-int RunApp(int argc, char *argv[])
+int main (int argc, char **argv)
 {
     /* Copy the arguments into a global variable */
     /* This is passed if we are launched by double-clicking */

@@ -28,7 +28,7 @@ INLINE void ATTR_PRINTF(3,4) verboselog( running_machine& machine, int n_level, 
 const device_type PSX_DMA = &device_creator<psxdma_device>;
 
 psxdma_device::psxdma_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, PSX_DMA, "PSX DMA", tag, owner, clock, "psxdma", __FILE__),
+	device_t(mconfig, PSX_DMA, "Sony PSX DMA", tag, owner, clock, "psxdma", __FILE__),
 	m_irq_handler(*this)
 {
 }
@@ -66,11 +66,11 @@ void psxdma_device::device_start()
 
 		dma->timer = timer_alloc(index);
 
-		machine().save().save_item( "psxdma", tag(), index, NAME( dma->n_base ) );
-		machine().save().save_item( "psxdma", tag(), index, NAME( dma->n_blockcontrol ) );
-		machine().save().save_item( "psxdma", tag(), index, NAME( dma->n_channelcontrol ) );
-		machine().save().save_item( "psxdma", tag(), index, NAME( dma->n_ticks ) );
-		machine().save().save_item( "psxdma", tag(), index, NAME( dma->b_running ) );
+		save_item( NAME( dma->n_base ), index );
+		save_item( NAME( dma->n_blockcontrol ), index );
+		save_item( NAME( dma->n_channelcontrol ), index );
+		save_item( NAME( dma->n_ticks ), index );
+		save_item( NAME( dma->b_running ), index );
 	}
 
 	save_item( NAME(m_dpcp) );

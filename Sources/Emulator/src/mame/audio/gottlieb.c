@@ -2,7 +2,7 @@
 // copyright-holders:Aaron Giles
 /***************************************************************************
 
-    gottlieb.h
+    gottlieb.c
 
     Gottlieb 6502-based sound hardware implementations.
 
@@ -10,8 +10,7 @@
 
 ***************************************************************************/
 
-#include "emu.h"
-#include "includes/gottlieb.h"
+#include "audio/gottlieb.h"
 
 
 #define SOUND1_CLOCK        XTAL_3_579545MHz
@@ -23,6 +22,7 @@
 //  GLOBAL VARIABLES
 //**************************************************************************
 
+extern const device_type GOTTLIEB_SOUND_REV0 = &device_creator<gottlieb_sound_r0_device>;
 extern const device_type GOTTLIEB_SOUND_REV1 = &device_creator<gottlieb_sound_r1_device>;
 extern const device_type GOTTLIEB_SOUND_REV1_WITH_VOTRAX = &device_creator<gottlieb_sound_r1_with_votrax_device>;
 extern const device_type GOTTLIEB_SOUND_REV2 = &device_creator<gottlieb_sound_r2_device>;
@@ -230,73 +230,146 @@ static const char *const qbert_sample_names[] =
 	0   /* end of array */
 };
 
-static const samples_interface reactor_samples_interface =
-{
-	1,  /* one channel */
-	reactor_sample_names
-};
-
-static const samples_interface qbert_samples_interface =
-{
-	1,  /* one channel */
-	qbert_sample_names
-};
-
 MACHINE_CONFIG_FRAGMENT( reactor_samples )
-	MCFG_SAMPLES_ADD("samples", reactor_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(reactor_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
 MACHINE_CONFIG_FRAGMENT( qbert_samples )
-	MCFG_SAMPLES_ADD("samples", qbert_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(qbert_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
 #endif
 
 
-
 //**************************************************************************
-//  QBERT MECHANICAL KNOCKER
+//  REV 0 SOUND BOARD: 6502 + 6530 + DAC
 //**************************************************************************
 
 //-------------------------------------------------
-//  qbert cabinets have a mechanical knocker near the floor,
-//  MAME simulates this with a sample.
-//  (like all MAME samples, it is optional. If you actually have
-//   a real kicker/knocker, hook it up via output "knocker0")
+//  gottlieb_sound_r0_device - constructors
 //-------------------------------------------------
 
-void gottlieb_state::qbert_knocker(UINT8 knock)
+gottlieb_sound_r0_device::gottlieb_sound_r0_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: device_t(mconfig, GOTTLIEB_SOUND_REV1, "Gottlieb Sound rev. 0", tag, owner, clock, "gotsndr0", __FILE__)
+	, device_mixer_interface(mconfig, *this)
+	, m_audiocpu(*this, "audiocpu")
+	, m_r6530(*this, "r6530")
+	, m_dac(*this, "dac")
+	, m_sndcmd(0)
 {
-	output_set_value("knocker0", knock);
-
-	// start sound on rising edge
-	if (knock & ~m_knocker_prev)
-		m_knocker_sample->start(0, 0);
-	m_knocker_prev = knock;
 }
 
-static const char *const qbert_knocker_names[] =
+
+//-------------------------------------------------
+//  read port -
+//-------------------------------------------------
+
+READ8_MEMBER( gottlieb_sound_r0_device::r6530b_r )
 {
-	"*qbert",
-	"knocker",
-	0   /* end of array */
-};
+	return m_sndcmd;
+}
 
-static const samples_interface qbert_knocker_interface =
+
+//-------------------------------------------------
+//  write - handle an external command write
+//-------------------------------------------------
+
+WRITE8_MEMBER( gottlieb_sound_r0_device::write )
 {
-	1,  /* one channel */
-	qbert_knocker_names
-};
+	// write the command data to the low 4 bits
+	UINT8 pb0_3 = data ^ 15;
+	UINT8 pb4_7 = ioport("SB0")->read() & 0x90;
+	m_sndcmd = pb0_3 | pb4_7;
+	m_r6530->write(space, offset, m_sndcmd);
+}
 
-MACHINE_CONFIG_FRAGMENT( qbert_knocker )
-	MCFG_SPEAKER_ADD("knocker", 0.0, 0.0, 1.0)
 
-	MCFG_SAMPLES_ADD("knocker_sam", qbert_knocker_interface)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "knocker", 1.0)
+//-------------------------------------------------
+//  audio CPU map
+//-------------------------------------------------
+
+static ADDRESS_MAP_START( gottlieb_sound_r0_map, AS_PROGRAM, 8, gottlieb_sound_r0_device )
+	ADDRESS_MAP_GLOBAL_MASK(0x0fff)
+	AM_RANGE(0x0000, 0x003f) AM_RAM AM_MIRROR(0x1c0)
+	AM_RANGE(0x0200, 0x020f) AM_DEVREADWRITE("r6530", mos6530_device, read, write)
+	AM_RANGE(0x0400, 0x0fff) AM_ROM
+ADDRESS_MAP_END
+
+
+//-------------------------------------------------
+//  machine configuration
+//-------------------------------------------------
+
+MACHINE_CONFIG_FRAGMENT( gottlieb_sound_r0 )
+	// audio CPU
+	MCFG_CPU_ADD("audiocpu", M6502, SOUND1_CLOCK/4) // M6503 - clock is a gate, a resistor and a capacitor. Freq unknown.
+	MCFG_CPU_PROGRAM_MAP(gottlieb_sound_r0_map)
+
+	// I/O configuration
+	MCFG_DEVICE_ADD("r6530", MOS6530, SOUND1_CLOCK/4) // unknown - same as cpu
+	MCFG_MOS6530_OUT_PA_CB(DEVWRITE8("dac", dac_device, write_unsigned8))
+	MCFG_MOS6530_IN_PB_CB(READ8(gottlieb_sound_r0_device, r6530b_r))
+
+	// sound devices
+	MCFG_DAC_ADD("dac")
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, DEVICE_SELF_OWNER, 0.50)
 MACHINE_CONFIG_END
 
+
+//-------------------------------------------------
+//  input ports
+//-------------------------------------------------
+
+INPUT_PORTS_START( gottlieb_sound_r0 )
+	PORT_START("SB0")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Audio Diag") PORT_CODE(KEYCODE_0) PORT_CHANGED_MEMBER(DEVICE_SELF, gottlieb_sound_r0_device, audio_nmi, 1)
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Attract") PORT_CODE(KEYCODE_F1) PORT_TOGGLE
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Music") PORT_CODE(KEYCODE_F2) PORT_TOGGLE
+INPUT_PORTS_END
+
+INPUT_CHANGED_MEMBER( gottlieb_sound_r0_device::audio_nmi )
+{
+	// Diagnostic button sends a pulse to NMI pin
+	if (newval==CLEAR_LINE)
+		m_audiocpu->set_input_line(INPUT_LINE_NMI, PULSE_LINE);
+}
+
+
+//-------------------------------------------------
+//  device_mconfig_additions - return a pointer to
+//  the device's machine fragment
+//-------------------------------------------------
+
+machine_config_constructor gottlieb_sound_r0_device::device_mconfig_additions() const
+{
+	return MACHINE_CONFIG_NAME( gottlieb_sound_r0 );
+}
+
+
+//-------------------------------------------------
+//  device_input_ports - return a pointer to
+//  the device's I/O ports
+//-------------------------------------------------
+
+ioport_constructor gottlieb_sound_r0_device::device_input_ports() const
+{
+	return INPUT_PORTS_NAME( gottlieb_sound_r0 );
+}
+
+
+//-------------------------------------------------
+//  device_start - device-specific startup
+//-------------------------------------------------
+
+void gottlieb_sound_r0_device::device_start()
+{
+}
 
 
 //**************************************************************************
@@ -410,6 +483,9 @@ WRITE8_MEMBER( gottlieb_sound_r1_device::votrax_data_w )
 
 WRITE8_MEMBER( gottlieb_sound_r1_device::speech_clock_dac_w )
 {
+	// prevent negative clock values (and possible crash)
+	if (data < 0x65) data = 0x65;
+
 	if (m_votrax != NULL)
 	{
 		// nominal clock is 0xa0
@@ -478,7 +554,7 @@ MACHINE_CONFIG_FRAGMENT( gottlieb_sound_r1_with_votrax )
 
 	// add the VOTRAX
 	MCFG_DEVICE_ADD("votrax", VOTRAX_SC01, 720000)
-	MCFG_VOTRAX_SC01_REQUEST_CB(DEVWRITELINE(DEVICE_SELF_OWNER, gottlieb_sound_r1_device, votrax_request))
+	MCFG_VOTRAX_SC01_REQUEST_CB(DEVWRITELINE(DEVICE_SELF, gottlieb_sound_r1_device, votrax_request))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, DEVICE_SELF_OWNER, 0.50)
 MACHINE_CONFIG_END
 
@@ -954,7 +1030,7 @@ void gottlieb_sound_r2_device::device_timer(emu_timer &timer, device_timer_id id
 			m_nmi_state = 1;
 			nmi_state_update();
 
-			// set a timer to turn it off again on hte next SOUND_CLOCK/16
+			// set a timer to turn it off again on the next SOUND_CLOCK/16
 			timer_set(attotime::from_hz(SOUND2_CLOCK/16), TID_NMI_CLEAR);
 
 			// adjust the NMI timer for the next time

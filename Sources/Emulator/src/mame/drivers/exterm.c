@@ -95,43 +95,42 @@ READ16_MEMBER(exterm_state::exterm_host_data_r)
  *
  *************************************/
 
-static UINT16 exterm_trackball_port_r(address_space &space, int which, UINT16 mem_mask)
+UINT16 exterm_state::exterm_trackball_port_r(int which, UINT16 mem_mask)
 {
-	exterm_state *state = space.machine().driver_data<exterm_state>();
 	UINT16 port;
 
 	/* Read the fake input port */
-	UINT8 trackball_pos = state->ioport(which ? "DIAL1" : "DIAL0")->read();
+	UINT8 trackball_pos = ioport(which ? "DIAL1" : "DIAL0")->read();
 
 	/* Calculate the change from the last position. */
-	UINT8 trackball_diff = state->m_trackball_old[which] - trackball_pos;
+	UINT8 trackball_diff = m_trackball_old[which] - trackball_pos;
 
 	/* Store the new position for the next comparision. */
-	state->m_trackball_old[which] = trackball_pos;
+	m_trackball_old[which] = trackball_pos;
 
 	/* Move the sign bit to the high bit of the 6-bit trackball count. */
 	if (trackball_diff & 0x80)
 		trackball_diff |= 0x20;
 
 	/* Keep adding the changes.  The counters will be reset later by a hardware write. */
-	state->m_aimpos[which] = (state->m_aimpos[which] + trackball_diff) & 0x3f;
+	m_aimpos[which] = (m_aimpos[which] + trackball_diff) & 0x3f;
 
 	/* Combine it with the standard input bits */
-	port = state->ioport(which ? "P2" : "P1")->read();
+	port = ioport(which ? "P2" : "P1")->read();
 
-	return (port & 0xc0ff) | (state->m_aimpos[which] << 8);
+	return (port & 0xc0ff) | (m_aimpos[which] << 8);
 }
 
 
 READ16_MEMBER(exterm_state::exterm_input_port_0_r)
 {
-	return exterm_trackball_port_r(space, 0, mem_mask);
+	return exterm_trackball_port_r(0, mem_mask);
 }
 
 
 READ16_MEMBER(exterm_state::exterm_input_port_1_r)
 {
-	return exterm_trackball_port_r(space, 1, mem_mask);
+	return exterm_trackball_port_r(1, mem_mask);
 }
 
 
@@ -393,41 +392,6 @@ static INPUT_PORTS_START( exterm )
 INPUT_PORTS_END
 
 
-
-/*************************************
- *
- *  34010 configurations
- *
- *************************************/
-
-static const tms340x0_config master_config =
-{
-	FALSE,                      /* halt on reset */
-	"screen",                   /* the screen operated on */
-	40000000/8,                 /* pixel clock */
-	1,                          /* pixels per clock */
-	exterm_scanline_update,     /* scanline updater (indexed16) */
-	NULL,                       /* scanline updater (rgb32) */
-	NULL,                       /* generate interrupt */
-	exterm_to_shiftreg_master,  /* write to shiftreg function */
-	exterm_from_shiftreg_master /* read from shiftreg function */
-};
-
-static const tms340x0_config slave_config =
-{
-	TRUE,                       /* halt on reset */
-	"screen",                   /* the screen operated on */
-	40000000/8,                 /* pixel clock */
-	1,                          /* pixels per clock */
-	NULL,                       /* scanline updater (indexed16) */
-	NULL,                       /* scanline updater (rgb32) */
-	NULL,                       /* generate interrupt */
-	exterm_to_shiftreg_slave,   /* write to shiftreg function */
-	exterm_from_shiftreg_slave  /* read from shiftreg function */
-};
-
-
-
 /*************************************
  *
  *  Machine drivers
@@ -438,12 +402,21 @@ static MACHINE_CONFIG_START( exterm, exterm_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, 40000000)
-	MCFG_TMS340X0_CONFIG(master_config)
 	MCFG_CPU_PROGRAM_MAP(master_map)
+	MCFG_TMS340X0_HALT_ON_RESET(FALSE) /* halt on reset */
+	MCFG_TMS340X0_PIXEL_CLOCK(40000000/8) /* pixel clock */
+	MCFG_TMS340X0_PIXELS_PER_CLOCK(1) /* pixels per clock */
+	MCFG_TMS340X0_SCANLINE_IND16_CB(exterm_state, scanline_update)     /* scanline updater (indexed16) */
+	MCFG_TMS340X0_TO_SHIFTREG_CB(exterm_state, to_shiftreg_master)  /* write to shiftreg function */
+	MCFG_TMS340X0_FROM_SHIFTREG_CB(exterm_state, from_shiftreg_master) /* read from shiftreg function */
 
 	MCFG_CPU_ADD("slave", TMS34010, 40000000)
-	MCFG_TMS340X0_CONFIG(slave_config)
 	MCFG_CPU_PROGRAM_MAP(slave_map)
+	MCFG_TMS340X0_HALT_ON_RESET(TRUE) /* halt on reset */
+	MCFG_TMS340X0_PIXEL_CLOCK(40000000/8) /* pixel clock */
+	MCFG_TMS340X0_PIXELS_PER_CLOCK(1) /* pixels per clock */
+	MCFG_TMS340X0_TO_SHIFTREG_CB(exterm_state, to_shiftreg_slave)   /* write to shiftreg function */
+	MCFG_TMS340X0_FROM_SHIFTREG_CB(exterm_state, from_shiftreg_slave)  /* read from shiftreg function */
 
 	MCFG_CPU_ADD("audiocpu", M6502, 2000000)
 	MCFG_CPU_PROGRAM_MAP(sound_master_map)

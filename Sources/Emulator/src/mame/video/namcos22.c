@@ -703,7 +703,6 @@ void namcos22_renderer::render_scene_nodes(screen_device &screen, bitmap_rgb32 &
 
 					default:
 						fatalerror("invalid node->type\n");
-						break;
 				}
 				free_scenenode(node);
 				node = next;
@@ -2331,9 +2330,9 @@ UINT32 namcos22_state::screen_update_namcos22(screen_device &screen, bitmap_rgb3
 	draw_text_layer(screen, bitmap, cliprect);
 
 	// apply gamma
-	const UINT8 *rlut = (const UINT8 *)m_gamma_proms->base();
-	const UINT8 *glut = (const UINT8 *)m_gamma_proms->base() + 0x100;
-	const UINT8 *blut = (const UINT8 *)m_gamma_proms->base() + 0x200;
+	const UINT8 *rlut = &m_gamma_proms[0x000];
+	const UINT8 *glut = &m_gamma_proms[0x100];
+	const UINT8 *blut = &m_gamma_proms[0x200];
 	for (int y = cliprect.min_y; y <= cliprect.max_y; y++)
 	{
 		UINT32 *dest = &bitmap.pix32(y);
@@ -2463,8 +2462,9 @@ void namcos22_state::init_tables()
 }
 
 
-VIDEO_START_MEMBER(namcos22_state,common)
+void namcos22_state::video_start()
 {
+	m_is_ss22 = (m_iomcu == NULL);
 	init_tables();
 
 	m_mix_bitmap = auto_bitmap_ind16_alloc(machine(), 640, 480);
@@ -2474,18 +2474,4 @@ VIDEO_START_MEMBER(namcos22_state,common)
 	m_gfxdecode->gfx(0)->set_source((UINT8 *)m_cgram.target());
 
 	m_poly = auto_alloc(machine(), namcos22_renderer(*this));
-}
-
-VIDEO_START_MEMBER(namcos22_state,namcos22)
-{
-	m_is_ss22 = 0;
-
-	VIDEO_START_CALL_MEMBER(common);
-}
-
-VIDEO_START_MEMBER(namcos22_state,namcos22s)
-{
-	m_is_ss22 = 1;
-
-	VIDEO_START_CALL_MEMBER(common);
 }

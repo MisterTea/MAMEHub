@@ -24,12 +24,43 @@
     Known bugs:
         * still seems to be some glitchiness in the games in general
 
+****************************************************************************
+
+Network Board (used for Power Drift)
+-------------
+
+Board: 834-6740
+|-------------| |-| |--------|---|-|
+| _ 315-5336  RX  TX          CNC  |
+||C|                               |
+||N| MB8421 EPR-12028  MB89372P-SH |
+||A|          5563                 |
+||_|                      315-5337 |
+|    SW1     LED   16MHz     Z80E  |
+|----------------------------------|
+
+Notes:
+      PALs      : 315-5337, 315-5336, both PAL16L8
+      Z80 clock : 8.000MHz [16/2]
+      5563      : Toshiba TC5563APL-12L 8k x 8 SRAM
+      MB8421    : Fujitsu 2k x 8 Dual-Port SRAM (SDIP52)
+      MB89372   : Fujitsu Multi-Protocol Controller
+      EPR-12028 : 27C256 EPROM
+      CNA       : 50 Pin connector to main board
+      CNC       : 10 pin connector
+      SW1       : Dipswitch block, 8 switches
+
+MB89372 - Uses 3 serial data transfer protocols: ASYNC, COP & BOP. Has a built
+          in DMA controller and Interrupt controller to handle interrupts
+          from the serial interface unit (SIU) & DMA controller (DMAC)
+
 ***************************************************************************/
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "includes/segaybd.h"
 #include "cpu/m68000/m68000.h"
+#include "machine/mb8421.h"
 #include "machine/segaic16.h"
 #include "machine/nvram.h"
 #include "sound/2151intf.h"
@@ -77,9 +108,8 @@ READ16_MEMBER( segaybd_state::analog_r )
 
 WRITE16_MEMBER( segaybd_state::analog_w )
 {
-	static const char *const ports[] = { "ADC0", "ADC1", "ADC2", "ADC3", "ADC4", "ADC5", "ADC6" };
 	int selected = ((offset & 3) == 3) ? (3 + (m_misc_io_data[0x08/2] & 3)) : (offset & 3);
-	m_analog_data[offset & 3] = ioport(ports[selected])->read_safe(0xff);
+	m_analog_data[offset & 3] = m_adc_ports[selected]->read_safe(0xff);
 }
 
 
@@ -87,9 +117,11 @@ WRITE16_MEMBER( segaybd_state::analog_w )
 //  io_chip_r - handle reads from the I/O chip
 //-------------------------------------------------
 
+IOPORT_ARRAY_MEMBER( segaybd_state::digital_ports )
+{ "P1", "GENERAL", "LIMITSW", "PORTD", "PORTE", "DSW", "COINAGE", "PORTH" };
+
 READ16_MEMBER( segaybd_state::io_chip_r )
 {
-	static const char *const portnames[] = { "P1", "GENERAL", "PORTC", "PORTD", "PORTE", "DSW", "COINAGE", "PORTH" };
 	offset &= 0x1f/2;
 
 	switch (offset)
@@ -108,7 +140,7 @@ READ16_MEMBER( segaybd_state::io_chip_r )
 				return m_misc_io_data[offset];
 
 			// otherwise, return an input port
-			return ioport(portnames[offset])->read();
+			return m_digital_ports[offset]->read();
 
 		// 'SEGA' protection
 		case 0x10/2:
@@ -175,7 +207,7 @@ WRITE16_MEMBER( segaybd_state::io_chip_w )
 			//  D2 = YRES
 			//  D1-D0 = ADC0-1
 			//
-			m_segaic16vid->segaic16_set_display_enable(data & 0x80);
+			m_segaic16vid->set_display_enable(data & 0x80);
 			if (((old ^ data) & 0x20) && !(data & 0x20))
 				machine().watchdog_reset();
 			m_soundcpu->set_input_line(INPUT_LINE_RESET, (data & 0x10) ? CLEAR_LINE : ASSERT_LINE);
@@ -362,6 +394,20 @@ void segaybd_state::device_timer(emu_timer &timer, device_timer_id id, int param
 //      section is frozen. bits x01, x04 and x10 when which == 0
 //      (IO chip 0), seem to have something to do with the sensor
 //      switches we need to fix
+
+//-------------------------------------------------
+//  gforce2_output_cb1 - output #1 handler for
+//  Galaxy Force
+//-------------------------------------------------
+
+void segaybd_state::gforce2_output_cb1(UINT16 data)
+{
+	logerror("gforce2_output_cb1: '%02X'\n", data & 0xFF);
+	//bits 4, 5, and 7 seem to be used to multiplex the "LIMITSW" port signals
+	//The exact mapping of these signals is yet not perfectly understood.
+	//You can observe how this value changes when switching pages in the
+	//service mode motor test menu
+}
 
 //-------------------------------------------------
 //  gforce2_output_cb2 - output #2 handler for
@@ -650,7 +696,6 @@ void segaybd_state::update_irqs()
 }
 
 
-
 //**************************************************************************
 //  MAIN CPU ADDRESS MAPS
 //**************************************************************************
@@ -668,7 +713,6 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, segaybd_state )
 	AM_RANGE(0x100040, 0x100047) AM_READWRITE(analog_r, analog_w)
 	AM_RANGE(0x1f0000, 0x1fffff) AM_RAM
 ADDRESS_MAP_END
-
 
 
 //**************************************************************************
@@ -697,10 +741,9 @@ static ADDRESS_MAP_START( suby_map, AS_PROGRAM, 16, segaybd_state )
 	AM_RANGE(0x180000, 0x1807ff) AM_MIRROR(0x007800) AM_RAM AM_SHARE("rotateram")
 	AM_RANGE(0x188000, 0x188fff) AM_MIRROR(0x007000) AM_RAM AM_SHARE("bsprites")
 	AM_RANGE(0x190000, 0x193fff) AM_MIRROR(0x004000) AM_RAM_WRITE(paletteram_w) AM_SHARE("paletteram")
-	AM_RANGE(0x198000, 0x19ffff) AM_DEVREAD("segaic16vid", segaic16_video_device, segaic16_rotate_control_0_r)
+	AM_RANGE(0x198000, 0x19ffff) AM_DEVREAD("segaic16vid", segaic16_video_device, rotate_control_r)
 	AM_RANGE(0x1f0000, 0x1fffff) AM_RAM
 ADDRESS_MAP_END
-
 
 
 //**************************************************************************
@@ -722,6 +765,68 @@ static ADDRESS_MAP_START( sound_portmap, AS_IO, 8, segaybd_state )
 ADDRESS_MAP_END
 
 
+//**************************************************************************
+//  LINK BOARD
+//**************************************************************************
+
+WRITE_LINE_MEMBER(segaybd_state::mb8421_intl)
+{
+	// shared ram interrupt request from linkcpu side
+	// unused?
+}
+
+WRITE_LINE_MEMBER(segaybd_state::mb8421_intr)
+{
+	// shared ram interrupt request from maincpu side
+	m_linkcpu->set_input_line_and_vector(0, state ? ASSERT_LINE : CLEAR_LINE, 0xef); // RST $28
+}
+
+
+READ16_MEMBER(segaybd_state::link_r)
+{
+	return rand();
+}
+
+READ16_MEMBER(segaybd_state::link2_r)
+{
+	return 0x0000;
+}
+
+WRITE16_MEMBER(segaybd_state::link2_w)
+{
+	data &= mem_mask;
+	logerror("link2_w %04x\n", data);
+}
+
+static ADDRESS_MAP_START( main_map_link, AS_PROGRAM, 16, segaybd_state )
+	AM_RANGE(0x190000, 0x190fff) AM_DEVREADWRITE8("mb8421", mb8421_device, left_r, left_w, 0x00ff)
+	AM_RANGE(0x191000, 0x191001) AM_READ(link_r)
+	AM_RANGE(0x192000, 0x192001) AM_READWRITE(link2_r, link2_w)
+
+	AM_IMPORT_FROM(main_map)
+ADDRESS_MAP_END
+
+
+static ADDRESS_MAP_START( link_map, AS_PROGRAM, 8, segaybd_state )
+	ADDRESS_MAP_UNMAP_HIGH
+	AM_RANGE(0x0000, 0x0fff) AM_ROM
+	AM_RANGE(0x2000, 0x3fff) AM_RAM
+	AM_RANGE(0x4000, 0x47ff) AM_DEVREADWRITE("mb8421", mb8421_device, right_r, right_w)
+ADDRESS_MAP_END
+
+READ8_MEMBER(segaybd_state::link_portc0_r)
+{
+	return 0xf8;
+}
+
+static ADDRESS_MAP_START( link_portmap, AS_IO, 8, segaybd_state )
+	ADDRESS_MAP_UNMAP_HIGH
+	ADDRESS_MAP_GLOBAL_MASK(0xff)
+
+//  AM_RANGE(0x40, 0x40) AM_READ_PORT("LinkDSW")
+	AM_RANGE(0xc0, 0xc0) AM_READ(link_portc0_r)
+ADDRESS_MAP_END
+
 
 //**************************************************************************
 //  GENERIC PORT DEFINITIONS
@@ -741,7 +846,7 @@ static INPUT_PORTS_START( yboard_generic )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN2 )
 
-	PORT_START("PORTC")
+	PORT_START("LIMITSW")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("PORTD")
@@ -780,6 +885,13 @@ static INPUT_PORTS_START( gforce2 )
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Shoot")
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("Missile")
 
+	PORT_MODIFY("LIMITSW")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Floor Switch")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Beam Sensor 2 / Down Limit") //The meaning of these portbits seems to be selected
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Beam Sensor 1 / Up Limit")   // by the output value written to gforce2_output_cb1
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Left CCW Limit")
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Right CW Limit")
+
 	PORT_MODIFY("DSW")
 	PORT_DIPNAME( 0x01, 0x00, DEF_STR( Demo_Sounds ) ) PORT_DIPLOCATION("SWB:1")
 	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
@@ -803,13 +915,13 @@ static INPUT_PORTS_START( gforce2 )
 	PORT_DIPSETTING(    0x40, DEF_STR( Upright ) )
 	PORT_DIPSETTING(    0x00, "City" )
 
-	PORT_START("ADC0")  // stick X
+	PORT_START("ADC.0")  // stick X
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_MINMAX(0x01,0xff) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
 
-	PORT_START("ADC1")  // stick Y
+	PORT_START("ADC.1")  // stick Y
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_MINMAX(0x01,0xff) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_REVERSE
 
-	PORT_START("ADC2")  // throttle
+	PORT_START("ADC.2")  // throttle
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Z ) PORT_MINMAX(0x01,0xff) PORT_SENSITIVITY(100) PORT_KEYDELTA(79)
 INPUT_PORTS_END
 
@@ -821,6 +933,12 @@ static INPUT_PORTS_START( gloc )
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("After Burner")
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("Vulcan")
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("Missile")
+
+	PORT_MODIFY("LIMITSW")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Right Upper Limit Switch")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Right Lower Limit Switch")
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Left Upper Limit Switch")
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_NAME("Left Lower Limit Switch")
 
 	PORT_MODIFY("DSW")
 	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SWB:1,2")
@@ -845,13 +963,13 @@ static INPUT_PORTS_START( gloc )
 	PORT_DIPSETTING(    0x80, "3 to Start, 2 to Continue" )
 	PORT_DIPSETTING(    0x00, "4 to Start, 3 to Continue" )
 
-	PORT_START("ADC3")  // stick Y
+	PORT_START("ADC.3")  // stick Y
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_MINMAX(0x40,0xc0) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_REVERSE
 
-	PORT_START("ADC4")  // throttle
+	PORT_START("ADC.4")  // throttle
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Z ) PORT_SENSITIVITY(100) PORT_KEYDELTA(79)
 
-	PORT_START("ADC5")  // stick X
+	PORT_START("ADC.5")  // stick X
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_MINMAX(0x20,0xe0) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
 INPUT_PORTS_END
 
@@ -930,16 +1048,16 @@ static INPUT_PORTS_START( glocr360 )
 	PORT_DIPSETTING(    0x80, DEF_STR( 1C_8C ) )
 	PORT_DIPSETTING(    0x00, "Free Play (if Coin A too) or 1/1" )
 
-	PORT_START("ADC0")  // moving pitch
+	PORT_START("ADC.0")  // moving pitch
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_PLAYER(2)
 
-	PORT_START("ADC2")  // moving roll
+	PORT_START("ADC.2")  // moving roll
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_PLAYER(3)
 
-	PORT_START("ADC3")  // stick Y
+	PORT_START("ADC.3")  // stick Y
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_REVERSE
 
-	PORT_START("ADC5")  // stick X
+	PORT_START("ADC.5")  // stick X
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
 INPUT_PORTS_END
 
@@ -949,6 +1067,12 @@ static INPUT_PORTS_START( pdrift )
 
 	PORT_MODIFY("GENERAL")
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_BUTTON1 ) PORT_NAME("Gear Shift") PORT_CODE(KEYCODE_SPACE) PORT_TOGGLE
+
+	PORT_MODIFY("LIMITSW")
+	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Safety Sensor Left")
+	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Safety Sensor Right")
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Limit Switch Left")
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OTHER ) PORT_NAME("Limit Switch Right")
 
 	PORT_MODIFY("DSW")
 	PORT_DIPNAME( 0x03, 0x02, DEF_STR( Cabinet ) ) PORT_DIPLOCATION("SWB:1,2")
@@ -973,13 +1097,13 @@ static INPUT_PORTS_START( pdrift )
 	PORT_DIPSETTING(    0x40, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
 
-	PORT_START("ADC3")  // brake
+	PORT_START("ADC.3")  // brake
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(40)
 
-	PORT_START("ADC4")  // gas pedal
+	PORT_START("ADC.4")  // gas pedal
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_SENSITIVITY(100) PORT_KEYDELTA(20)
 
-	PORT_START("ADC5")  // steering
+	PORT_START("ADC.5")  // steering
 	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_MINMAX(0x20,0xe0) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
 INPUT_PORTS_END
 
@@ -1035,6 +1159,88 @@ static INPUT_PORTS_START( pdriftj )
 	PORT_DIPSETTING(    0xc0, DEF_STR( Normal ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
+INPUT_PORTS_END
+
+
+static INPUT_PORTS_START( pdriftl )
+	PORT_INCLUDE( pdrift )
+
+	PORT_MODIFY("DSW")
+	PORT_DIPUNUSED_DIPLOC( 0x08, IP_ACTIVE_LOW, "SWB:4" )
+	PORT_DIPNAME( 0x10, 0x00, "Ground Level Tilts" ) PORT_DIPLOCATION("SWB:5")
+	PORT_DIPSETTING(    0x00, DEF_STR( No ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Yes ) )
+	PORT_DIPNAME( 0xe0, 0x80, DEF_STR( Difficulty ) ) PORT_DIPLOCATION("SWB:6,7,8")
+	PORT_DIPSETTING(    0xe0, "0 - Easiest" )
+	PORT_DIPSETTING(    0xa0, "1" )
+	PORT_DIPSETTING(    0xc0, "2" )
+	PORT_DIPSETTING(    0x80, "3" )
+	PORT_DIPSETTING(    0x60, "4" )
+	PORT_DIPSETTING(    0x40, "5" )
+	PORT_DIPSETTING(    0x20, "6" )
+	PORT_DIPSETTING(    0x00, "7 - Hardest" )
+
+	PORT_MODIFY("COINAGE")
+	PORT_DIPNAME( 0x0f, 0x0f, DEF_STR( Coin_A ) ) PORT_DIPLOCATION("SWA:1,2,3,4")
+	PORT_DIPSETTING(    0x0a, DEF_STR( 1C_6C ) )
+	PORT_DIPSETTING(    0x0d, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(    0x0e, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x06, DEF_STR( 2C_3C ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( 2C_3C ) )
+	PORT_DIPSETTING(    0x02, "4 Coins/5 Credits" )
+	PORT_DIPSETTING(    0x03, "5 Coins/6 Credits" )
+	PORT_DIPSETTING(    0x0f, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( 4C_3C ) )
+	PORT_DIPSETTING(    0x05, "6 Coins/4 Credits" )
+	PORT_DIPSETTING(    0x09, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(    0x07, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(    0x0c, DEF_STR( 5C_1C ) )
+	PORT_DIPSETTING(    0x0b, DEF_STR( 6C_1C ) )
+	PORT_DIPSETTING(    0x00, "Free Play (if Coin B too) or 1/1" )
+	PORT_DIPNAME( 0xf0, 0xf0, DEF_STR( Coin_B ) ) PORT_DIPLOCATION("SWA:5,6,7,8")
+	PORT_DIPSETTING(    0xa0, DEF_STR( 1C_6C ) )
+	PORT_DIPSETTING(    0xd0, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(    0xe0, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x60, DEF_STR( 2C_3C ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( 2C_3C ) )
+	PORT_DIPSETTING(    0x20, "4 Coins/5 Credits" )
+	PORT_DIPSETTING(    0x30, "5 Coins/6 Credits" )
+	PORT_DIPSETTING(    0xf0, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( 4C_3C ) )
+	PORT_DIPSETTING(    0x50, "6 Coins/4 Credits" )
+	PORT_DIPSETTING(    0x90, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(    0x70, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(    0xc0, DEF_STR( 5C_1C ) )
+	PORT_DIPSETTING(    0xb0, DEF_STR( 6C_1C ) )
+	PORT_DIPSETTING(    0x00, "Free Play (if Coin A too) or 1/1" )
+
+	PORT_START("LinkDSW")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
 
@@ -1096,16 +1302,16 @@ static INPUT_PORTS_START( rchase )
 	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 
-	PORT_START("ADC0")
+	PORT_START("ADC.0")
 	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_X ) PORT_SENSITIVITY(50) PORT_KEYDELTA(5)
 
-	PORT_START("ADC1")
+	PORT_START("ADC.1")
 	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_SENSITIVITY(50) PORT_KEYDELTA(5)
 
-	PORT_START("ADC2")
+	PORT_START("ADC.2")
 	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_X ) PORT_SENSITIVITY(50) PORT_KEYDELTA(5) PORT_PLAYER(2)
 
-	PORT_START("ADC3")
+	PORT_START("ADC.3")
 	PORT_BIT( 0xff, 0x80, IPT_LIGHTGUN_Y ) PORT_SENSITIVITY(50) PORT_KEYDELTA(5) PORT_PLAYER(2)
 INPUT_PORTS_END
 
@@ -1200,6 +1406,21 @@ static MACHINE_CONFIG_START( yboard, segaybd_state )
 MACHINE_CONFIG_END
 
 
+// irq at 0x28 is from MB8421, and irq at 0x38 probably from MB89372?
+static MACHINE_CONFIG_DERIVED( yboard_link, yboard )
+
+	// basic machine hardware
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_PROGRAM_MAP(main_map_link)
+
+	MCFG_CPU_ADD("linkcpu", Z80, XTAL_16MHz/2 ) // 8 Mhz
+	MCFG_CPU_PROGRAM_MAP(link_map)
+	MCFG_CPU_IO_MAP(link_portmap)
+
+	MCFG_DEVICE_ADD("mb8421", MB8421, 0)
+	MCFG_MB8421_INTL_HANDLER(WRITELINE(segaybd_state, mb8421_intl))
+	MCFG_MB8421_INTR_HANDLER(WRITELINE(segaybd_state, mb8421_intr))
+MACHINE_CONFIG_END
 
 //**************************************************************************
 //  ROM DEFINITIONS
@@ -1932,6 +2153,94 @@ ROM_START( pdriftj )
 	ROM_LOAD( "epr-11898.ic4", 0x000000, 0x20000, CRC(5d19d767) SHA1(d335cd3ef57c75e388df04b04fc3e2881a3902cf) )
 ROM_END
 
+//*************************************************************************************************************************
+//  Power Drift, Sega Y-board Link version
+//  Sega Game ID:  833-6697
+//
+//  This was just 6 loose program roms + 4 sprite roms + the link PCBs, other roms could be incorrect
+//
+ROM_START(pdriftl)
+	ROM_REGION(0x080000, "maincpu", 0) // M
+	ROM_LOAD16_BYTE("epr-12107a.25", 0x000000, 0x20000, CRC(0acaed3c) SHA1(0a3d86346b7a75a53b07311c095a879a22048590))
+	ROM_LOAD16_BYTE("epr-12106a.24", 0x000001, 0x20000, CRC(d222f7a6) SHA1(ce73b9a155c0ebd4b1c0c71c80fd3dce6043dcf6))
+	// 26+27 not tested, probably not used
+
+	ROM_REGION(0x040000, "subx", 0) // X
+	ROM_LOAD16_BYTE("epr-12111.81", 0x000000, 0x20000, CRC(41b0622c) SHA1(9751c88f4c0df2e0852cee071683c8e6156da8cb))
+	ROM_LOAD16_BYTE("epr-12110.80", 0x000001, 0x20000, CRC(26db4865) SHA1(963c10156cddf44abc86dbe66349bc83656eda15))
+
+	ROM_REGION(0x040000, "suby", 0) // Y
+	ROM_LOAD16_BYTE("epr-12109.54", 0x000000, 0x20000, CRC(256350b8) SHA1(72b05d3583d63766690fed4827ec586e832168d1))
+	ROM_LOAD16_BYTE("epr-12108.53", 0x000001, 0x20000, CRC(a3a56771) SHA1(f41d466f31a1b833d21a7011314c48d5056409eb))
+
+	ROM_REGION16_BE(0x080000, "bsprites", 0)
+	ROM_LOAD16_BYTE("epr-12114.16", 0x000000, 0x20000, CRC(8b07e8eb) SHA1(22a4aff968d6de52372b7b2b5322d353f7b835ef))
+	ROM_LOAD16_BYTE("epr-12115.14", 0x000001, 0x20000, CRC(045b2912) SHA1(697c8eff69bf1a23745d24171f0b50635cf8513e))
+	ROM_LOAD16_BYTE("epr-12112.17", 0x040000, 0x20000, CRC(5dd13e81) SHA1(74ced668a36480a2ce9e3667e4915bfee2391534))
+	ROM_LOAD16_BYTE("epr-12113.15", 0x040001, 0x20000, CRC(69b8bd5a) SHA1(e312b60fff672363326b6169be7aff6b943d27c9))
+
+	ROM_REGION64_BE(0x400000, "ysprites", 0)
+	ROMX_LOAD("epr-11757.67",  0x000000, 0x20000, CRC(e46dc478) SHA1(baf79e230aef3d63fb50373b2b1626f7c56ee94f), ROM_SKIP(7))
+	ROMX_LOAD("epr-11758.75",  0x000001, 0x20000, CRC(5b435c87) SHA1(6b42b08e73957c36cd8faa896ca14461d00afd29), ROM_SKIP(7))
+	ROMX_LOAD("epr-11773.63",  0x000002, 0x20000, CRC(1b5d5758) SHA1(54f58a274740a0566e0553d145c0c284ffd1d36b), ROM_SKIP(7))
+	ROMX_LOAD("epr-11774.71",  0x000003, 0x20000, CRC(2ca0c170) SHA1(7de74c045bf084659ba70da9458d720125ff25ae), ROM_SKIP(7))
+	ROMX_LOAD("epr-11759.86",  0x000004, 0x20000, CRC(ac8111f6) SHA1(6412716dc97ae697b438d9c9cd554d1087416bc2), ROM_SKIP(7))
+	ROMX_LOAD("epr-11760.114", 0x000005, 0x20000, CRC(91282af9) SHA1(fddee7982949b7da724c7830e7bd139aeb84672d), ROM_SKIP(7))
+	ROMX_LOAD("epr-11775.82",  0x000006, 0x20000, CRC(48225793) SHA1(ee003c2ea24c14e0968da94bac139735660932fe), ROM_SKIP(7))
+	ROMX_LOAD("epr-11776.110", 0x000007, 0x20000, CRC(78c46198) SHA1(d299e631843da47cb7a46103d52a3dabfab71746), ROM_SKIP(7))
+
+	ROMX_LOAD("epr-11761.66",  0x100000, 0x20000, CRC(baa5d065) SHA1(56dc71814e3f0f327781b0c1587038351c60f7b7), ROM_SKIP(7))
+	ROMX_LOAD("epr-11762.74",  0x100001, 0x20000, CRC(1d1af7a5) SHA1(86c02565b5aca201588c98678fb0c54faa8d4d6b), ROM_SKIP(7))
+	ROMX_LOAD("epr-11777.62",  0x100002, 0x20000, CRC(9662dd32) SHA1(454ec914b6c936f692bf90d2232c8169acec470a), ROM_SKIP(7))
+	ROMX_LOAD("epr-11778.70",  0x100003, 0x20000, CRC(2dfb7494) SHA1(4b9f1609e425c5e634e95dbc2d0ca820dd9212bc), ROM_SKIP(7))
+	ROMX_LOAD("epr-11763.85",  0x100004, 0x20000, CRC(1ee23407) SHA1(776c868e0e4e601fd6d0a83561b064b4be0560e2), ROM_SKIP(7))
+	ROMX_LOAD("epr-11764.113", 0x100005, 0x20000, CRC(e859305e) SHA1(aafcc3209a4fb6e0e8169ae6cce386b370b824f7), ROM_SKIP(7))
+	ROMX_LOAD("epr-11779.81",  0x100006, 0x20000, CRC(a49cd793) SHA1(efe77949be39a2ff88b50bfb2b4664b9267d9a09), ROM_SKIP(7))
+	ROMX_LOAD("epr-11780.109", 0x100007, 0x20000, CRC(d514ed81) SHA1(fbac3ad085363972a79e77aebb7fdae2200e7cda), ROM_SKIP(7))
+
+	ROMX_LOAD("epr-11765.65",  0x200000, 0x20000, CRC(649e2dff) SHA1(a6c61b71d08b31a0ca175ab0404e2eaf1d09ccc2), ROM_SKIP(7))
+	ROMX_LOAD("epr-11766.73",  0x200001, 0x20000, CRC(d92fb7fc) SHA1(2f5c2d88ae0766351b9efe8ffcbebc88fc3a6c59), ROM_SKIP(7))
+	ROMX_LOAD("epr-11781.61",  0x200002, 0x20000, CRC(9692d4cd) SHA1(967351ba2c781ca865e3c1ee9eeef1aad2247c27), ROM_SKIP(7))
+	ROMX_LOAD("epr-11782.69",  0x200003, 0x20000, CRC(c913bb43) SHA1(9bc15a3180cf4c3134bb55e99e6092f0faf95c56), ROM_SKIP(7))
+	ROMX_LOAD("epr-11767.84",  0x200004, 0x20000, CRC(1f8ad054) SHA1(289f5795116ee29540f28e35c3b4f72adeca7891), ROM_SKIP(7))
+	ROMX_LOAD("epr-11768.112", 0x200005, 0x20000, CRC(db2c4053) SHA1(a5b6daa6deb7afb0019e289acb81c82d507ec93a), ROM_SKIP(7))
+	ROMX_LOAD("epr-11783.80",  0x200006, 0x20000, CRC(6d189007) SHA1(dd871ea3166fdcb59d49707d35dde8b6c7fdc76b), ROM_SKIP(7))
+	ROMX_LOAD("epr-11784.108", 0x200007, 0x20000, CRC(57f5fd64) SHA1(6aff54d3f3f76ce0f1a93485d1a35a3987d456d9), ROM_SKIP(7))
+
+	ROMX_LOAD("epr-11769.64",  0x300000, 0x20000, CRC(28f0ab51) SHA1(d7cb7b83e5d85eb59d34cfd5c0d8e6c7ff81e24c), ROM_SKIP(7))
+	ROMX_LOAD("epr-11770.72",  0x300001, 0x20000, CRC(d7557ea9) SHA1(62430505d399ee2cc0f94e03144860056345573c), ROM_SKIP(7))
+	ROMX_LOAD("epr-11785.60",  0x300002, 0x20000, CRC(e6ef32c4) SHA1(869ba3816f5e3125f613f3b284fec74cd19db79e), ROM_SKIP(7))
+	ROMX_LOAD("epr-11786.68",  0x300003, 0x20000, CRC(2066b49d) SHA1(905ce70c921043d07591422a87fedd6e897ff38e), ROM_SKIP(7))
+	ROMX_LOAD("epr-11771.83",  0x300004, 0x20000, CRC(67635618) SHA1(f690ace026130ecb95532c92f2ad3741d0d167c1), ROM_SKIP(7))
+	ROMX_LOAD("epr-11772.111", 0x300005, 0x20000, CRC(0f798d3a) SHA1(71565ce28b93ae50d64af8c965fba6408a07f031), ROM_SKIP(7))
+	ROMX_LOAD("epr-11787.79",  0x300006, 0x20000, CRC(e631dc12) SHA1(3fd6db2eb297890b35dec566b6a90fc2d96bd085), ROM_SKIP(7))
+	ROMX_LOAD("epr-11788.107", 0x300007, 0x20000, CRC(8464c66e) SHA1(af93cbcc50acbd929d0298fb9a75da0369e13ff7), ROM_SKIP(7))
+
+	ROM_REGION(0x10000, "soundcpu", 0)        // Z80 sound CPU
+	ROM_LOAD("epr-11899.102", 0x000000, 0x10000, CRC(ed9fa889) SHA1(25d1a069254b34c31d8ee82d301ada895e8dc391))
+
+	ROM_REGION(0x200000, "pcm", ROMREGION_ERASEFF)    // SegaPCM samples
+	ROM_LOAD("mpr-11754.107", 0x000000, 0x80000, CRC(ebeb8484) SHA1(269f33cb1a9be126bada858e25291385d48686a2))
+	ROM_LOAD("epr-11756.105", 0x080000, 0x20000, CRC(12e43f8a) SHA1(0f9a11ba6b7c1a352daa1146a01ce147945e91e4))
+	ROM_RELOAD(               0x0a0000, 0x20000)
+	ROM_RELOAD(               0x0c0000, 0x20000)
+	ROM_RELOAD(               0x0e0000, 0x20000)
+	ROM_LOAD("epr-11755.106", 0x100000, 0x20000, CRC(c2db1244) SHA1(c98fe17c9f04a639a862cc2a86fab17d1f5d025c))
+	ROM_RELOAD(               0x120000, 0x20000)
+	ROM_RELOAD(               0x140000, 0x20000)
+	ROM_RELOAD(               0x160000, 0x20000)
+
+	ROM_REGION(0x100000, "user1", 0)
+	// These are mpr-11754.107 split into 4 roms. They would be located on a Sega 839-0221 daughter card.
+	ROM_LOAD("epr-11895.ic1", 0x000000, 0x20000, CRC(ee99a6fd) SHA1(4444826e751d9186e6d46b081e47cd99ee3cf853))
+	ROM_LOAD("epr-11896.ic2", 0x000000, 0x20000, CRC(4bebc015) SHA1(307022ea1c1ee87c9ef3782526888c48c3c69fd2))
+	ROM_LOAD("epr-11897.ic3", 0x000000, 0x20000, CRC(4463cb95) SHA1(e86fd4611cf83fe72d59950a60fc8c3a7381a1c7))
+	ROM_LOAD("epr-11898.ic4", 0x000000, 0x20000, CRC(5d19d767) SHA1(d335cd3ef57c75e388df04b04fc3e2881a3902cf))
+
+	ROM_REGION(0x10000, "linkcpu", 0)        // Z80 link board CPU
+	ROM_LOAD("epr-12028", 0x000000, 0x08000, CRC(bb682a92) SHA1(0445bdbca0db9edecd826da37cd2d3afc57c5cf6) )
+ROM_END
+
 
 //*************************************************************************************************************************
 //*************************************************************************************************************************
@@ -2220,9 +2529,6 @@ DRIVER_INIT_MEMBER(segaybd_state,generic)
 	// allocate a scanline timer
 	m_scanline_timer = timer_alloc(TID_IRQ2_GEN);
 
-	// point globals to allocated memory regions
-	m_segaic16vid->segaic16_rotateram_0 = reinterpret_cast<UINT16 *>(memshare("rotateram")->ptr());
-
 	// save state
 	save_item(NAME(m_pdrift_bank));
 	save_item(NAME(m_analog_data));
@@ -2241,6 +2547,7 @@ DRIVER_INIT_MEMBER(segaybd_state,generic)
 DRIVER_INIT_MEMBER(segaybd_state,gforce2)
 {
 	DRIVER_INIT_CALL(generic);
+	m_output_cb1 = output_delegate(FUNC(segaybd_state::gforce2_output_cb1), this);
 	m_output_cb2 = output_delegate(FUNC(segaybd_state::gforce2_output_cb2), this);
 }
 
@@ -2281,17 +2588,22 @@ DRIVER_INIT_MEMBER(segaybd_state,rchase)
 //  GAME DRIVERS
 //**************************************************************************
 
-//    YEAR, NAME,      PARENT,  MACHINE,INPUT,    INIT,                   MONITOR,COMPANY,FULLNAME,FLAGS,                                     LAYOUT
-GAME( 1988, gforce2,   0,        yboard, gforce2,  segaybd_state, gforce2, ROT0,   "Sega", "Galaxy Force 2", GAME_SUPPORTS_SAVE )
-GAME( 1988, gforce2j,  gforce2,  yboard, gforce2,  segaybd_state, gforce2, ROT0,   "Sega", "Galaxy Force 2 (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1988, gforce2ja, gforce2,  yboard, gforce2,  segaybd_state, gforce2, ROT0,   "Sega", "Galaxy Force 2 (Japan, Rev A)", GAME_SUPPORTS_SAVE )
-GAME( 1990, gloc,      0,        yboard, gloc,     segaybd_state, gloc,    ROT0,   "Sega", "G-LOC Air Battle (US)", GAME_SUPPORTS_SAVE )
-GAME( 1990, glocr360,  gloc,     yboard, glocr360, segaybd_state, r360,    ROT0,   "Sega", "G-LOC R360", GAME_SUPPORTS_SAVE )
-GAMEL(1988, pdrift,    0,        yboard, pdrift,   segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (World, Rev A)", GAME_SUPPORTS_SAVE,   layout_pdrift )
-GAMEL(1988, pdrifta,   pdrift,   yboard, pdrift,   segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (World)", GAME_SUPPORTS_SAVE,          layout_pdrift )
-GAMEL(1988, pdrifte,   pdrift,   yboard, pdrifte,  segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (World, Earlier)", GAME_SUPPORTS_SAVE, layout_pdrift )
-GAMEL(1988, pdriftj,   pdrift,   yboard, pdriftj,  segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (Japan)", GAME_SUPPORTS_SAVE,          layout_pdrift )
-GAME( 1991, rchase,    0,        yboard, rchase,   segaybd_state, rchase,  ROT0,   "Sega", "Rail Chase (World)", GAME_SUPPORTS_SAVE )
-GAME( 1991, rchasej,   rchase,   yboard, rchase,   segaybd_state, rchase,  ROT0,   "Sega", "Rail Chase (Japan)", GAME_SUPPORTS_SAVE )
-GAME( 1991, strkfgtr,  0,        yboard, strkfgtr, segaybd_state, gloc,    ROT0,   "Sega", "Strike Fighter (World)", GAME_SUPPORTS_SAVE )
-GAME( 1991, strkfgtrj, strkfgtr, yboard, strkfgtr, segaybd_state, gloc,    ROT0,   "Sega", "Strike Fighter (Japan)", GAME_SUPPORTS_SAVE )
+//    YEAR, NAME,      PARENT,  MACHINE, INPUT,    INIT,                   MONITOR,COMPANY,FULLNAME,FLAGS,                                     LAYOUT
+GAME( 1988, gforce2,   0,        yboard,      gforce2,  segaybd_state, gforce2, ROT0,   "Sega", "Galaxy Force 2", GAME_SUPPORTS_SAVE )
+GAME( 1988, gforce2j,  gforce2,  yboard,      gforce2,  segaybd_state, gforce2, ROT0,   "Sega", "Galaxy Force 2 (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1988, gforce2ja, gforce2,  yboard,      gforce2,  segaybd_state, gforce2, ROT0,   "Sega", "Galaxy Force 2 (Japan, Rev A)", GAME_SUPPORTS_SAVE )
+
+GAME( 1990, gloc,      0,        yboard,      gloc,     segaybd_state, gloc,    ROT0,   "Sega", "G-LOC Air Battle (US)", GAME_SUPPORTS_SAVE )
+GAME( 1990, glocr360,  gloc,     yboard,      glocr360, segaybd_state, r360,    ROT0,   "Sega", "G-LOC R360", GAME_SUPPORTS_SAVE )
+
+GAMEL(1988, pdrift,    0,        yboard,      pdrift,   segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (World, Rev A)", GAME_SUPPORTS_SAVE,   layout_pdrift )
+GAMEL(1988, pdrifta,   pdrift,   yboard,      pdrift,   segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (World)", GAME_SUPPORTS_SAVE,          layout_pdrift )
+GAMEL(1988, pdrifte,   pdrift,   yboard,      pdrifte,  segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (World, Earlier)", GAME_SUPPORTS_SAVE, layout_pdrift )
+GAMEL(1988, pdriftj,   pdrift,   yboard,      pdriftj,  segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (Japan)", GAME_SUPPORTS_SAVE,          layout_pdrift )
+GAMEL(1988, pdriftl,   pdrift,   yboard_link, pdriftl,  segaybd_state, pdrift,  ROT0,   "Sega", "Power Drift (Japan, Link Version)", GAME_SUPPORTS_SAVE|GAME_NOT_WORKING, layout_pdrift)
+
+GAME( 1991, rchase,    0,        yboard,      rchase,   segaybd_state, rchase,  ROT0,   "Sega", "Rail Chase (World)", GAME_SUPPORTS_SAVE )
+GAME( 1991, rchasej,   rchase,   yboard,      rchase,   segaybd_state, rchase,  ROT0,   "Sega", "Rail Chase (Japan)", GAME_SUPPORTS_SAVE )
+
+GAME( 1991, strkfgtr,  0,        yboard,      strkfgtr, segaybd_state, gloc,    ROT0,   "Sega", "Strike Fighter (World)", GAME_SUPPORTS_SAVE )
+GAME( 1991, strkfgtrj, strkfgtr, yboard,      strkfgtr, segaybd_state, gloc,    ROT0,   "Sega", "Strike Fighter (Japan)", GAME_SUPPORTS_SAVE )

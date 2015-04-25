@@ -178,7 +178,10 @@ void i8086_cpu_device::execute_run()
 			}
 		}
 
-		debugger_instruction_hook( this, pc() );
+		if (!m_seg_prefix)
+		{
+			debugger_instruction_hook( this, pc() );
+		}
 
 		UINT8 op = fetch_op();
 
@@ -2193,7 +2196,6 @@ bool i8086_common_cpu_device::common_op(UINT8 op)
 					m_CarryVal = m_OverVal = 0;
 					set_SZPF_Word(tmp);
 					CLKM(ALU_RI16,ALU_MI16_RO);
-					break;
 					break;
 				case 0x10:  /* NOT */
 					PutbackRMWord(~tmp);

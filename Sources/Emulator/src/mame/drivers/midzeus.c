@@ -28,7 +28,6 @@ The Grid         v1.2   10/18/2000
 
 #include "emu.h"
 #include "cpu/tms32031/tms32031.h"
-#include "cpu/tms34010/tms34010.h"
 #include "cpu/adsp2100/adsp2100.h"
 #include "cpu/pic16c5x/pic16c5x.h"
 #include "includes/midzeus.h"
@@ -473,14 +472,13 @@ WRITE32_MEMBER(midzeus_state::analog_w)
  *
  *************************************/
 
-static void update_gun_irq(running_machine &machine)
+void midzeus_state::update_gun_irq()
 {
-	midzeus_state *state = machine.driver_data<midzeus_state>();
 	/* low 2 bits of gun_control seem to enable IRQs */
 	if (gun_irq_state & gun_control & 0x03)
-		state->m_maincpu->set_input_line(3, ASSERT_LINE);
+		m_maincpu->set_input_line(3, ASSERT_LINE);
 	else
-		state->m_maincpu->set_input_line(3, CLEAR_LINE);
+		m_maincpu->set_input_line(3, CLEAR_LINE);
 }
 
 
@@ -491,7 +489,7 @@ TIMER_CALLBACK_MEMBER(midzeus_state::invasn_gun_callback)
 
 	/* set the appropriate IRQ in the internal gun control and update */
 	gun_irq_state |= 0x01 << player;
-	update_gun_irq(machine());
+	update_gun_irq();
 
 	/* generate another interrupt on the next scanline while we are within the BEAM_DY */
 	beamy++;
@@ -510,7 +508,7 @@ WRITE32_MEMBER(midzeus_state::invasn_gun_w)
 	/* bits 0-1 enable IRQs (?) */
 	/* bits 2-3 reset IRQ states */
 	gun_irq_state &= ~((gun_control >> 2) & 3);
-	update_gun_irq(machine());
+	update_gun_irq();
 
 	for (player = 0; player < 2; player++)
 	{
@@ -1116,19 +1114,15 @@ static MACHINE_CONFIG_DERIVED( mk4, midzeus )
 	MCFG_MIDWAY_IOASIC_SHUFFLE_DEFAULT(1)
 MACHINE_CONFIG_END
 
-READ8_MEMBER(midzeus_state::PIC16C5X_T0_clk_r)
+READ_LINE_MEMBER(midzeus_state::PIC16C5X_T0_clk_r)
 {
 	return 0;
 }
 
-static ADDRESS_MAP_START( pic_io_map, AS_IO, 8, midzeus_state )
-	AM_RANGE(PIC16C5x_T0, PIC16C5x_T0) AM_READ(PIC16C5X_T0_clk_r)
-ADDRESS_MAP_END
-
 
 static MACHINE_CONFIG_DERIVED( invasn, midzeus )
 	MCFG_CPU_ADD("pic", PIC16C57, 8000000)  /* ? */
-	MCFG_CPU_IO_MAP(pic_io_map)
+	MCFG_PIC16C5x_T0_CB(READLINE(midzeus_state, PIC16C5X_T0_clk_r))
 
 	MCFG_DEVICE_MODIFY("ioasic")
 	MCFG_MIDWAY_IOASIC_UPPER(468/* or 488 */)

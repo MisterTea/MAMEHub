@@ -4,6 +4,9 @@
     PC-Engine / Turbografx-16 cart emulation
     (through slot devices)
 
+ TODO:
+   - reimplement cart mirroring in a better way
+
  ***********************************************************************************************************/
 
 
@@ -25,7 +28,9 @@ const device_type PCE_CART_SLOT = &device_creator<pce_cart_slot_device>;
 //-------------------------------------------------
 
 device_pce_cart_interface::device_pce_cart_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device)
+	: device_slot_card_interface(mconfig, device),
+		m_rom(NULL),
+		m_rom_size(0)
 {
 }
 
@@ -42,10 +47,15 @@ device_pce_cart_interface::~device_pce_cart_interface()
 //  rom_alloc - alloc the space for the cart
 //-------------------------------------------------
 
-void device_pce_cart_interface::rom_alloc(UINT32 size)
+void device_pce_cart_interface::rom_alloc(UINT32 size, const char *tag)
 {
 	if (m_rom == NULL)
-		m_rom.resize(size);
+	{
+		astring tempstring(tag);
+		tempstring.cat(PCESLOT_ROM_REGION_TAG);
+		m_rom = device().machine().memory().region_alloc(tempstring, size, 1, ENDIANNESS_LITTLE)->base();
+		m_rom_size = size;
+	}
 }
 
 
@@ -55,11 +65,8 @@ void device_pce_cart_interface::rom_alloc(UINT32 size)
 
 void device_pce_cart_interface::ram_alloc(UINT32 size)
 {
-	if (m_ram == NULL)
-	{
-		m_ram.resize(size);
-		device().save_item(NAME(m_ram));
-	}
+	m_ram.resize(size);
+	device().save_item(NAME(m_ram));
 }
 
 //-------------------------------------------------
@@ -69,8 +76,6 @@ void device_pce_cart_interface::ram_alloc(UINT32 size)
 
 void device_pce_cart_interface::rom_map_setup(UINT32 size)
 {
-	int i;
-
 	if (size == 0x60000)
 	{
 		// HuCard 384K are mapped with mirrored pieces
@@ -83,8 +88,22 @@ void device_pce_cart_interface::rom_map_setup(UINT32 size)
 		rom_bank_map[6] = 2;
 		rom_bank_map[7] = 2;
 	}
+	else if (size == 0x30000)
+	{
+		// 192K images (some demos)
+		rom_bank_map[0] = 0;
+		rom_bank_map[1] = 1;
+		rom_bank_map[2] = 2;
+		rom_bank_map[3] = 2;
+		rom_bank_map[4] = 0;
+		rom_bank_map[5] = 1;
+		rom_bank_map[6] = 2;
+		rom_bank_map[7] = 2;
+	}
 	else
 	{
+		int i;
+
 		// setup the rom_bank_map array to faster ROM read
 		for (i = 0; i < size / 0x20000 && i < 8; i++)
 			rom_bank_map[i] = i;
@@ -220,7 +239,7 @@ bool pce_cart_slot_device::call_load()
 			fseek(offset, SEEK_SET);
 		}
 
-		m_cart->rom_alloc(len);
+		m_cart->rom_alloc(len, tag());
 		ROM = m_cart->get_rom_base();
 
 		if (software_entry() == NULL)
@@ -281,7 +300,7 @@ void pce_cart_slot_device::call_unload()
 
 bool pce_cart_slot_device::call_softlist_load(software_list_device &swlist, const char *swname, const rom_entry *start_entry)
 {
-	load_software_part_region(*this, swlist, swname, start_entry );
+	load_software_part_region(*this, swlist, swname, start_entry);
 	return TRUE;
 }
 
@@ -301,15 +320,15 @@ int pce_cart_slot_device::get_cart_type(UINT8 *ROM, UINT32 len)
 		type = PCE_SF2;
 
 	/* Check for Populous */
-	if (len >= 0x1f26 + 8 && !memcmp(ROM + 0x1f26, "POPULOUS", 8))
+	if (len >= (0x1f26 + 8) && !memcmp(ROM + 0x1f26, "POPULOUS", 8))
 		type = PCE_POPULOUS;
 
 	// Check for CD system card v3 which adds on-cart RAM to the system
-	if (!memcmp(ROM + 0x3FFB6, "PC Engine CD-ROM SYSTEM", 23))
+	if (len >= (0x3ffb6 + 23) && !memcmp(ROM + 0x3ffb6, "PC Engine CD-ROM SYSTEM", 23))
 	{
 		/* Check if 192KB additional system card ram should be used */
-		if(!memcmp(ROM + 0x29D1, "VER. 3.", 7))         { type = PCE_CDSYS3J; } // JP version
-		else if(!memcmp(ROM + 0x29C4, "VER. 3.", 7 ))   { type = PCE_CDSYS3U; } // US version
+		if (!memcmp(ROM + 0x29d1, "VER. 3.", 7))         { type = PCE_CDSYS3J; } // JP version
+		else if (!memcmp(ROM + 0x29c4, "VER. 3.", 7 ))   { type = PCE_CDSYS3U; } // US version
 	}
 
 	return type;

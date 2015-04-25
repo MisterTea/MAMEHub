@@ -89,7 +89,9 @@ coco_state::coco_state(const machine_config &mconfig, device_type type, const ch
 	m_cassette(*this, "cassette"),
 	m_rs232(*this, RS232_TAG),
 	m_vhd_0(*this, VHD0_TAG),
-	m_vhd_1(*this, VHD1_TAG)
+	m_vhd_1(*this, VHD1_TAG),
+	m_beckerport(*this, DWSOCK_TAG),
+	m_beckerportconfig(*this, BECKERPORT_TAG)
 {
 }
 
@@ -679,21 +681,23 @@ void coco_state::update_sound(void)
 	/* determine the sound mux status */
 	soundmux_status_t status = soundmux_status();
 
+	/* the SC77526 DAC chip internally biases the AC-coupled sound inputs for Cassette and Cartridge at the midpoint of the 3.9v output range */
+	bool bCassSoundEnable = (status == (SOUNDMUX_ENABLE | SOUNDMUX_SEL1));
+	bool bCartSoundEnable = (status == (SOUNDMUX_ENABLE | SOUNDMUX_SEL2));
+	UINT8 cassette_sound = (bCassSoundEnable ? 0x40 : 0);
+	UINT8 cart_sound = (bCartSoundEnable ? 0x40 : 0);
+
 	/* determine the value to send to the DAC */
 	m_dac_output = (m_pia_1->a_output() & 0xFC) >> 2;
-	UINT8 sound_output = single_bit_sound + (status == SOUNDMUX_ENABLE ? m_dac_output << 1 : 0);
-	m_dac->write_unsigned8(sound_output);
+	UINT8 dac_sound =  (status == SOUNDMUX_ENABLE ? m_dac_output << 1 : 0);
+	m_dac->write_unsigned8(single_bit_sound + dac_sound + cassette_sound + cart_sound);
 
 	/* determine the cassette sound status */
-	cassette_state cas_sound = (status == (SOUNDMUX_ENABLE | SOUNDMUX_SEL1))
-		? CASSETTE_SPEAKER_ENABLED
-		: CASSETTE_SPEAKER_MUTED;
+	cassette_state cas_sound = bCassSoundEnable ? CASSETTE_SPEAKER_ENABLED : CASSETTE_SPEAKER_MUTED;
 	m_cassette->change_state(cas_sound, CASSETTE_MASK_SPEAKER);
 
 	/* determine the cartridge sound status */
-	m_cococart->cart_set_line(
-		COCOCART_LINE_SOUND_ENABLE,
-		(status == (SOUNDMUX_ENABLE | SOUNDMUX_SEL2)) ? COCOCART_LINE_VALUE_ASSERT : COCOCART_LINE_VALUE_CLEAR);
+	m_cococart->cart_set_line(COCOCART_LINE_SOUND_ENABLE, bCartSoundEnable ? COCOCART_LINE_VALUE_ASSERT : COCOCART_LINE_VALUE_CLEAR);
 }
 
 
@@ -1016,8 +1020,6 @@ INPUT_CHANGED_MEMBER(coco_state::joystick_mode_changed)
 	poll_keyboard();
 }
 
-
-
 //-------------------------------------------------
 //  poll_hires_joystick
 //-------------------------------------------------
@@ -1159,6 +1161,11 @@ WRITE8_MEMBER( coco_state::ff60_write )
 
 READ8_MEMBER( coco_state::ff40_read )
 {
+	if (offset >= 1 && offset <= 2 && m_beckerportconfig->read_safe(0) == 1)
+	{
+		return m_beckerport->read(space, offset-1, mem_mask);
+	}
+
 	return m_cococart->read(space, offset, mem_mask);
 }
 
@@ -1170,6 +1177,11 @@ READ8_MEMBER( coco_state::ff40_read )
 
 WRITE8_MEMBER( coco_state::ff40_write )
 {
+	if (offset >= 1 && offset <= 2 && m_beckerportconfig->read_safe(0) == 1)
+	{
+		return m_beckerport->write(space, offset-1, data, mem_mask);
+	}
+
 	m_cococart->write(space, offset, data, mem_mask);
 }
 
@@ -1183,8 +1195,6 @@ void coco_state::cart_w(bool state)
 {
 	m_pia_1->cb1_w(state);
 }
-
-
 
 /***************************************************************************
   DISASSEMBLY OVERRIDE (OS9 syscalls)

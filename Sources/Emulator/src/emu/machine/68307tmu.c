@@ -20,8 +20,6 @@ READ16_MEMBER( m68307cpu_device::m68307_internal_timer_r )
 			case m68307TIMER_TCN: /* 0x3 (0x126 / 0x136) */
 				//if (pc!=0x2182e) logerror("%08x m68307_internal_timer_r %08x (%04x) (TCN - Timer Counter for timer %d)\n", pc, offset*2,mem_mask, which);
 				return timer->read_tcn(mem_mask, which);
-				break;
-
 
 			default:
 				logerror("%08x m68307_internal_timer_r %08x, (%04x)\n", pc, offset*2,mem_mask);
@@ -155,6 +153,7 @@ UINT16 m68307_timer::read_tcn(UINT16 mem_mask, int which)
 
 void m68307_timer::write_ter(UINT16 data, UINT16 mem_mask, int which)
 {
+	assert(which >= 0 && which < ARRAY_LENGTH(singletimer));
 	m68307_single_timer* tptr = &singletimer[which];
 	if (data & 0x2) tptr->regs[m68307TIMER_TMR] &= ~0x2;
 }
@@ -212,6 +211,7 @@ void m68307_timer::write_tmr(UINT16 data, UINT16 mem_mask, int which)
 
 void m68307_timer::write_trr(UINT16 data, UINT16 mem_mask, int which)
 {
+	assert(which >= 0 && which < ARRAY_LENGTH(singletimer));
 	m68307_single_timer* tptr = &singletimer[which];
 
 	COMBINE_DATA(&tptr->regs[m68307TIMER_TRR]);

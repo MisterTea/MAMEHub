@@ -60,6 +60,12 @@ void seicross_state::nvram_init(nvram_device &nvram, void *data, size_t size)
 	memcpy(data, init, sizeof(init));
 }
 
+void seicross_state::machine_start()
+{
+	save_item(NAME(m_portb));
+	save_item(NAME(m_irq_mask));
+}
+
 void seicross_state::machine_reset()
 {
 	/* start with the protection mcu halted */
@@ -68,18 +74,19 @@ void seicross_state::machine_reset()
 
 
 
-READ8_MEMBER(seicross_state::friskyt_portB_r)
+READ8_MEMBER(seicross_state::portB_r)
 {
 	return (m_portb & 0x9f) | (ioport("DEBUG")->read_safe(0) & 0x60);
 }
 
-WRITE8_MEMBER(seicross_state::friskyt_portB_w)
+WRITE8_MEMBER(seicross_state::portB_w)
 {
 	//logerror("PC %04x: 8910 port B = %02x\n", space.device().safe_pc(), data);
 	/* bit 0 is IRQ enable */
 	m_irq_mask = data & 1;
 
 	/* bit 1 flips screen */
+	flip_screen_set(data & 2);
 
 	/* bit 2 resets the microcontroller */
 	if (((m_portb & 4) == 0) && (data & 4))
@@ -98,10 +105,10 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, seicross_state )
 	AM_RANGE(0x0000, 0x77ff) AM_ROM
 	AM_RANGE(0x7800, 0x7fff) AM_RAM AM_SHARE("share1")
 	AM_RANGE(0x8820, 0x887f) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x9000, 0x93ff) AM_RAM_WRITE(seicross_videoram_w) AM_SHARE("videoram") /* video RAM */
+	AM_RANGE(0x9000, 0x93ff) AM_RAM_WRITE(videoram_w) AM_SHARE("videoram") /* video RAM */
 	AM_RANGE(0x9800, 0x981f) AM_RAM AM_SHARE("row_scroll")
 	AM_RANGE(0x9880, 0x989f) AM_WRITEONLY AM_SHARE("spriteram2")
-	AM_RANGE(0x9c00, 0x9fff) AM_RAM_WRITE(seicross_colorram_w) AM_SHARE("colorram")
+	AM_RANGE(0x9c00, 0x9fff) AM_RAM_WRITE(colorram_w) AM_SHARE("colorram")
 	AM_RANGE(0xa000, 0xa000) AM_READ_PORT("IN0")        /* IN0 */
 	AM_RANGE(0xa800, 0xa800) AM_READ_PORT("IN1")        /* IN1 */
 	AM_RANGE(0xb000, 0xb000) AM_READ_PORT("TEST")       /* test */
@@ -390,7 +397,7 @@ static MACHINE_CONFIG_START( no_nvram, seicross_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(2500) /* not accurate */    /* frames per second, vblank duration */)
 	MCFG_SCREEN_SIZE(32*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 32*8-1, 2*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(seicross_state, screen_update_seicross)
+	MCFG_SCREEN_UPDATE_DRIVER(seicross_state, screen_update)
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", seicross)
@@ -401,8 +408,8 @@ static MACHINE_CONFIG_START( no_nvram, seicross_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("aysnd", AY8910, 1536000)
-	MCFG_AY8910_PORT_B_READ_CB(READ8(seicross_state, friskyt_portB_r))
-	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(seicross_state, friskyt_portB_w))
+	MCFG_AY8910_PORT_B_READ_CB(READ8(seicross_state, portB_r))
+	MCFG_AY8910_PORT_B_WRITE_CB(WRITE8(seicross_state, portB_w))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 
 	MCFG_DAC_ADD("dac")
@@ -470,6 +477,32 @@ ROM_START( friskyta )
 	ROM_LOAD( "ft.12",        0x1000, 0x1000, CRC(c028d3b8) SHA1(9e8768b9658f8b05ade4dd5fb2ecde4a52627bc1) )
 	ROM_LOAD( "ftom.09",      0x2000, 0x1000, CRC(60642f25) SHA1(2d179a9ea99014065f578bbec4fbfbda5aead98b) )
 	ROM_LOAD( "ftom.10",      0x3000, 0x1000, CRC(07b9dcfc) SHA1(0a573065b6b08745b91fb47ce477d76be7a01750) )
+
+	ROM_REGION( 0x0040, "proms", 0 )
+	ROM_LOAD( "ft.9c",        0x0000, 0x0020, CRC(0032167e) SHA1(9df3c7bbf6b700bfa51b8b82c45b60c10bdcd1a0) )
+	ROM_LOAD( "ft.9b",        0x0020, 0x0020, CRC(6b364e69) SHA1(abfcab884e8a50f872f862a421b8e8c5e16ff62c) )
+ROM_END
+
+
+ROM_START( friskytb )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "1.3a",        0x0000, 0x1000, CRC(554bdb0f) SHA1(d56a421329c5191599983009e841cd84d5b7c710) )
+	ROM_LOAD( "2.3b",        0x1000, 0x1000, CRC(0658633a) SHA1(3bf09e0d77bd8fcb66563c82c849c0cc45d9cacf) )
+	ROM_LOAD( "3.3d",        0x2000, 0x1000, CRC(c8de15ff) SHA1(1bb2108700e9f8aa9c5416324a2d0bdd05e8ff25) )
+	ROM_LOAD( "4.3e",        0x3000, 0x1000, CRC(970e5d2b) SHA1(8b6f05aaef79dc5fccf1fed7014c99518f598674) )
+	ROM_LOAD( "5.3f",        0x4000, 0x1000, CRC(45c8bd32) SHA1(dca1d76a401995957e325d0d06607df3d4a511e9) )
+	ROM_LOAD( "6.3h",        0x5000, 0x1000, CRC(2c1b7ecc) SHA1(164855c2bc05154a24676313c1307e374b3f8dbe) )
+	ROM_LOAD( "7.3i",        0x6000, 0x1000, CRC(aa36a6b8) SHA1(bf8af71313459a775b07dcfdce455077c4f499bf) )
+	ROM_LOAD( "8.3j",        0x7000, 0x0800, CRC(10461a24) SHA1(c1f98316a4e90a2a6ef4953708b90c9546caaedd) )
+
+	ROM_REGION( 0x10000, "mcu", 0 ) /* 64k for the protection mcu */
+	ROM_COPY( "maincpu", 0x0000, 0x8000, 0x8000 )   /* shares the main program ROMs and RAM with the main CPU. */
+
+	ROM_REGION( 0x4000, "gfx1", 0 )
+	ROM_LOAD( "11.7l",        0x0000, 0x1000, CRC(caa93315) SHA1(af8fd135c0a9c0278705975c127a91f246341da1) ) // 99.707031% - tile 0x69 is blank vs ft.11 (it's the symbol used for lives, instead this set shows lives to the left of the HIGH SCORE text using different gfx)
+	ROM_LOAD( "12.7n",        0x1000, 0x1000, CRC(c028d3b8) SHA1(9e8768b9658f8b05ade4dd5fb2ecde4a52627bc1) )
+	ROM_LOAD( "9.7h",         0x2000, 0x1000, CRC(60642f25) SHA1(2d179a9ea99014065f578bbec4fbfbda5aead98b) )
+	ROM_LOAD( "10.7j",        0x3000, 0x1000, CRC(07b9dcfc) SHA1(0a573065b6b08745b91fb47ce477d76be7a01750) )
 
 	ROM_REGION( 0x0040, "proms", 0 )
 	ROM_LOAD( "ft.9c",        0x0000, 0x0020, CRC(0032167e) SHA1(9df3c7bbf6b700bfa51b8b82c45b60c10bdcd1a0) )
@@ -560,10 +593,23 @@ ROM_START( sectrzon )
 	ROM_LOAD( "pal16h2.3b", 0x0000, 0x0044, CRC(e1a6a86d) SHA1(740a5c2ef8a992f6a794c0fc4c81eb50cfcedc32) )
 ROM_END
 
+DRIVER_INIT_MEMBER(seicross_state,friskytb)
+{
+	UINT8 *ROM = memregion("mcu")->base();
+	address_space &space = m_mcu->space(AS_PROGRAM);
+	// this code is in ROM 6.3h, maps to MCU at dxxx
+	for (int i = 0; i < 0x8000; i++)
+	{
+		ROM[i] = BITSWAP8(ROM[i + 0x8000], 6, 7, 5, 4, 3, 2, 0, 1);
+	}
+
+	space.set_decrypted_region(0x8000, 0xffff, ROM);
+}
 
 
-GAME( 1981, friskyt,  0,        nvram,    friskyt, driver_device,  0, ROT0,  "Nichibutsu", "Frisky Tom (set 1)", GAME_NO_COCKTAIL )
-GAME( 1981, friskyta, friskyt,  nvram,    friskyt, driver_device,  0, ROT0,  "Nichibutsu", "Frisky Tom (set 2)", GAME_NO_COCKTAIL )
-GAME( 1982, radrad,   0,        no_nvram, radrad, driver_device,   0, ROT0,  "Nichibutsu USA", "Radical Radial", GAME_NO_COCKTAIL )
-GAME( 1984, seicross, 0,        no_nvram, seicross, driver_device, 0, ROT90, "Nichibutsu / Alice", "Seicross", GAME_NO_COCKTAIL )
-GAME( 1984, sectrzon, seicross, no_nvram, seicross, driver_device, 0, ROT90, "Nichibutsu / Alice", "Sector Zone", GAME_NO_COCKTAIL )
+GAME( 1981, friskyt,  0,        nvram,    friskyt, driver_device,  0,        ROT0,  "Nichibutsu", "Frisky Tom (set 1)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1981, friskyta, friskyt,  nvram,    friskyt, driver_device,  0,        ROT0,  "Nichibutsu", "Frisky Tom (set 2)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1981, friskytb, friskyt,  nvram,    friskyt, seicross_state, friskytb, ROT0,  "Nichibutsu", "Frisky Tom (set 3, encrypted)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE ) // protection mcu runs encrypted opcodes
+GAME( 1982, radrad,   0,        no_nvram, radrad, driver_device,   0,        ROT0,  "Nichibutsu USA", "Radical Radial", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1984, seicross, 0,        no_nvram, seicross, driver_device, 0,        ROT90, "Nichibutsu / Alice", "Seicross", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1984, sectrzon, seicross, no_nvram, seicross, driver_device, 0,        ROT90, "Nichibutsu / Alice", "Sector Zone", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )

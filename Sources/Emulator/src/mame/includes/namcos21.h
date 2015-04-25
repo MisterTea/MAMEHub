@@ -25,6 +25,19 @@ struct dsp_state
 	int slaveActive;
 };
 
+struct vertex
+{
+	double x,y;
+	double z;
+};
+
+struct edge
+{
+	double x;
+	double z;
+};
+
+
 class namcos21_state : public namcos2_shared_state
 {
 public:
@@ -34,18 +47,21 @@ public:
 		m_winrun_polydata(*this,"winrun_polydata"),
 		m_winrun_gpucomram(*this,"winrun_comram"),
 		m_dspram16(*this,"dspram16"),
-		m_mpSharedRAM1(*this,"mpsharedram1"),
 		m_mpDualPortRAM(*this,"mpdualportram"),
 		m_master_dsp_code(*this,"master_dsp_code"),
+		m_ptrom24(*this,"point24"),
+		m_ptrom16(*this,"point16"),
 		m_dsp(*this, "dsp") { }
 
 	optional_shared_ptr<UINT16> m_winrun_dspbios;
 	optional_shared_ptr<UINT16> m_winrun_polydata;
 	optional_shared_ptr<UINT16> m_winrun_gpucomram;
 	optional_shared_ptr<UINT16> m_dspram16;
-	required_shared_ptr<UINT16> m_mpSharedRAM1;
 	required_shared_ptr<UINT8> m_mpDualPortRAM;
 	optional_shared_ptr<UINT16> m_master_dsp_code;
+
+	optional_region_ptr<INT32> m_ptrom24;
+	optional_region_ptr<UINT16> m_ptrom16;
 
 	optional_device<cpu_device> m_dsp;
 
@@ -59,7 +75,6 @@ public:
 	UINT16 m_video_enable;
 	UINT8 *m_pointram;
 	int m_pointram_idx;
-	UINT16 *m_mpDataROM;
 	UINT16 m_pointram_control;
 	dsp_state *m_mpDspState;
 	int m_mbNeedsKickstart;
@@ -115,10 +130,6 @@ public:
 	DECLARE_WRITE16_MEMBER(namcos2_68k_dualportram_word_w);
 	DECLARE_READ8_MEMBER(namcos2_dualportram_byte_r);
 	DECLARE_WRITE8_MEMBER(namcos2_dualportram_byte_w);
-	DECLARE_READ16_MEMBER(shareram1_r);
-	DECLARE_WRITE16_MEMBER(shareram1_w);
-	DECLARE_READ16_MEMBER(datarom_r);
-	DECLARE_READ16_MEMBER(data2_r);
 	DECLARE_WRITE16_MEMBER(NAMCO_C139_SCI_buffer_w);
 	DECLARE_READ16_MEMBER(NAMCO_C139_SCI_buffer_r);
 	DECLARE_WRITE16_MEMBER(NAMCO_C139_SCI_register_w);
@@ -133,7 +144,6 @@ public:
 	DECLARE_READ16_MEMBER(winrun_dsp_pointrom_data_r);
 	DECLARE_WRITE16_MEMBER(winrun_dsp_complete_w);
 	DECLARE_READ16_MEMBER(winrun_table_r);
-	DECLARE_READ16_MEMBER(gpu_data_r);
 	DECLARE_READ16_MEMBER(winrun_gpucomram_r);
 	DECLARE_WRITE16_MEMBER(winrun_gpucomram_w);
 	DECLARE_WRITE16_MEMBER(winrun_dspbios_w);
@@ -157,8 +167,19 @@ public:
 	DECLARE_MACHINE_START(namcos21);
 	DECLARE_VIDEO_START(namcos21);
 	UINT32 screen_update_namcos21(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	void allocate_poly_framebuffer();
+	void clear_poly_framebuffer();
+	void copy_visible_poly_framebuffer(bitmap_ind16 &bitmap, const rectangle &clip, int zlo, int zhi);
+	void renderscanline_flat(const edge *e1, const edge *e2, int sy, unsigned color, int depthcueenable);
+	void rendertri(const vertex *v0, const vertex *v1, const vertex *v2, unsigned color, int depthcueenable);
+	void draw_quad(int sx[4], int sy[4], int zcode[4], int color);
+	INT32 read_pointrom_data(unsigned offset);
+	void transmit_word_to_slave(UINT16 data);
+	void transfer_dsp_data();
+	UINT16 read_word_from_slave_input();
+	UINT16 get_input_bytes_advertised_for_slave();
+	int init_dsp();
+	void render_slave_output(UINT16 data);
+	void winrun_flush_poly();
+	void init(int game_type);
 };
-
-/*----------- defined in video/namcos21.c -----------*/
-extern void namcos21_ClearPolyFrameBuffer( running_machine &machine );
-extern void namcos21_DrawQuad( running_machine &machine, int sx[4], int sy[4], int zcode[4], int color );

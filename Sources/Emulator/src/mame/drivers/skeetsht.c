@@ -3,7 +3,10 @@
     Dynamo Skeet Shot
 
     Notes:
-        Pop Shot is a prototype sequal (or upgrade) to Skeet Shot
+        Pop Shot is a prototype sequel (or upgrade) to Skeet Shot
+
+        Supposedly Skeet Shot used a laserdisc to supply video for eight
+        different background "scenes". Pop Shot probably did too, in that case.
 
 ***************************************************************************/
 
@@ -46,6 +49,8 @@ public:
 	DECLARE_READ8_MEMBER(hc11_porta_r);
 	DECLARE_WRITE8_MEMBER(hc11_porta_w);
 	DECLARE_WRITE8_MEMBER(ay8910_w);
+	DECLARE_WRITE_LINE_MEMBER(tms_irq);
+	TMS340X0_SCANLINE_RGB32_CB_MEMBER(scanline_update);
 	virtual void machine_reset();
 	virtual void video_start();
 	required_device<cpu_device> m_68hc11;
@@ -75,11 +80,10 @@ void skeetsht_state::video_start()
 {
 }
 
-static void skeetsht_scanline_update(screen_device &screen, bitmap_rgb32 &bitmap, int scanline, const tms34010_display_params *params)
+TMS340X0_SCANLINE_RGB32_CB_MEMBER(skeetsht_state::scanline_update)
 {
-	skeetsht_state *state = screen.machine().driver_data<skeetsht_state>();
-	const rgb_t *const pens = state->m_tlc34076->get_pens();
-	UINT16 *vram = &state->m_tms_vram[(params->rowaddr << 8) & 0x3ff00];
+	const rgb_t *const pens = m_tlc34076->get_pens();
+	UINT16 *vram = &m_tms_vram[(params->rowaddr << 8) & 0x3ff00];
 	UINT32 *dest = &bitmap.pix32(scanline);
 	int coladdr = params->coladdr;
 	int x;
@@ -119,10 +123,9 @@ WRITE16_MEMBER(skeetsht_state::ramdac_w)
  *
  *************************************/
 
-static void skeetsht_tms_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(skeetsht_state::tms_irq)
 {
-	skeetsht_state *drvstate = device->machine().driver_data<skeetsht_state>();
-	drvstate->m_68hc11->set_input_line(MC68HC11_IRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
+	m_68hc11->set_input_line(MC68HC11_IRQ_LINE, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
@@ -213,26 +216,6 @@ static INPUT_PORTS_START( skeetsht )
 INPUT_PORTS_END
 
 
-/*************************************
- *
- *  TMS34010 configuration
- *
- *************************************/
-
-static const tms340x0_config tms_config =
-{
-	TRUE,                       /* halt on reset */
-	"screen",                   /* the screen operated on */
-	48000000 / 8,               /* pixel clock */
-	1,                          /* pixels per clock */
-	NULL,                       /* scanline updater (indexed16) */
-	skeetsht_scanline_update,   /* scanline updater (rgb32) */
-	skeetsht_tms_irq,           /* generate interrupt */
-	NULL,                       /* write to shiftreg function */
-	NULL                        /* read from shiftreg function */
-};
-
-
 
 /*************************************
  *
@@ -248,9 +231,12 @@ static MACHINE_CONFIG_START( skeetsht, skeetsht_state )
 	MCFG_MC68HC11_CONFIG( 0, 0x100, 0x01 )  // And 512 bytes EEPROM? (68HC11A1)
 
 	MCFG_CPU_ADD("tms", TMS34010, 48000000)
-	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(tms_program_map)
-
+	MCFG_TMS340X0_HALT_ON_RESET(TRUE) /* halt on reset */
+	MCFG_TMS340X0_PIXEL_CLOCK(48000000 / 8) /* pixel clock */
+	MCFG_TMS340X0_PIXELS_PER_CLOCK(1) /* pixels per clock */
+	MCFG_TMS340X0_SCANLINE_RGB32_CB(skeetsht_state, scanline_update)   /* scanline updater (rgb32) */
+	MCFG_TMS340X0_OUTPUT_INT_CB(WRITELINE(skeetsht_state, tms_irq))
 
 	MCFG_TLC34076_ADD("tlc34076", TLC34076_6_BIT)
 
@@ -280,6 +266,9 @@ ROM_START( skeetsht )
 	ROM_REGION16_LE( 0x200000, "tms", 0 )
 	ROM_LOAD16_BYTE( "even_v1.2.u14", 0x000000, 0x40000, CRC(c7c9515e) SHA1(ce3e813c15085790d5335d9fc751b3cc5b617b20) )
 	ROM_LOAD16_BYTE( "odd_v1.2.u13",  0x000001, 0x40000, CRC(ea4402fb) SHA1(b0b6b191a8b48bead660a385c638363943a6ffe2) )
+
+	DISK_REGION( "laserdisc" )
+		DISK_IMAGE_READONLY( "skeetsht", 0, NO_DUMP ) // unknown disc label?
 ROM_END
 
 ROM_START( popshot )
@@ -290,6 +279,9 @@ ROM_START( popshot )
 	ROM_REGION16_LE( 0x200000, "tms", 0 )
 	ROM_LOAD16_BYTE( "popshot_tms34_even.u14", 0x000000, 0x80000, CRC(bf2f7309) SHA1(6ca252f857e5dc2e5267c176403c44e7a15f539e) )
 	ROM_LOAD16_BYTE( "popshot_tms34_odd.u13",  0x000001, 0x80000, CRC(82d616d8) SHA1(83ab33727ebab882b79c9ebd3557e2c319b3387a) )
+
+	DISK_REGION( "laserdisc" )
+		DISK_IMAGE_READONLY( "popshot", 0, NO_DUMP ) // unknown disc label?
 ROM_END
 
 

@@ -218,9 +218,6 @@ inline UINT8 metro_state::get_tile_pix( UINT16 code, UINT8 x, UINT8 y, int big, 
 		else
 			return 0;
 	}
-
-	// shouldn't get here..
-	return 0;
 }
 
 
@@ -252,10 +249,6 @@ WRITE16_MEMBER(metro_state::metro_window_w)
 
 /*
  Sprites are not tile based, so we decode their graphics at runtime.
-
- We can't do it at startup because drawgfx requires the tiles to be
- pre-rotated to support vertical games, and that, in turn, requires
- the tile's sizes to be known at startup - which we don't!
 */
 
 void metro_state::expand_gfx1()

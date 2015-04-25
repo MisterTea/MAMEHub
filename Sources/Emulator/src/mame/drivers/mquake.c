@@ -58,7 +58,7 @@ public:
 
 private:
 	required_device<es5503_device> m_es5503;
-	required_memory_region m_es5503_rom;
+	required_region_ptr<UINT8> m_es5503_rom;
 };
 
 
@@ -72,7 +72,7 @@ private:
 
 READ8_MEMBER( mquake_state::es5503_sample_r )
 {
-	return m_es5503_rom->base()[offset + (m_es5503->get_channel_strobe() * 0x10000)];
+	return m_es5503_rom[offset + (m_es5503->get_channel_strobe() * 0x10000)];
 }
 
 static ADDRESS_MAP_START( mquake_es5503_map, AS_0, 8, mquake_state )
@@ -126,7 +126,7 @@ static ADDRESS_MAP_START( a500_mem, AS_PROGRAM, 16, mquake_state )
 	AM_RANGE(0xc00000, 0xd7ffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xd80000, 0xddffff) AM_NOP
 	AM_RANGE(0xde0000, 0xdeffff) AM_READWRITE(custom_chip_r, custom_chip_w)
-	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xe00000, 0xe7ffff) AM_WRITENOP AM_READ(rom_mirror_r)
 	AM_RANGE(0xe80000, 0xefffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0xf80000, 0xffffff) AM_ROM AM_REGION("kickstart", 0)

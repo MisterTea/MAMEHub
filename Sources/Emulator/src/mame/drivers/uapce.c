@@ -1,6 +1,6 @@
 /*
 
-    United Amusement PC-Engine based hardware
+    United Amusements PC-Engine based hardware
     Driver by Mariusz Wojcieszek
     Thanks for Charles MacDonald for hardware docs
 
@@ -12,7 +12,7 @@
 
  History
 
- In 1989 United Amusement (a large operator of arcades in the US at that
+ In 1989 United Amusements (a large operator of arcades in the US at that
  time) developed a JAMMA interface for the PC-Engine with NEC's blessing. NEC
  pulled funding for the project before mass production began, and it never
  took off.
@@ -339,7 +339,7 @@ static MACHINE_CONFIG_START( uapce, uapce_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.5)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(uapce)
+	MCFG_DISCRETE_INTF(uapce)
 	MCFG_SOUND_ROUTE(0, "rspeaker", 1.00)
 MACHINE_CONFIG_END
 

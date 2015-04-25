@@ -4,7 +4,9 @@
 #include "sound/sn76496.h"
 
 #include "imagedev/chd_cd.h"
-#include "imagedev/cartslot.h"
+
+#include "bus/generic/slot.h"
+#include "bus/generic/carts.h"
 
 #include "formats/imageutl.h"
 
@@ -91,8 +93,8 @@ READ8_MEMBER(md_cons_state::mess_md_io_read_data_port)
 	else
 	{
 		UINT8 svp_test = 0;
-		if (m_slotcart)
-			svp_test = m_slotcart->read_test();
+		if (m_cart)
+			svp_test = m_cart->read_test();
 
 		// handle test input for SVP test
 		if (portnum == 0 && svp_test)
@@ -265,6 +267,9 @@ MACHINE_START_MEMBER(md_cons_state, md_common)
 		m_io_timeout[i] = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(md_base_state::io_timeout_timer_callback),this), (void*)(FPTR)i);
 
 	m_vdp->stop_timers();
+
+	if (m_cart)
+		m_cart->save_nvram();
 }
 
 MACHINE_START_MEMBER(md_cons_state, ms_megadriv)
@@ -272,14 +277,14 @@ MACHINE_START_MEMBER(md_cons_state, ms_megadriv)
 	MACHINE_START_CALL_MEMBER( md_common );
 
 	// the SVP introduces some kind of DMA 'lag', which we have to compensate for, this is obvious even on gfx DMAd from ROM (the Speedometer)
-	if (m_slotcart->get_type() == SEGA_SVP)
+	if (m_cart->get_type() == SEGA_SVP)
 		m_vdp->set_dma_delay(2);
 
 	// for now m_cartslot is only in MD and not 32x and SegaCD
-	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7fffff, read16_delegate(FUNC(base_md_cart_slot_device::read),(base_md_cart_slot_device*)m_slotcart), write16_delegate(FUNC(base_md_cart_slot_device::write),(base_md_cart_slot_device*)m_slotcart));
-	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa13000, 0xa130ff, read16_delegate(FUNC(base_md_cart_slot_device::read_a13),(base_md_cart_slot_device*)m_slotcart), write16_delegate(FUNC(base_md_cart_slot_device::write_a13),(base_md_cart_slot_device*)m_slotcart));
-	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa15000, 0xa150ff, read16_delegate(FUNC(base_md_cart_slot_device::read_a15),(base_md_cart_slot_device*)m_slotcart), write16_delegate(FUNC(base_md_cart_slot_device::write_a15),(base_md_cart_slot_device*)m_slotcart));
-	m_maincpu->space(AS_PROGRAM).install_write_handler(0xa14000, 0xa14003, write16_delegate(FUNC(base_md_cart_slot_device::write_tmss_bank),(base_md_cart_slot_device*)m_slotcart));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x000000, 0x7fffff, read16_delegate(FUNC(base_md_cart_slot_device::read),(base_md_cart_slot_device*)m_cart), write16_delegate(FUNC(base_md_cart_slot_device::write),(base_md_cart_slot_device*)m_cart));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa13000, 0xa130ff, read16_delegate(FUNC(base_md_cart_slot_device::read_a13),(base_md_cart_slot_device*)m_cart), write16_delegate(FUNC(base_md_cart_slot_device::write_a13),(base_md_cart_slot_device*)m_cart));
+	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa15000, 0xa150ff, read16_delegate(FUNC(base_md_cart_slot_device::read_a15),(base_md_cart_slot_device*)m_cart), write16_delegate(FUNC(base_md_cart_slot_device::write_a15),(base_md_cart_slot_device*)m_cart));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0xa14000, 0xa14003, write16_delegate(FUNC(base_md_cart_slot_device::write_tmss_bank),(base_md_cart_slot_device*)m_cart));
 }
 
 MACHINE_START_MEMBER(md_cons_state, ms_megacd)
@@ -462,8 +467,6 @@ DRIVER_INIT_MEMBER(md_cons_state, md_jpn)
 
 /****************************************** 32X emulation ****************************************/
 
-// FIXME: non-softlist loading should keep using ROM_CART_LOAD in the ROM definitions,
-// once we better integrate softlist with the old loading procedures
 DEVICE_IMAGE_LOAD_MEMBER( md_cons_state, _32x_cart )
 {
 	UINT32 length;
@@ -552,11 +555,10 @@ static MACHINE_CONFIG_START( genesis_32x, md_cons_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
 
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("_32x_cart")
-	MCFG_CARTSLOT_LOAD(md_cons_state, _32x_cart)
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "_32x_cart")
+	MCFG_GENERIC_EXTENSIONS("32x,bin")
+	MCFG_GENERIC_MANDATORY
+	MCFG_GENERIC_LOAD(md_cons_state, _32x_cart)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","NTSC-U")
@@ -594,11 +596,10 @@ static MACHINE_CONFIG_START( mdj_32x, md_cons_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
 
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("_32x_cart")
-	MCFG_CARTSLOT_LOAD(md_cons_state, _32x_cart)
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "_32x_cart")
+	MCFG_GENERIC_EXTENSIONS("32x,bin")
+	MCFG_GENERIC_MANDATORY
+	MCFG_GENERIC_LOAD(md_cons_state, _32x_cart)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","NTSC-J")
@@ -636,11 +637,10 @@ static MACHINE_CONFIG_START( md_32x, md_cons_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", (0.25)/2)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", (0.25)/2)
 
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("32x,bin")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("_32x_cart")
-	MCFG_CARTSLOT_LOAD(md_cons_state, _32x_cart)
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "_32x_cart")
+	MCFG_GENERIC_EXTENSIONS("32x,bin")
+	MCFG_GENERIC_MANDATORY
+	MCFG_GENERIC_LOAD(md_cons_state, _32x_cart)
 
 	MCFG_SOFTWARE_LIST_ADD("cart_list","32x")
 	MCFG_SOFTWARE_LIST_FILTER("cart_list","PAL")
@@ -655,7 +655,6 @@ MACHINE_CONFIG_END
 	ROM_LOAD( "32x_g_bios.bin", 0x000000,  0x000100, CRC(5c12eae8) SHA1(dbebd76a448447cb6e524ac3cb0fd19fc065d944) ) \
 	ROM_REGION16_BE( 0x400000, "maincpu", ROMREGION_ERASE00 ) \
 	/* temp, rom should only be visible here when one of the regs is set, tempo needs it */ \
-	/* ROM_CART_LOAD("cart", 0x000000, 0x400000, ROM_NOMIRROR) */ \
 	ROM_COPY( "32x_68k_bios", 0x0, 0x0, 0x100) \
 	ROM_REGION32_BE( 0x400000, "master", 0 ) /* SH2 Code */ \
 	ROM_SYSTEM_BIOS( 0, "retail", "Mars Version 1.0 (retail)" ) \
@@ -745,8 +744,10 @@ static MACHINE_CONFIG_DERIVED( genesis_32x_scd, genesis_32x )
 
 	MCFG_MACHINE_START_OVERRIDE(md_cons_state, ms_megacd)
 
-	MCFG_DEVICE_MODIFY("cart")
-	MCFG_CARTSLOT_NOT_MANDATORY
+	MCFG_DEVICE_REMOVE("cartslot")
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "_32x_cart")
+	MCFG_GENERIC_EXTENSIONS("32x,bin")
+	MCFG_GENERIC_LOAD(md_cons_state, _32x_cart)
 
 	//MCFG_QUANTUM_PERFECT_CPU("32x_master_sh2")
 MACHINE_CONFIG_END
@@ -768,20 +769,21 @@ ROM_END
 
 ROM_START( megacdj )
 	ROM_REGION16_BE( 0x400000, "maincpu", ROMREGION_ERASE00 )
+	ROM_DEFAULT_BIOS("v100g")   // this seems the only revision where the cursor in CD menu works, allowing to boot games
 	/* Confirmed by ElBarto */
 	ROM_SYSTEM_BIOS(0, "v100s", "v1.00S")
 	ROMX_LOAD( "mpr-14088h.bin", 0x000000,  0x020000, CRC(3773d5aa) SHA1(bbf729a1aaa1667b783749299e1ad932aaf5f253), ROM_BIOS(1) | ROM_GROUPWORD | ROM_REVERSE)
 	/* Confirmed by ElBarto */
-	ROM_SYSTEM_BIOS(1, "v100g", "v1.00g")
+	ROM_SYSTEM_BIOS(1, "v100g", "v1.00G")
 	ROMX_LOAD( "epr-14088b.bin", 0x000000,  0x020000, CRC(69ed6ccd) SHA1(27d11c3836506f01ee81cd142c0cd8b51abebbd2), ROM_BIOS(2) | ROM_GROUPWORD | ROM_REVERSE)
 	/* Confirmed by ElBarto */
 	ROM_SYSTEM_BIOS(2, "v100l", "v1.00L")
 	ROMX_LOAD( "mpr-14088c.bin", 0x000000,  0x020000, CRC(03134289) SHA1(d60cb5a53f26d6b13e354bc149217587f2301718), ROM_BIOS(3) | ROM_GROUPWORD | ROM_REVERSE)
 	/* Confirmed by ElBarto */
-	ROM_SYSTEM_BIOS(3, "v100o", "v1.00o")
+	ROM_SYSTEM_BIOS(3, "v100o", "v1.00O")
 	ROMX_LOAD( "epr-14088d.bin", 0x000000,  0x020000, CRC(dfa95ee9) SHA1(e13666c76fa0a2e94e2f651b26b0fd625bf55f07), ROM_BIOS(4) | ROM_GROUPWORD | ROM_REVERSE)
-	ROM_SYSTEM_BIOS(4, "v100p", "v1.00P")
-	ROMX_LOAD( "megacd_model1_bios_1_00p_j.bin", 0x000000,  0x020000, CRC(9d2da8f2) SHA1(4846f448160059a7da0215a5df12ca160f26dd69), ROM_BIOS(5) )
+	ROM_SYSTEM_BIOS(4, "v100p", "v1.00P")   // CRC: e2e70bc8 when byteswapped
+	ROMX_LOAD( "epr-14088e.bin", 0x000000,  0x020000, CRC(9d2da8f2) SHA1(4846f448160059a7da0215a5df12ca160f26dd69), ROM_BIOS(5) )
 ROM_END
 
 /* Asia bios, when run in USA region will show :

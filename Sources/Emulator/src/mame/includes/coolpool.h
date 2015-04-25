@@ -8,14 +8,18 @@ class coolpool_state : public driver_device
 public:
 	coolpool_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_tlc34076(*this, "tlc34076"),
-		m_vram_base(*this, "vram_base"),
-		m_nvram(*this, "nvram"),
 		m_maincpu(*this, "maincpu"),
 		m_dsp(*this, "dsp"),
-		m_dac(*this, "dac"){ }
+		m_dac(*this, "dac"),
+		m_tlc34076(*this, "tlc34076"),
+		m_vram_base(*this, "vram_base"),
+		m_nvram(*this, "nvram") { }
 
+	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_dsp;
+	required_device<dac_device> m_dac;
 	optional_device<tlc34076_device> m_tlc34076;
+
 	required_shared_ptr<UINT16> m_vram_base;
 	required_shared_ptr<UINT16> m_nvram;
 
@@ -34,8 +38,6 @@ public:
 	UINT16 m_result;
 	UINT16 m_lastresult;
 
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_dsp;
 	UINT16 m_nvram_write_seq[NVRAM_UNLOCK_SEQ_LEN];
 	UINT8 m_nvram_write_enable;
 	UINT8 m_old_cmd;
@@ -61,6 +63,10 @@ public:
 	DECLARE_WRITE16_MEMBER(dsp_romaddr_w);
 	DECLARE_READ16_MEMBER(coolpool_input_r);
 	DECLARE_WRITE16_MEMBER(dsp_dac_w);
+	TMS340X0_TO_SHIFTREG_CB_MEMBER(to_shiftreg);
+	TMS340X0_FROM_SHIFTREG_CB_MEMBER(from_shiftreg);
+	TMS340X0_SCANLINE_RGB32_CB_MEMBER(amerdart_scanline);
+	TMS340X0_SCANLINE_RGB32_CB_MEMBER(coolpool_scanline);
 	DECLARE_DRIVER_INIT(coolpool);
 	DECLARE_DRIVER_INIT(amerdart);
 	DECLARE_DRIVER_INIT(9ballsht);
@@ -69,5 +75,6 @@ public:
 	TIMER_CALLBACK_MEMBER(deferred_iop_w);
 	TIMER_DEVICE_CALLBACK_MEMBER(nvram_write_timeout);
 	TIMER_DEVICE_CALLBACK_MEMBER(amerdart_audio_int_gen);
-	required_device<dac_device> m_dac;
+	void register_state_save();
+	int amerdart_trackball_direction(int num, int data);
 };

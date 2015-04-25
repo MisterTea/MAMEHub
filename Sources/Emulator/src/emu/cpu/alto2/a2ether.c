@@ -416,7 +416,7 @@ void alto2_cpu_device::eth_wakeup()
  * polynomials listed in Tabel I by applying the appropriate logic levels
  * to the select pins S0, S1 and S2.
  *
- * Teh 'F401 consists of a 16-bit register, a Read Only Memory (ROM) and
+ * The 'F401 consists of a 16-bit register, a Read Only Memory (ROM) and
  * associated control circuitry as shown in the block diagram. The
  * polynomial control code presented at inputs S0, S1 and S2 is decoded
  * by the ROM, selecting the desired polynomial by establishing shift
@@ -560,7 +560,7 @@ void alto2_cpu_device::tx_packet(void* ptr, INT32 arg)
 		PUT_ETH_WLF(m_eth.status, 0);
 		m_eth.tx_timer->adjust(attotime::from_usec(5.44), -1);
 	} else {
-		// transmit teh next word after 5.44us
+		// transmit the next word after 5.44us
 		m_eth.tx_timer->adjust(attotime::from_usec(5.44), arg + 1);
 	}
 	eth_wakeup();

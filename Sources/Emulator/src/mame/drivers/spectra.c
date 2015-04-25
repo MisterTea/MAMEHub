@@ -1,5 +1,8 @@
+// license:MAME
+// copyright-holders:Robbbert
 /******************************************************************************************
-    Pinball
+
+    PINBALL
     Valley Spectra IV
 
     Rotating game, like Midway's "Rotation VIII".
@@ -11,6 +14,23 @@
 
     There is a bug - if you score 1000 and had less than 100, the hundreds digit will
     be blank. It will of course fix itself during the course of the game.
+
+    Setting up - if you do not set up the game, each player will get 255 balls.
+    Turn test switch to Setup. Press 1 to advance to next set. Press 5 to adjust the
+    set. Use the manual for a description of each set. After setting up set 16, do not
+    press 1, instead turn the dipswitch to Play. Exit (to save nvram), and restart.
+    Now the game is ready. Very quick guide to a reasonable setup:
+    06 - 30000 (1st award score)
+    07 - 50000 (2nd award score)
+    08 - 70000 (3rd award score)
+    09 - 90000 (high score)
+    11 - 1 (1 coin 1 credit)
+    13 - 3 (3 balls)
+    15 - 1 (award is a free game)
+    16 - 1 (match enabled)
+
+ToDo:
+- Get good dump of u4 rom.
 
 
 *******************************************************************************************/
@@ -30,6 +50,7 @@ public:
 		: genpin_class(mconfig, type, tag)
 		, m_maincpu(*this, "maincpu")
 		, m_snsnd(*this, "snsnd")
+		, m_switch(*this, "SWITCH")
 		, m_p_ram(*this, "nvram")
 	{ }
 
@@ -47,6 +68,7 @@ private:
 	virtual void machine_reset();
 	required_device<cpu_device> m_maincpu;
 	required_device<sn76477_device> m_snsnd;
+	required_ioport_array<4> m_switch;
 	required_shared_ptr<UINT8> m_p_ram;
 };
 
@@ -61,7 +83,7 @@ static ADDRESS_MAP_START( spectra_map, AS_PROGRAM, 8, spectra_state )
 ADDRESS_MAP_END
 
 static INPUT_PORTS_START( spectra )
-	PORT_START("X0")
+	PORT_START("SWITCH.0")
 	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Outhole") PORT_CODE(KEYCODE_X)
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("L Outlane 1") PORT_CODE(KEYCODE_W)
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("CR Hole") PORT_CODE(KEYCODE_E)
@@ -69,9 +91,9 @@ static INPUT_PORTS_START( spectra )
 	PORT_BIT(0x10, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("R Bumper") PORT_CODE(KEYCODE_Y)
 	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("C Bumper") PORT_CODE(KEYCODE_U)
 	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("L Bumper") PORT_CODE(KEYCODE_I)
-	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("R Triangle") PORT_CODE(KEYCODE_O)
-	PORT_START("X1")
-	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("L Triangle") PORT_CODE(KEYCODE_A)
+	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("R Sling") PORT_CODE(KEYCODE_O)
+	PORT_START("SWITCH.1")
+	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("L Sling") PORT_CODE(KEYCODE_A)
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("R Outlane") PORT_CODE(KEYCODE_S)
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("R Rollover") PORT_CODE(KEYCODE_D)
 	PORT_BIT(0x08, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("L Rollover") PORT_CODE(KEYCODE_F)
@@ -79,7 +101,7 @@ static INPUT_PORTS_START( spectra )
 	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("C Inside Target") PORT_CODE(KEYCODE_H)
 	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("R Inside Target") PORT_CODE(KEYCODE_J)
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("CL Target") PORT_CODE(KEYCODE_K)
-	PORT_START("X2")
+	PORT_START("SWITCH.2")
 	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("CL Button") PORT_CODE(KEYCODE_Z)
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("TL Button") PORT_CODE(KEYCODE_Q)
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("TL Target") PORT_CODE(KEYCODE_C)
@@ -88,7 +110,7 @@ static INPUT_PORTS_START( spectra )
 	PORT_BIT(0x20, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("R Pentagon") PORT_CODE(KEYCODE_N)
 	PORT_BIT(0x40, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("L Pentagon") PORT_CODE(KEYCODE_M)
 	PORT_BIT(0x80, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("TL Area") PORT_CODE(KEYCODE_COMMA)
-	PORT_START("X3")
+	PORT_START("SWITCH.3")
 	PORT_BIT(0x01, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("L Area") PORT_CODE(KEYCODE_STOP)
 	PORT_BIT(0x02, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("R Area") PORT_CODE(KEYCODE_SLASH)
 	PORT_BIT(0x04, IP_ACTIVE_LOW, IPT_OTHER) PORT_NAME("Inlane Button") PORT_CODE(KEYCODE_L)
@@ -108,15 +130,12 @@ void spectra_state::machine_reset()
 
 READ8_MEMBER( spectra_state::porta_r )
 {
-	char kbdrow[6];
-	UINT8 key=0, old=0, ret=0;
-	sprintf(kbdrow,"X%X",(m_porta & 0x18) >> 3);
-	key = ioport(kbdrow)->read();
-	ret = ((BIT(key, m_porta & 7)) ? 0x40 : 0) | (m_porta & 0xbf);
+	UINT8 row = (m_porta & 0x18) >> 3;
+	UINT8 key = m_switch[row]->read();
+	UINT8 ret = ((BIT(key, m_porta & 7)) ? 0x40 : 0) | (m_porta & 0xbf);
 
-	if (ret == 0x1b && old != ret && m_p_ram[0x7b] < 0x1E)
-		m_samples->start(2, 4); // coin
-	old = ret;
+	if (ret == 0x1b && m_p_ram[0x7b] < 0x1E)
+		m_samples->start(3, 8); // coin
 
 	return ret;
 }
@@ -190,43 +209,22 @@ TIMER_DEVICE_CALLBACK_MEMBER( spectra_state::outtimer)
 			m_samples->start(1, 0); // bumpers
 	}
 	else
+	if (m_out_offs < 0x79)
+	{
+		if (m_p_ram[m_out_offs])
+			m_samples->start(2, 7); // slings
+	}
+	else
 		m_out_offs = 0xff;
 }
-
-static const sn76477_interface sn76477_intf =
-{
-	RES_M(1000),    /*  4  noise_res        */
-	RES_M(1000),    /*  5  filter_res       */
-	CAP_N(0),   /*  6  filter_cap       */
-	RES_K(470), /*  7  decay_res        */
-	CAP_N(1),   /*  8  attack_decay_cap */
-	RES_K(22),  /* 10  attack_res       */
-	RES_K(100), /* 11  amplitude_res    */
-	RES_K(52),  /* 12  feedback_res     */
-	5.0,    /* 16  vco_voltage      */
-	CAP_U(0.01),    /* 17  vco_cap          */
-	RES_K(390), /* 18  vco_res          */
-	0.0,  /* 19  pitch_voltage  */
-	RES_M(1),   /* 20  slf_res          */
-	CAP_U(0.1), /* 21  slf_cap          */
-	CAP_U(0.47),    /* 23  oneshot_cap      */
-	RES_K(470),     /* 24  oneshot_res  */
-	0,              /* 22  vco (variable)               */
-	0,              /* 26  mixer A (grounded)           */
-	0,              /* 25  mixer B (variable)           */
-	0,              /* 27  mixer C (variable)           */
-	0,              /* 1   envelope 1 (variable)        */
-	0,              /* 28  envelope 2 (grounded)        */
-	1               /* 9   enable (variable)            */
-};
 
 
 static MACHINE_CONFIG_START( spectra, spectra_state )
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M6502, 3579545/4)  // actually a 6503
+	MCFG_CPU_ADD("maincpu", M6502, XTAL_3_579545MHz/4)  // actually a M6503
 	MCFG_CPU_PROGRAM_MAP(spectra_map)
 
-	MCFG_DEVICE_ADD("riot", RIOT6532, 3579545/4)
+	MCFG_DEVICE_ADD("riot", RIOT6532, XTAL_3_579545MHz/4)
 	MCFG_RIOT6532_IN_PA_CB(READ8(spectra_state, porta_r))
 	MCFG_RIOT6532_OUT_PA_CB(WRITE8(spectra_state, porta_w))
 	MCFG_RIOT6532_IN_PB_CB(READ8(spectra_state, portb_r))
@@ -243,10 +241,23 @@ static MACHINE_CONFIG_START( spectra, spectra_state )
 
 	/* Sound */
 	MCFG_FRAGMENT_ADD( genpin_audio )
+
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
-	MCFG_SOUND_CONFIG(sn76477_intf)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
+	MCFG_SN76477_NOISE_PARAMS(RES_M(1000), RES_M(1000), CAP_N(0)) // noise + filter
+	MCFG_SN76477_DECAY_RES(RES_K(470))                    // decay_res
+	MCFG_SN76477_ATTACK_PARAMS(CAP_N(1), RES_K(22))       // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(100))                      // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(52))                  // feedback_res
+	MCFG_SN76477_VCO_PARAMS(5.0, CAP_U(0.01), RES_K(390)) // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(0.0)                       // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(0.1), RES_M(1))         // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(CAP_U(0.47), RES_K(470))  // oneshot caps + res
+	MCFG_SN76477_VCO_MODE(0)                              // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                    // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(0, 0)                    // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                                // enable
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.30)
 MACHINE_CONFIG_END
 
 /*--------------------------------
@@ -260,4 +271,4 @@ ROM_START(spectra)
 ROM_END
 
 
-GAME(1979,  spectra,  0,  spectra,  spectra, driver_device, 0,  ROT0,  "Valley", "Spectra IV", GAME_MECHANICAL)
+GAME(1979,  spectra,  0,  spectra,  spectra, driver_device, 0,  ROT0,  "Valley", "Spectra IV", GAME_MECHANICAL )

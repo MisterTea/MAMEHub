@@ -311,7 +311,10 @@ READ8_MEMBER( mc1000_state::keydata_r )
 
 	data = (m_modifiers->read() & 0xc0) | (data & 0x3f);
 
-	if (m_cassette->input() < +0.0) data &= 0x7f;
+	if ((m_cassette->get_state() & CASSETTE_MASK_UISTATE) == CASSETTE_PLAY)
+	{
+		if (m_cassette->input() >= +0.0) data &= 0x7f;
+	}
 
 	return data;
 }
@@ -450,7 +453,9 @@ static MACHINE_CONFIG_START( mc1000, mc1000_state )
 	MCFG_CASSETTE_ADD("cassette")
 	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_MOTOR_ENABLED | CASSETTE_SPEAKER_ENABLED)
 
-	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_SOFTWARE_LIST_ADD("cass_list", "mc1000_cass")
+
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_devices, "printer")
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(mc1000_state, write_centronics_busy))
 
 	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)

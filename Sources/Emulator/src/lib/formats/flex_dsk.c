@@ -4,10 +4,10 @@
  *  Created on: 24/06/2014
  */
 
-#include "emu.h"
+	#include "emu.h" // logerror
 #include "flex_dsk.h"
 
-flex_format::flex_format() : wd177x_format(formats)
+flex_format::flex_format()
 {
 }
 
@@ -26,6 +26,11 @@ const char *flex_format::extensions() const
 	return "dsk";
 }
 
+bool flex_format::supports_save() const
+{
+	return true;
+}
+
 int flex_format::identify(io_generic *io, UINT32 form_factor)
 {
 	io_generic_read(io, &info, 256 * 2, sizeof(struct sysinfo_sector));
@@ -42,7 +47,7 @@ bool flex_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 {
 	int spt = info.last_sec;
 	int bps = 256;
-	int cell_count = 50000;
+	int cell_count = (form_factor == floppy_image::FF_525) ? 50000 : 100000;
 	int offset = 0;
 	int head_num = 1;
 	int total_tracks = info.last_trk+1;

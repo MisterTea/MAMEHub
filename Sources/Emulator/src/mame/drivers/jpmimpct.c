@@ -819,25 +819,11 @@ INPUT_PORTS_END
  *
  *************************************/
 
-static void jpmimpct_tms_irq(device_t *device, int state)
+WRITE_LINE_MEMBER(jpmimpct_state::tms_irq)
 {
-	jpmimpct_state *drvstate = device->machine().driver_data<jpmimpct_state>();
-	drvstate->m_tms_irq = state;
-	drvstate->update_irqs();
+	m_tms_irq = state;
+	update_irqs();
 }
-
-static const tms340x0_config tms_config =
-{
-	TRUE,                       /* halt on reset */
-	"screen",                   /* the screen operated on */
-	40000000/16,                /* pixel clock */
-	4,                          /* pixels per clock */
-	NULL,                       /* scanline updater (indexed16) */
-	jpmimpct_scanline_update,   /* scanline updater (rgb32) */
-	jpmimpct_tms_irq,           /* generate interrupt */
-	jpmimpct_to_shiftreg,       /* write to shiftreg function */
-	jpmimpct_from_shiftreg      /* read from shiftreg function */
-};
 
 
 /*************************************
@@ -851,8 +837,14 @@ static MACHINE_CONFIG_START( jpmimpct, jpmimpct_state )
 	MCFG_CPU_PROGRAM_MAP(m68k_program_map)
 
 	MCFG_CPU_ADD("dsp", TMS34010, 40000000)
-	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(tms_program_map)
+	MCFG_TMS340X0_HALT_ON_RESET(TRUE) /* halt on reset */
+	MCFG_TMS340X0_PIXEL_CLOCK(40000000/16) /* pixel clock */
+	MCFG_TMS340X0_PIXELS_PER_CLOCK(4) /* pixels per clock */
+	MCFG_TMS340X0_SCANLINE_RGB32_CB(jpmimpct_state, scanline_update)   /* scanline updater (rgb32) */
+	MCFG_TMS340X0_OUTPUT_INT_CB(WRITELINE(jpmimpct_state, tms_irq))
+	MCFG_TMS340X0_TO_SHIFTREG_CB(jpmimpct_state, to_shiftreg)       /* write to shiftreg function */
+	MCFG_TMS340X0_FROM_SHIFTREG_CB(jpmimpct_state, from_shiftreg)      /* read from shiftreg function */
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(30000))
 	MCFG_MACHINE_START_OVERRIDE(jpmimpct_state,jpmimpct)
@@ -972,14 +964,6 @@ MACHINE_START_MEMBER(jpmimpct_state,impctawp)
 	save_item(NAME(m_duart_1.ISR));
 	save_item(NAME(m_duart_1.IMR));
 	save_item(NAME(m_duart_1.CT));
-
-	stepper_config(machine(), 0, &starpoint_interface_48step);
-	stepper_config(machine(), 1, &starpoint_interface_48step);
-	stepper_config(machine(), 2, &starpoint_interface_48step);
-	stepper_config(machine(), 3, &starpoint_interface_48step);
-	stepper_config(machine(), 4, &starpoint_interface_48step);
-	stepper_config(machine(), 5, &starpoint_interface_48step);
-	stepper_config(machine(), 6, &starpoint_interface_48step);
 }
 
 MACHINE_RESET_MEMBER(jpmimpct_state,impctawp)
@@ -1070,13 +1054,6 @@ READ16_MEMBER(jpmimpct_state::inputs1awp_r)
 
 READ16_MEMBER(jpmimpct_state::optos_r)
 {
-	int i;
-
-	for (i=0; i<6; i++)
-	{
-		if ( stepper_optic_state(i) ) m_optic_pattern |= (1 << i);
-		else                          m_optic_pattern &= ~(1 << i);
-	}
 	return m_optic_pattern;
 }
 
@@ -1105,20 +1082,22 @@ WRITE16_MEMBER(jpmimpct_state::jpmioawp_w)
 
 		case 0x02:
 		{
-			for (i=0; i<4; i++)
-			{
-				stepper_update(i, (data >> i)& 0x0F );
-				awp_draw_reel(i);
-			}
+			m_reel0->update((data >> 0)& 0x0F);
+			m_reel1->update((data >> 1)& 0x0F);
+			m_reel2->update((data >> 2)& 0x0F);
+			m_reel3->update((data >> 3)& 0x0F);
+			awp_draw_reel("reel1", m_reel0);
+			awp_draw_reel("reel2", m_reel1);
+			awp_draw_reel("reel3", m_reel2);
+			awp_draw_reel("reel4", m_reel3);
 			break;
 		}
 		case 0x04:
 		{
-			for (i=0; i<2; i++)
-			{
-				stepper_update(i+4, (data >> (i + 4)& 0x0F ));
-				awp_draw_reel(i+4);
-			}
+			m_reel4->update((data >> 4)& 0x0F);
+			m_reel5->update((data >> 5)& 0x0F);
+			awp_draw_reel("reel5", m_reel4);
+			awp_draw_reel("reel6", m_reel5);
 			break;
 		}
 		case 0x06:
@@ -1345,6 +1324,20 @@ MACHINE_CONFIG_START( impctawp, jpmimpct_state )
 	MCFG_SOUND_ADD("upd",UPD7759, UPD7759_STANDARD_CLOCK)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 	MCFG_DEFAULT_LAYOUT(layout_jpmimpct)
+
+	MCFG_STARPOINT_48STEP_ADD("reel0")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(jpmimpct_state, reel0_optic_cb))
+	MCFG_STARPOINT_48STEP_ADD("reel1")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(jpmimpct_state, reel1_optic_cb))
+	MCFG_STARPOINT_48STEP_ADD("reel2")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(jpmimpct_state, reel2_optic_cb))
+	MCFG_STARPOINT_48STEP_ADD("reel3")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(jpmimpct_state, reel3_optic_cb))
+	MCFG_STARPOINT_48STEP_ADD("reel4")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(jpmimpct_state, reel4_optic_cb))
+	MCFG_STARPOINT_48STEP_ADD("reel5")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(jpmimpct_state, reel5_optic_cb))
+
 MACHINE_CONFIG_END
 
 

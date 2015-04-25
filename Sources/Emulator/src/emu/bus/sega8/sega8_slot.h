@@ -49,7 +49,7 @@ public:
 	virtual DECLARE_READ8_MEMBER(read_ram) { return 0xff; }
 	virtual DECLARE_WRITE8_MEMBER(write_ram) {}
 
-	void rom_alloc(UINT32 size);
+	void rom_alloc(UINT32 size, const char *tag);
 	void ram_alloc(UINT32 size);
 
 	virtual void late_bank_setup() {}
@@ -66,15 +66,18 @@ public:
 //protected:
 	UINT8* get_rom_base() { return m_rom; }
 	UINT8* get_ram_base() { return m_ram; }
-	UINT32 get_rom_size() { return m_rom.count(); }
+	UINT32 get_rom_size() { return m_rom_size; }
 	UINT32 get_ram_size() { return m_ram.count(); }
 
 	void rom_map_setup(UINT32 size);
 	void ram_map_setup(UINT8 banks);
 
+	void save_ram() { device().save_item(NAME(m_ram)); }
+
 //private:
 	// internal state
-	dynamic_buffer m_rom;
+	UINT8 *m_rom;
+	UINT32 m_rom_size;
 	dynamic_buffer m_ram;
 	int m_rom_page_count;
 
@@ -117,6 +120,8 @@ public:
 	void internal_header_logging(UINT8 *ROM, UINT32 len, UINT32 nvram_len);
 	int verify_cart(UINT8 *magic, int size);
 	void set_lphaser_xoffset(UINT8 *rom, int size);
+
+	void save_ram() { if (m_cart && m_cart->get_ram_size()) m_cart->save_ram(); }
 
 	void set_mandatory(bool val) { m_must_be_loaded = val; }
 	void set_intf(const char * interface) { m_interface = interface; }
@@ -166,6 +171,9 @@ public:
 /***************************************************************************
  DEVICE CONFIGURATION MACROS
  ***************************************************************************/
+
+#define S8SLOT_ROM_REGION_TAG ":cart:rom"
+
 
 #define MCFG_SG1000_CARTRIDGE_ADD(_tag,_slot_intf,_def_slot) \
 	MCFG_DEVICE_ADD(_tag, SEGA8_CART_SLOT, 0) \
@@ -223,5 +231,11 @@ public:
 	static_cast<sega8_card_slot_device *>(device)->set_intf("sg1000_cart"); \
 	static_cast<sega8_card_slot_device *>(device)->set_ext("bin,sg");
 
+
+// slot interfaces
+SLOT_INTERFACE_EXTERN( sg1000_cart );
+SLOT_INTERFACE_EXTERN( sg1000mk3_cart );
+SLOT_INTERFACE_EXTERN( sms_cart );
+SLOT_INTERFACE_EXTERN( gg_cart );
 
 #endif

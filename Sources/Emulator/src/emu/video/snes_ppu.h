@@ -124,7 +124,6 @@ public:
 	{
 		UINT16 latch_horz;
 		UINT16 latch_vert;
-		UINT16 current_horz;
 		UINT16 current_vert;
 		UINT8 last_visible_line;
 		UINT8 interlace_count;
@@ -248,12 +247,14 @@ public:
 	void update_windowmasks(void);
 	void update_offsets(void);
 	inline void draw_blend(UINT16 offset, UINT16 *colour, UINT8 prevent_color_math, UINT8 black_pen_clip, int switch_screens);
-	void refresh_scanline(running_machine &machine, bitmap_rgb32 &bitmap, UINT16 curline);
+	void refresh_scanline(bitmap_rgb32 &bitmap, UINT16 curline);
 
-	void latch_counters(running_machine &machine);
-	void dynamic_res_change(running_machine &machine);
-	inline UINT32 get_vram_address(running_machine &machine);
-	UINT8 dbg_video(running_machine &machine, UINT16 curline);
+	inline INT16 current_x() { return m_screen->hpos() / m_htmult; }
+	inline INT16 current_y() { return m_screen->vpos(); }
+	void set_latch_hv(INT16 x, INT16 y);
+	void dynamic_res_change();
+	inline UINT32 get_vram_address();
+	UINT8 dbg_video(UINT16 curline);
 
 	UINT8 read(address_space &space, UINT32 offset, UINT8 wrio_bit7);
 	void write(address_space &space, UINT32 offset, UINT8 data);
@@ -271,7 +272,7 @@ public:
 protected:
 	// device-level overrides
 	virtual void device_start();
-	virtual void device_reset() {};
+	virtual void device_reset();
 
 private:
 	devcb_read16  m_openbus_cb;

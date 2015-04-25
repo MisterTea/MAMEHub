@@ -47,28 +47,19 @@ const device_type SAMPLES = &device_creator<samples_device>;
 
 samples_device::samples_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, SAMPLES, "Samples", tag, owner, clock, "samples", __FILE__),
-		device_sound_interface(mconfig, *this)
+		device_sound_interface(mconfig, *this),
+		m_channels(0),
+		m_names(NULL)
 {
 }
 
 samples_device::samples_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
 	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
-		device_sound_interface(mconfig, *this)
+		device_sound_interface(mconfig, *this),
+		m_channels(0),
+		m_names(NULL)
 {
 }
-
-
-//-------------------------------------------------
-//  static_set_interface - configuration helper
-//  to set the interface
-//-------------------------------------------------
-
-void samples_device::static_set_interface(device_t &device, const samples_interface &interface)
-{
-	samples_device &samples = downcast<samples_device &>(device);
-	static_cast<samples_interface &>(samples) = interface;
-}
-
 
 
 //**************************************************************************
@@ -272,8 +263,10 @@ void samples_device::device_start()
 	}
 
 	// initialize any custom handlers
-	if (m_start != NULL)
-		(*m_start)(*this);
+	m_samples_start_cb.bind_relative_to(*owner());
+
+	if (!m_samples_start_cb.isnull())
+		m_samples_start_cb();
 }
 
 

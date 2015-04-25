@@ -60,6 +60,7 @@ public:
 	a2000_state(const machine_config &mconfig, device_type type, const char *tag) :
 	amiga_state(mconfig, type, tag),
 	m_rtc(*this, "u65"),
+	m_zorro(*this, ZORROBUS_TAG),
 	m_zorro2_int2(0),
 	m_zorro2_int6(0)
 	{ }
@@ -74,13 +75,16 @@ public:
 	DECLARE_WRITE16_MEMBER( clock_w );
 
 protected:
+	virtual void machine_reset();
+
 	// amiga_state overrides
-	virtual void update_int2();
-	virtual void update_int6();
+	virtual bool int2_pending();
+	virtual bool int6_pending();
 
 private:
 	// devices
 	required_device<msm6242_device> m_rtc;
+	required_device<zorro2_device> m_zorro;
 
 	// internal state
 	int m_zorro2_int2;
@@ -91,20 +95,29 @@ class a500_state : public amiga_state
 {
 public:
 	a500_state(const machine_config &mconfig, device_type type, const char *tag) :
-	amiga_state(mconfig, type, tag)
-	//m_side_int2(0),
-	//m_side_int6(0)
+	amiga_state(mconfig, type, tag),
+	m_side(*this, EXP_SLOT_TAG),
+	m_side_int2(0),
+	m_side_int6(0)
 	{ }
 
 	DECLARE_DRIVER_INIT( pal );
 	DECLARE_DRIVER_INIT( ntsc );
 
 protected:
+	virtual void machine_reset();
+
+	// amiga_state overrides
+	virtual bool int2_pending();
+	virtual bool int6_pending();
 
 private:
+	// devices
+	required_device<exp_slot_device> m_side;
+
 	// internal state
-	//int m_side_int2;
-	//int m_side_int6;
+	int m_side_int2;
+	int m_side_int6;
 };
 
 class cdtv_state : public amiga_state
@@ -140,8 +153,8 @@ protected:
 	virtual void machine_start();
 
 	// amiga_state overrides
-	virtual void update_int2();
-	virtual void update_int6();
+	virtual bool int2_pending();
+	virtual bool int6_pending();
 
 private:
 	// devices
@@ -180,9 +193,10 @@ class a500p_state : public amiga_state
 public:
 	a500p_state(const machine_config &mconfig, device_type type, const char *tag) :
 	amiga_state(mconfig, type, tag),
-	m_rtc(*this, "u9")
-	//m_side_int2(0),
-	//m_side_int6(0)
+	m_rtc(*this, "u9"),
+	m_side(*this, EXP_SLOT_TAG),
+	m_side_int2(0),
+	m_side_int6(0)
 	{ }
 
 	DECLARE_READ16_MEMBER( clock_r );
@@ -192,14 +206,20 @@ public:
 	DECLARE_DRIVER_INIT( ntsc );
 
 protected:
+	virtual void machine_reset();
+
+	// amiga_state overrides
+	virtual bool int2_pending();
+	virtual bool int6_pending();
 
 private:
 	// devices
 	required_device<msm6242_device> m_rtc;
+	required_device<exp_slot_device> m_side;
 
 	// internal state
-	//int m_side_int2;
-	//int m_side_int6;
+	int m_side_int2;
+	int m_side_int6;
 };
 
 class a600_state : public amiga_state
@@ -218,7 +238,7 @@ public:
 	static const UINT8 GAYLE_ID = 0xd0;
 
 protected:
-	virtual void update_int2();
+	virtual bool int2_pending();
 
 private:
 	int m_gayle_int2;
@@ -240,7 +260,7 @@ public:
 	static const UINT8 GAYLE_ID = 0xd1;
 
 protected:
-	virtual void update_int2();
+	virtual bool int2_pending();
 
 private:
 	int m_gayle_int2;
@@ -557,6 +577,15 @@ WRITE16_MEMBER( a1000_state::write_protect_w )
 	m_maincpu->space(AS_PROGRAM).nop_write(0xfc0000, 0xffffff);
 }
 
+void a2000_state::machine_reset()
+{
+	// base reset
+	amiga_state::machine_reset();
+
+	// reset zorro devices
+	m_zorro->reset();
+}
+
 WRITE_LINE_MEMBER( a2000_state::zorro2_int2_w )
 {
 	m_zorro2_int2 = state;
@@ -569,16 +598,33 @@ WRITE_LINE_MEMBER( a2000_state::zorro2_int6_w )
 	update_int6();
 }
 
-void a2000_state::update_int2()
+bool a2000_state::int2_pending()
 {
-	int state = (m_cia_0_irq || m_zorro2_int2);
-	set_interrupt((state ? INTENA_SETCLR : 0x0000) | INTENA_PORTS);
+	return m_cia_0_irq || m_zorro2_int2;
 }
 
-void a2000_state::update_int6()
+bool a2000_state::int6_pending()
 {
-	int state = (m_cia_1_irq || m_zorro2_int6);
-	set_interrupt((state ? INTENA_SETCLR : 0x0000) | INTENA_EXTER);
+	return m_cia_1_irq || m_zorro2_int6;
+}
+
+void a500_state::machine_reset()
+{
+	// base reset
+	amiga_state::machine_reset();
+
+	// reset side expansion slot device
+	m_side->reset();
+}
+
+bool a500_state::int2_pending()
+{
+	return m_cia_0_irq || m_side_int2;
+}
+
+bool a500_state::int6_pending()
+{
+	return m_cia_1_irq || m_side_int6;
 }
 
 void cdtv_state::machine_start()
@@ -591,16 +637,14 @@ void cdtv_state::machine_start()
 	m_dmac->ramsz_w(0);
 }
 
-void cdtv_state::update_int2()
+bool cdtv_state::int2_pending()
 {
-	int state = (m_cia_0_irq || m_dmac_irq || m_tpi_irq);
-	set_interrupt((state ? INTENA_SETCLR : 0x0000) | INTENA_PORTS);
+	return m_cia_0_irq || m_dmac_irq || m_tpi_irq;
 }
 
-void cdtv_state::update_int6()
+bool cdtv_state::int6_pending()
 {
-	int state = (m_cia_1_irq);
-	set_interrupt((state ? INTENA_SETCLR : 0x0000) | INTENA_EXTER);
+	return m_cia_1_irq;
 }
 
 READ32_MEMBER( a3000_state::scsi_r )
@@ -627,10 +671,28 @@ WRITE32_MEMBER( a3000_state::motherboard_w )
 	logerror("motherboard_w(%06x): %08x & %08x\n", offset, data, mem_mask);
 }
 
-void a600_state::update_int2()
+void a500p_state::machine_reset()
 {
-	int state = (m_cia_0_irq || m_gayle_int2);
-	set_interrupt((state ? INTENA_SETCLR : 0x0000) | INTENA_PORTS);
+	// base reset
+	amiga_state::machine_reset();
+
+	// reset side expansion slot device
+	m_side->reset();
+}
+
+bool a500p_state::int2_pending()
+{
+	return m_cia_0_irq || m_side_int2;
+}
+
+bool a500p_state::int6_pending()
+{
+	return m_cia_1_irq || m_side_int6;
+}
+
+bool a600_state::int2_pending()
+{
+	return m_cia_0_irq || m_gayle_int2;
 }
 
 WRITE_LINE_MEMBER( a600_state::gayle_int2_w )
@@ -639,10 +701,9 @@ WRITE_LINE_MEMBER( a600_state::gayle_int2_w )
 	update_int2();
 }
 
-void a1200_state::update_int2()
+bool a1200_state::int2_pending()
 {
-	int state = (m_cia_0_irq || m_gayle_int2);
-	set_interrupt((state ? INTENA_SETCLR : 0x0000) | INTENA_PORTS);
+	return m_cia_0_irq || m_gayle_int2;
 }
 
 WRITE_LINE_MEMBER( a1200_state::gayle_int2_w )
@@ -891,7 +952,7 @@ static ADDRESS_MAP_START( a1000_mem, AS_PROGRAM, 16, a1000_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x000000, 0x1fffff) AM_DEVICE("overlay", address_map_bank_device, amap16)
 	AM_RANGE(0xa00000, 0xbfffff) AM_READWRITE(cia_r, cia_w)
-	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xe00000, 0xe7ffff) AM_WRITENOP AM_READ(rom_mirror_r)
 	AM_RANGE(0xe80000, 0xefffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0xf80000, 0xfbffff) AM_DEVICE("bootrom", address_map_bank_device, amap16)
@@ -944,7 +1005,7 @@ static ADDRESS_MAP_START( a2000_mem, AS_PROGRAM, 16, a2000_state )
 	AM_RANGE(0xdc0000, 0xdc7fff) AM_READWRITE(clock_r, clock_w)
 	AM_RANGE(0xd80000, 0xddffff) AM_NOP
 	AM_RANGE(0xde0000, 0xdeffff) AM_READWRITE(custom_chip_r, custom_chip_w)
-	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xe00000, 0xe7ffff) AM_WRITENOP AM_READ(rom_mirror_r)
 	AM_RANGE(0xe80000, 0xefffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0xf00000, 0xf7ffff) AM_NOP // cartridge space
@@ -959,7 +1020,7 @@ static ADDRESS_MAP_START( a500_mem, AS_PROGRAM, 16, a500_state )
 	AM_RANGE(0xc00000, 0xd7ffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xd80000, 0xddffff) AM_NOP
 	AM_RANGE(0xde0000, 0xdeffff) AM_READWRITE(custom_chip_r, custom_chip_w)
-	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xe00000, 0xe7ffff) AM_WRITENOP AM_READ(rom_mirror_r)
 	AM_RANGE(0xe80000, 0xefffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0xf00000, 0xf7ffff) AM_NOP // cartridge space
@@ -977,7 +1038,7 @@ static ADDRESS_MAP_START( cdtv_mem, AS_PROGRAM, 16, cdtv_state )
 	AM_RANGE(0xdc8000, 0xdc87ff) AM_MIRROR(0x7800) AM_RAM AM_SHARE("sram")
 	AM_RANGE(0xdd0000, 0xddffff) AM_NOP
 	AM_RANGE(0xde0000, 0xdeffff) AM_READWRITE(custom_chip_r, custom_chip_w)
-	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xe00000, 0xe3ffff) AM_MIRROR(0x40000) AM_RAM AM_SHARE("memcard")
 	AM_RANGE(0xe80000, 0xefffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0xf00000, 0xf3ffff) AM_MIRROR(0x40000) AM_ROM AM_REGION("cdrom", 0)
@@ -997,7 +1058,7 @@ static ADDRESS_MAP_START( a3000_mem, AS_PROGRAM, 32, a3000_state )
 	AM_RANGE(0x00dc0000, 0x00dcffff) AM_DEVREADWRITE8("rtc", rp5c01_device, read, write, 0x000000ff)
 	AM_RANGE(0x00dd0000, 0x00ddffff) AM_READWRITE(scsi_r, scsi_w)
 	AM_RANGE(0x00de0000, 0x00deffff) AM_READWRITE(motherboard_r, motherboard_w)
-	AM_RANGE(0x00df0000, 0x00dfffff) AM_READWRITE16(custom_chip_r, custom_chip_w, 0xffffffff) AM_SHARE("custom_regs")
+	AM_RANGE(0x00df0000, 0x00dfffff) AM_READWRITE16(custom_chip_r, custom_chip_w, 0xffffffff)
 	AM_RANGE(0x00e80000, 0x00efffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0x00f00000, 0x00f7ffff) AM_NOP // cartridge space
 	AM_RANGE(0x00f80000, 0x00ffffff) AM_ROM AM_REGION("kickstart", 0)
@@ -1015,7 +1076,7 @@ static ADDRESS_MAP_START( a500p_mem, AS_PROGRAM, 16, a500p_state )
 	AM_RANGE(0xdc0000, 0xdc7fff) AM_READWRITE(clock_r, clock_w)
 	AM_RANGE(0xd80000, 0xddffff) AM_NOP
 	AM_RANGE(0xde0000, 0xdeffff) AM_READWRITE(custom_chip_r, custom_chip_w)
-	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xe00000, 0xe7ffff) AM_WRITENOP AM_READ(rom_mirror_r)
 	AM_RANGE(0xe80000, 0xefffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0xf80000, 0xffffff) AM_ROM AM_REGION("kickstart", 0)
@@ -1038,7 +1099,7 @@ static ADDRESS_MAP_START( a600_mem, AS_PROGRAM, 16, a600_state )
 	AM_RANGE(0xdc0000, 0xdcffff) AM_NOP // rtc
 	AM_RANGE(0xdd0000, 0xddffff) AM_NOP // reserved (dma controller)
 	AM_RANGE(0xde0000, 0xdeffff) AM_DEVREADWRITE("gayle", gayle_device, gayle_id_r, gayle_id_w)
-	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w) AM_SHARE("custom_regs")
+	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE(custom_chip_r, custom_chip_w)
 	AM_RANGE(0xe00000, 0xe7ffff) AM_WRITENOP AM_READ(rom_mirror_r)
 	AM_RANGE(0xe80000, 0xefffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0xf00000, 0xf7ffff) AM_NOP // cartridge space
@@ -1062,7 +1123,7 @@ static ADDRESS_MAP_START( a1200_mem, AS_PROGRAM, 32, a1200_state )
 	AM_RANGE(0xdc0000, 0xdcffff) AM_NOP // rtc
 	AM_RANGE(0xdd0000, 0xddffff) AM_NOP // reserved (dma controller)
 	AM_RANGE(0xde0000, 0xdeffff) AM_DEVREADWRITE16("gayle", gayle_device, gayle_id_r, gayle_id_w, 0xffffffff)
-	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE16(custom_chip_r, custom_chip_w, 0xffffffff) AM_SHARE("custom_regs")
+	AM_RANGE(0xdf0000, 0xdfffff) AM_READWRITE16(custom_chip_r, custom_chip_w, 0xffffffff)
 	AM_RANGE(0xe00000, 0xe7ffff) AM_WRITENOP AM_READ(rom_mirror32_r)
 	AM_RANGE(0xe80000, 0xefffff) AM_NOP // autoconfig space (installed by devices)
 	AM_RANGE(0xf00000, 0xf7ffff) AM_NOP // cartridge space
@@ -1085,7 +1146,7 @@ static ADDRESS_MAP_START( a4000_mem, AS_PROGRAM, 32, a4000_state )
 	AM_RANGE(0x00dd1000, 0x00dd3fff) AM_READWRITE16(ide_r, ide_w, 0xffffffff)
 	AM_RANGE(0x00dd4000, 0x00ddffff) AM_NOP
 	AM_RANGE(0x00de0000, 0x00deffff) AM_READWRITE(motherboard_r, motherboard_w)
-	AM_RANGE(0x00df0000, 0x00dfffff) AM_READWRITE16(custom_chip_r, custom_chip_w, 0xffffffff) AM_SHARE("custom_regs")
+	AM_RANGE(0x00df0000, 0x00dfffff) AM_READWRITE16(custom_chip_r, custom_chip_w, 0xffffffff)
 	AM_RANGE(0x00e00000, 0x00e7ffff) AM_WRITENOP AM_READ(rom_mirror32_r)
 	AM_RANGE(0x00e80000, 0x00efffff) AM_NOP // zorro2 autoconfig space (installed by devices)
 	AM_RANGE(0x00f00000, 0x00f7ffff) AM_NOP // cartridge space
@@ -1110,7 +1171,7 @@ static ADDRESS_MAP_START( cd32_mem, AS_PROGRAM, 32, cd32_state )
 	AM_RANGE(0x000000, 0x1fffff) AM_DEVICE("overlay", address_map_bank_device, amap32)
 	AM_RANGE(0xb80000, 0xb8003f) AM_DEVREADWRITE("akiko", akiko_device, read, write)
 	AM_RANGE(0xbf0000, 0xbfffff) AM_READWRITE16(cia_r, gayle_cia_w, 0xffffffff)
-	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE16(custom_chip_r, custom_chip_w, 0xffffffff) AM_SHARE("custom_regs")
+	AM_RANGE(0xc00000, 0xdfffff) AM_READWRITE16(custom_chip_r, custom_chip_w, 0xffffffff)
 	AM_RANGE(0xe00000, 0xe7ffff) AM_ROM AM_REGION("kickstart", 0x80000)
 	AM_RANGE(0xa00000, 0xf7ffff) AM_NOP
 	AM_RANGE(0xf80000, 0xffffff) AM_ROM AM_REGION("kickstart", 0)
@@ -1282,7 +1343,7 @@ static MACHINE_CONFIG_START( amiga_base, amiga_state )
 	MCFG_RS232_CTS_HANDLER(WRITELINE(amiga_state, rs232_cts_w))
 
 	// centronics
-	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
 	MCFG_CENTRONICS_ACK_HANDLER(WRITELINE(amiga_state, centronics_ack_w))
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(amiga_state, centronics_busy_w))
 	MCFG_CENTRONICS_PERROR_HANDLER(WRITELINE(amiga_state, centronics_perror_w))
@@ -1293,6 +1354,12 @@ static MACHINE_CONFIG_START( amiga_base, amiga_state )
 	MCFG_DEVICE_ADD("kbd", AMIGAKBD, 0)
 	MCFG_AMIGA_KEYBOARD_KCLK_CALLBACK(DEVWRITELINE("cia_0", mos8520_device, cnt_w))
 	MCFG_AMIGA_KEYBOARD_KDAT_CALLBACK(DEVWRITELINE("cia_0", mos8520_device, sp_w))
+	MCFG_AMIGA_KEYBOARD_KRST_CALLBACK(WRITELINE(amiga_state, kbreset_w))
+
+	// software
+	MCFG_SOFTWARE_LIST_ADD("wb_list", "amiga_workbench")
+	MCFG_SOFTWARE_LIST_ADD("hardware_list", "amiga_hardware")
+	MCFG_SOFTWARE_LIST_ADD("apps_list", "amiga_apps")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED_CLASS( a1000, amiga_base, a1000_state )
@@ -1313,6 +1380,8 @@ static MACHINE_CONFIG_DERIVED_CLASS( a1000, amiga_base, a1000_state )
 	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(16)
 	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(19)
 	MCFG_ADDRESS_MAP_BANK_STRIDE(0x40000)
+
+	MCFG_SOFTWARE_LIST_ADD("a1000_list", "amiga_a1000")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED_CLASS( a1000n, a1000, a1000_state )
@@ -1495,6 +1564,8 @@ static MACHINE_CONFIG_DERIVED_CLASS( a3000, amiga_base, a3000_state )
 	MCFG_DEVICE_ADD("rtc", RP5C01, XTAL_32_768kHz)
 
 	// todo: zorro3 slots, super dmac, scsi
+
+	MCFG_SOFTWARE_LIST_ADD("a3000_list", "amiga_a3000")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED_CLASS( a3000n, a3000, a3000_state )
@@ -1891,28 +1962,31 @@ ROM_END
 
 // Amiga 3000
 //
-// Early models have Kickstart 1.4 Alpha in ROM and boot either
-// Kickstart 1.3 or 2.0 from Hard Disk. Later versions have
+// Early models have a special version of Kickstart 1.4/2.0 that boots
+// Kickstart 1.3 or 2.0 from hard disk or floppy. Later versions have
 // Kickstart 2.04 installed as ROM. Upgrade available for
 // Kickstart 3.1.
 
 ROM_START( a3000 )
 	ROM_REGION32_BE(0x80000, "kickstart", 0)
-	ROM_DEFAULT_BIOS("kick14")
-	ROM_SYSTEM_BIOS(0, "kick14", "Kickstart 1.4 (36.16)")
+	ROM_DEFAULT_BIOS("kick20")
+	ROM_SYSTEM_BIOS(0, "kick14", "Kickstart 1.4 (3312.20085?)")
+	ROMX_LOAD("390629-01.u182", 0x00000, 0x40000, NO_DUMP, ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(1))
+	ROMX_LOAD("390630-01.u183", 0x00002, 0x40000, NO_DUMP, ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(1))
+	ROM_SYSTEM_BIOS(1, "kick20", "Kickstart 2.0 (36.16)")
 	// COPYRIGHT 1990 CAI // ALL RIGHTS RESERVED // ALPHA 5 ROM 0 CS=9713
-	ROMX_LOAD("390629-02.u182", 0x00000, 0x40000, CRC(58327536) SHA1(d1713d7f31474a5948e6d488e33686061cf3d1e2), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(1))
+	ROMX_LOAD("390629-02.u182", 0x00000, 0x40000, CRC(58327536) SHA1(d1713d7f31474a5948e6d488e33686061cf3d1e2), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(2))
 	// COPYRIGHT 1990 CAI // ALL RIGHTS RESERVED // ALPHA 5 ROM 1 CS=9B21
-	ROMX_LOAD("390630-02.u183", 0x00002, 0x40000, CRC(fe2f7fb9) SHA1(c05c9c52d014c66f9019152b3f2a2adc2c678794), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(1))
-	ROM_SYSTEM_BIOS(1, "kick204", "Kickstart 2.04 (37.175)")
-	ROMX_LOAD("390629-03.u182", 0x00000, 0x40000, CRC(a245dbdf) SHA1(83bab8e95d378b55b0c6ae6561385a96f638598f), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(2))
-	ROMX_LOAD("390630-03.u183", 0x00002, 0x40000, CRC(7db1332b) SHA1(48f14b31279da6757848df6feb5318818f8f576c), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(2))
-	ROM_SYSTEM_BIOS(2, "kick31", "Kickstart 3.1 (40.68)")
-	ROMX_LOAD("kick31.u182",    0x00000, 0x40000, CRC(286b9a0d) SHA1(6763a2258ec493f7408cf663110dae9a17803ad1), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(3))
-	ROMX_LOAD("kick31.u183",    0x00002, 0x40000, CRC(0b8cde6a) SHA1(5f02e97b48ebbba87d516a56b0400c6fc3434d8d), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(3))
-	ROM_SYSTEM_BIOS(3, "logica2", "Logica Diagnostic 2.0")
-	ROMX_LOAD("logica2.u6a",    0x00000, 0x40000, CRC(566bc3f9) SHA1(891d3b7892843517d800d24593168b1d8f1646ca), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(4))
-	ROMX_LOAD("logica2.u6b",    0x00002, 0x40000, CRC(aac94759) SHA1(da8a4f9ae1aa84f5e2a5dcc5c9d7e4378a9698b7), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(4))
+	ROMX_LOAD("390630-02.u183", 0x00002, 0x40000, CRC(fe2f7fb9) SHA1(c05c9c52d014c66f9019152b3f2a2adc2c678794), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(2))
+	ROM_SYSTEM_BIOS(2, "kick204", "Kickstart 2.04 (37.175)")
+	ROMX_LOAD("390629-03.u182", 0x00000, 0x40000, CRC(a245dbdf) SHA1(83bab8e95d378b55b0c6ae6561385a96f638598f), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(3))
+	ROMX_LOAD("390630-03.u183", 0x00002, 0x40000, CRC(7db1332b) SHA1(48f14b31279da6757848df6feb5318818f8f576c), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(3))
+	ROM_SYSTEM_BIOS(3, "kick31", "Kickstart 3.1 (40.68)")
+	ROMX_LOAD("kick31.u182",    0x00000, 0x40000, CRC(286b9a0d) SHA1(6763a2258ec493f7408cf663110dae9a17803ad1), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(4))
+	ROMX_LOAD("kick31.u183",    0x00002, 0x40000, CRC(0b8cde6a) SHA1(5f02e97b48ebbba87d516a56b0400c6fc3434d8d), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(4))
+	ROM_SYSTEM_BIOS(4, "logica2", "Logica Diagnostic 2.0")
+	ROMX_LOAD("logica2.u182",    0x00000, 0x40000, CRC(566bc3f9) SHA1(891d3b7892843517d800d24593168b1d8f1646ca), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(5))
+	ROMX_LOAD("logica2.u183",    0x00002, 0x40000, CRC(aac94759) SHA1(da8a4f9ae1aa84f5e2a5dcc5c9d7e4378a9698b7), ROM_GROUPWORD | ROM_REVERSE | ROM_SKIP(2) | ROM_BIOS(5))
 ROM_END
 
 #define rom_a3000n  rom_a3000

@@ -23,7 +23,6 @@ TODO:
 *******************************************************************************/
 
 #include "emu.h"
-#include "includes/n64.h"
 #include "video/n64.h"
 
 #define LOG_RDP_EXECUTION       0
@@ -460,7 +459,7 @@ void n64_rdp::SetSubBInputRGB(UINT8 **input_r, UINT8 **input_g, UINT8 **input_b,
 		case 3:     *input_r = &userdata->PrimColor.i.r;        *input_g = &userdata->PrimColor.i.g;        *input_b = &userdata->PrimColor.i.b;        break;
 		case 4:     *input_r = &userdata->ShadeColor.i.r;       *input_g = &userdata->ShadeColor.i.g;       *input_b = &userdata->ShadeColor.i.b;       break;
 		case 5:     *input_r = &userdata->EnvColor.i.r;         *input_g = &userdata->EnvColor.i.g;         *input_b = &userdata->EnvColor.i.b;         break;
-		case 6:     fatalerror("SET_SUBB_RGB_INPUT: key_center\n"); break;
+		case 6:     fatalerror("SET_SUBB_RGB_INPUT: key_center\n");
 		case 7:     *input_r = (UINT8*)&m_k4;       *input_g = (UINT8*)&m_k4;       *input_b = (UINT8*)&m_k4;       break;
 		case 8: case 9: case 10: case 11: case 12: case 13: case 14: case 15:
 		{
@@ -1984,6 +1983,9 @@ void n64_rdp::DrawTriangle(bool shade, bool texture, bool zbuffer, bool rect)
 	int dzdx_dz = (dzdx >> 16) & 0xffff;
 
 	extent_t Spans[2048];
+#ifdef MAME_DEBUG
+	memset(Spans, 0xcc, sizeof(Spans));
+#endif
 
 	SpanBase.m_span_drdy = drdy;
 	SpanBase.m_span_dgdy = dgdy;

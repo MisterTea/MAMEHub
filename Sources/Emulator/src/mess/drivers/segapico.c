@@ -156,7 +156,7 @@ public:
 	: pico_base_state(mconfig, type, tag),
 	m_picocart(*this, "picoslot") { }
 
-	optional_device<pico_cart_slot_device> m_picocart;
+	required_device<pico_cart_slot_device> m_picocart;
 	DECLARE_MACHINE_START(pico);
 };
 
@@ -430,9 +430,9 @@ DRIVER_INIT_MEMBER(pico_base_state, picoj)
 }
 
 
-CONS( 1994, pico,       0,         0,      picopal,         pico, pico_base_state,   pico,    "Sega",   "Pico (Europe, PAL)", 0)
-CONS( 1994, picou,      pico,      0,      pico,            pico, pico_base_state,   picou,   "Sega",   "Pico (USA, NTSC)", 0)
-CONS( 1993, picoj,      pico,      0,      pico,            pico, pico_base_state,   picoj,   "Sega",   "Pico (Japan, NTSC)", 0)
+CONS( 1994, pico,       0,         0,      picopal,         pico, pico_base_state,   pico,    "Sega",   "Pico (Europe, PAL)", GAME_NOT_WORKING)
+CONS( 1994, picou,      pico,      0,      pico,            pico, pico_base_state,   picou,   "Sega",   "Pico (USA, NTSC)", GAME_NOT_WORKING)
+CONS( 1993, picoj,      pico,      0,      pico,            pico, pico_base_state,   picoj,   "Sega",   "Pico (Japan, NTSC)", GAME_NOT_WORKING)
 
 /*
 
@@ -519,7 +519,7 @@ public:
 	: pico_base_state(mconfig, type, tag),
 	m_picocart(*this, "coperaslot") { }
 
-	optional_device<copera_cart_slot_device> m_picocart;
+	required_device<copera_cart_slot_device> m_picocart;
 	DECLARE_MACHINE_START(copera);
 };
 

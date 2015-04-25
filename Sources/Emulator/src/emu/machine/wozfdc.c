@@ -68,11 +68,35 @@ void wozfdc_device::device_start()
 
 	timer = timer_alloc(0);
 	delay_timer = timer_alloc(1);
+
+	save_item(NAME(last_6502_write));
+	save_item(NAME(mode_write));
+	save_item(NAME(mode_load));
+	save_item(NAME(active));
+	save_item(NAME(phases));
+	save_item(NAME(external_io_select));
+	save_item(NAME(cur_lss.tm));
+	save_item(NAME(cur_lss.cycles));
+	save_item(NAME(cur_lss.data_reg));
+	save_item(NAME(cur_lss.address));
+	save_item(NAME(cur_lss.write_start_time));
+//  save_item(NAME(cur_lss.write_buffer));
+	save_item(NAME(cur_lss.write_position));
+	save_item(NAME(cur_lss.write_line_active));
+	save_item(NAME(predicted_lss.tm));
+	save_item(NAME(predicted_lss.cycles));
+	save_item(NAME(predicted_lss.data_reg));
+	save_item(NAME(predicted_lss.address));
+	save_item(NAME(predicted_lss.write_start_time));
+//  save_item(NAME(predicted_lss.write_buffer));
+	save_item(NAME(predicted_lss.write_position));
+	save_item(NAME(predicted_lss.write_line_active));
+	save_item(NAME(drvsel));
+	save_item(NAME(enable1));
 }
 
 void wozfdc_device::device_reset()
 {
-	current_cyl = 0;
 	floppy = NULL;
 	active = MODE_IDLE;
 	phases = 0x00;
@@ -87,13 +111,14 @@ void wozfdc_device::device_reset()
 	cur_lss.write_position = 0;
 	cur_lss.write_line_active = false;
 	predicted_lss.tm = attotime::never;
+	external_io_select = false;
 }
 
 void wozfdc_device::a3_update_drive_sel()
 {
 	floppy_image_device *newflop = NULL;
 
-	if (enable1)
+	if (!external_io_select)
 	{
 		newflop = floppy0->get_device();
 	}
@@ -199,22 +224,8 @@ void wozfdc_device::phase(int ph, bool on)
 	else
 		phases &= ~(1 << ph);
 
-	if(floppy && active) {
-		int cph = current_cyl & 3;
-		int pcyl = current_cyl;
-		if(!(phases & (1 << cph))) {
-			if(current_cyl < 70 && (phases & (1 << ((cph+1) & 3))))
-				current_cyl++;
-			if(current_cyl && (phases & (1 << ((cph+3) & 3))))
-				current_cyl--;
-			if(current_cyl != pcyl && !(current_cyl & 1)) {
-				floppy->dir_w(current_cyl < pcyl);
-				floppy->stp_w(true);
-				floppy->stp_w(false);
-				floppy->stp_w(true);
-			}
-		}
-	}
+	if(floppy && active)
+		floppy->seek_phase_w(phases);
 }
 
 void wozfdc_device::control(int offset)
@@ -238,10 +249,8 @@ void wozfdc_device::control(int offset)
 		case 0x9:
 			switch(active) {
 			case MODE_IDLE:
-				if(floppy) {
+				if(floppy)
 					floppy->mon_w(false);
-					current_cyl = floppy->get_cyl() << 1;
-				}
 				active = MODE_ACTIVE;
 				if(floppy)
 					lss_start();
@@ -252,12 +261,13 @@ void wozfdc_device::control(int offset)
 				break;
 			}
 			break;
-		case 0xa:
-			if(floppy != floppy0->get_device()) {
-				if(active) {
-					lss_sync();
-					floppy->mon_w(true);
-				}
+			case 0xa:
+				external_io_select = false;
+				if(floppy != floppy0->get_device()) {
+					if(active) {
+						lss_sync();
+						floppy->mon_w(true);
+					}
 				floppy = floppy0->get_device();
 				if(active) {
 					floppy->mon_w(false);
@@ -266,6 +276,7 @@ void wozfdc_device::control(int offset)
 			}
 			break;
 		case 0xb:
+			external_io_select = true;
 			if (!external_drive_select)
 			{
 				if (floppy != floppy1->get_device())
@@ -420,7 +431,6 @@ void wozfdc_device::lss_predict(attotime limit)
 	bool write_line_active = cur_lss.write_line_active;
 
 	attotime next_flux = floppy ? floppy->get_next_transition(cur_lss.tm - attotime::from_usec(1)) : attotime::never;
-	attotime next_flux_down = next_flux != attotime::never ? next_flux + attotime::from_usec(1) : attotime::never;
 
 	if(limit == attotime::never)
 		limit = machine().time() + attotime::from_usec(50);
@@ -428,7 +438,7 @@ void wozfdc_device::lss_predict(attotime limit)
 	UINT64 cycles = cur_lss.cycles;
 	UINT64 cycles_limit = time_to_cycles(limit);
 	UINT64 cycles_next_flux = next_flux != attotime::never ? time_to_cycles(next_flux) : UINT64(-1);
-	UINT64 cycles_next_flux_down = next_flux_down != attotime::never ? time_to_cycles(next_flux_down) : UINT64(-1);
+	UINT64 cycles_next_flux_down = cycles_next_flux != UINT64(-1) ? cycles_next_flux+1 : UINT64(-1);
 
 	UINT8 address = cur_lss.address;
 	UINT8 data_reg = cur_lss.data_reg;
@@ -488,9 +498,8 @@ void wozfdc_device::lss_predict(attotime limit)
 		else if(cycles == cycles_next_flux_down) {
 			address |= 0x10;
 			next_flux = floppy ? floppy->get_next_transition(cycles_to_time(cycles)) : attotime::never;
-			next_flux_down = next_flux != attotime::never ? next_flux + attotime::from_usec(1) : attotime::never;
 			cycles_next_flux = next_flux != attotime::never ? time_to_cycles(next_flux) : UINT64(-1);
-			cycles_next_flux_down = next_flux_down != attotime::never ? time_to_cycles(next_flux_down) : UINT64(-1);
+			cycles_next_flux_down = cycles_next_flux != UINT64(-1) ? cycles_next_flux+1 : UINT64(-1);
 		}
 	}
 
@@ -568,5 +577,10 @@ void appleiii_fdc::control_dx(int offset)
 
 		default:    // cod8-c0df are not FDC related
 			break;
+	}
+
+	if (offset < 8)
+	{
+		a3_update_drive_sel();
 	}
 }

@@ -61,10 +61,16 @@
 # CYGWIN_BUILD = 1
 
 # set this to the minimum DirectInput version to support (7 or 8)
-# DIRECTINPUT = 8
+DIRECTINPUT = 8
 
 # uncomment next line to use SDL library for sound and video output
 # USE_SDL = 1
+
+# uncomment next line to compile OpenGL video renderer
+USE_OPENGL = 1
+
+# uncomment the next line to build a binary using GL-dispatching.
+USE_DISPATCH_GL = 1
 
 # uncomment next line to use QT debugger
 # USE_QTDEBUG = 1
@@ -72,6 +78,9 @@
 ###########################################################################
 ##################   END USER-CONFIGURABLE OPTIONS   ######################
 ###########################################################################
+
+# add a define identifying the target osd
+DEFS += -DOSD_WINDOWS
 
 
 #-------------------------------------------------
@@ -84,7 +93,15 @@ WINOBJ = $(OBJ)/osd/$(OSD)
 OSDSRC = $(SRC)/osd
 OSDOBJ = $(OBJ)/osd
 
-OBJDIRS += $(WINOBJ)
+OBJDIRS += $(WINOBJ) \
+	$(OSDOBJ)/modules/sync \
+	$(OSDOBJ)/modules/lib \
+	$(OSDOBJ)/modules/midi \
+	$(OSDOBJ)/modules/font \
+	$(OSDOBJ)/modules/netdev \
+	$(OSDOBJ)/modules/render \
+	$(OSDOBJ)/modules/render/d3d \
+	$(OSDOBJ)/modules/debugger/win
 
 ifdef USE_QTDEBUG
 OBJDIRS += $(OSDOBJ)/modules/debugger/qt
@@ -185,7 +202,7 @@ endif
 endif
 
 ifdef MSVC_ANALYSIS
-CCOMFLAGS += /analyze /wd6011 /wd6328 /wd6204 /wd6244 /wd6385 /wd6308 /wd6246 /wd6031 /wd6326 /wd6255 /wd6330 /wd28251 /wd6054 /wd6340 /wd28125 /wd6053 /wd6001 /wd6386 /wd28278 /wd6297 /wd28183 /wd28159 /wd28182 /wd6237 /wd6239 /wd6240 /wd6323 /wd28199 /wd6235 /wd6285 /wd6286 /wd6384 /wd6293 /analyze:stacksize384112
+CCOMFLAGS += /analyze /wd6011 /wd6328 /wd6204 /wd6244 /wd6385 /wd6308 /wd6246 /wd6031 /wd6326 /wd6255 /wd6330 /wd28251 /wd6054 /wd6340 /wd28125 /wd6053 /wd6001 /wd6386 /wd28278 /wd6297 /wd28183 /wd28159 /wd28182 /wd6237 /wd6239 /wd6240 /wd6323 /wd28199 /wd6235 /wd6285 /wd6286 /wd6384 /wd6293 /analyze:stacksize1070232
 endif
 
 # enable exception handling for C++
@@ -220,8 +237,12 @@ endif
 # explicitly set the entry point for UNICODE builds
 LDFLAGS += /ENTRY:wmainCRTStartup
 
+ifdef DEBUG
+LDFLAGS += /NODEFAULTLIB:LIBCMT
+endif
+
 # add some VC++-specific defines
-DEFS += -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DXML_STATIC -Dsnprintf=_snprintf -DWIN32
+DEFS += -D_CRT_SECURE_NO_DEPRECATE -D_CRT_NONSTDC_NO_DEPRECATE -DXML_STATIC -DWIN32
 
 OSDCLEAN = msvcclean
 
@@ -231,7 +252,7 @@ msvcclean:
 	$(RM) *.lib
 	$(RM) *.exp
 
-endif
+endif # MSVC_BUILD
 
 
 #-------------------------------------------------
@@ -298,6 +319,10 @@ include $(SRC)/build/cc_detection.mak
 # ensure we statically link the gcc runtime lib
 LDFLAGS += -static-libgcc
 
+ifeq ($(CROSS_BUILD),1)
+	LDFLAGS += -static
+endif
+
 # TODO: needs to use $(CC)
 TEST_GCC := $(shell gcc --version)
 ifeq ($(findstring 4.4.,$(TEST_GCC)),)
@@ -306,6 +331,7 @@ ifeq ($(findstring 4.4.,$(TEST_GCC)),)
 endif
 
 # add the windows libraries
+BASELIBS += -luser32 -lgdi32 -ldsound -ldxguid -lwinmm -ladvapi32 -lcomctl32 -lshlwapi -lwsock32
 LIBS += -luser32 -lgdi32 -ldsound -ldxguid -lwinmm -ladvapi32 -lcomctl32 -lshlwapi -lwsock32
 
 ifdef USE_SDL
@@ -331,14 +357,14 @@ OSDCOREOBJS = \
 	$(WINOBJ)/strconv.o \
 	$(WINOBJ)/windir.o \
 	$(WINOBJ)/winfile.o \
-	$(WINOBJ)/winmisc.o \
-	$(WINOBJ)/winsync.o \
-	$(WINOBJ)/wintime.o \
+	$(OSDOBJ)/modules/sync/sync_windows.o \
 	$(WINOBJ)/winutf8.o \
 	$(WINOBJ)/winutil.o \
 	$(WINOBJ)/winclip.o \
 	$(WINOBJ)/winsocket.o \
-	$(WINOBJ)/winwork.o \
+	$(OSDOBJ)/modules/sync/work_osd.o \
+	$(OSDOBJ)/modules/lib/osdlib_win32.o \
+	$(OSDOBJ)/modules/osdmodule.o \
 	$(WINOBJ)/winptty.o \
 
 
@@ -347,29 +373,61 @@ OSDCOREOBJS = \
 #-------------------------------------------------
 
 OSDOBJS = \
-	$(WINOBJ)/d3d9intf.o \
-	$(WINOBJ)/drawd3d.o \
-	$(WINOBJ)/d3dhlsl.o \
-	$(WINOBJ)/drawdd.o \
-	$(WINOBJ)/drawgdi.o \
-	$(WINOBJ)/drawnone.o \
+	$(OSDOBJ)/modules/render/drawd3d.o \
+	$(OSDOBJ)/modules/render/d3d/d3d9intf.o \
+	$(OSDOBJ)/modules/render/d3d/d3dhlsl.o \
+	$(OSDOBJ)/modules/render/drawdd.o \
+	$(OSDOBJ)/modules/render/drawgdi.o \
+	$(OSDOBJ)/modules/render/drawbgfx.o \
+	$(OSDOBJ)/modules/render/drawnone.o \
 	$(WINOBJ)/input.o \
 	$(WINOBJ)/output.o \
+	$(OSDOBJ)/modules/sound/js_sound.o  \
 	$(OSDOBJ)/modules/sound/direct_sound.o \
+	$(OSDOBJ)/modules/sound/sdl_sound.o  \
+	$(OSDOBJ)/modules/sound/none.o  \
 	$(WINOBJ)/video.o \
 	$(WINOBJ)/window.o \
 	$(WINOBJ)/winmenu.o \
-	$(WINOBJ)/winmain.o
+	$(WINOBJ)/winmain.o \
+	$(OSDOBJ)/modules/midi/portmidi.o \
+	$(OSDOBJ)/modules/midi/none.o \
+	$(OSDOBJ)/modules/lib/osdobj_common.o  \
+	$(OSDOBJ)/modules/font/font_sdl.o \
+	$(OSDOBJ)/modules/font/font_windows.o \
+	$(OSDOBJ)/modules/font/font_osx.o \
+	$(OSDOBJ)/modules/font/font_none.o \
+	$(OSDOBJ)/modules/netdev/pcap.o \
+	$(OSDOBJ)/modules/netdev/taptun.o \
+	$(OSDOBJ)/modules/netdev/none.o \
 
-ifdef USE_SDL
+ifdef USE_OPENGL
 OSDOBJS += \
-	$(OSDOBJ)/modules/sound/sdl_sound.o
+	$(OSDOBJ)/modules/render/drawogl.o \
+	$(OSDOBJ)/modules/opengl/gl_shader_tool.o \
+	$(OSDOBJ)/modules/opengl/gl_shader_mgr.o
+
+OBJDIRS += \
+	$(OSDOBJ)/modules/opengl
+
+DEFS += -DUSE_OPENGL=1
+
+ifdef USE_DISPATCH_GL
+DEFS += -DUSE_DISPATCH_GL=1
+else
+LIBS += -lopengl32
 endif
 
-ifdef USE_NETWORK
-OSDOBJS += \
-	$(WINOBJ)/netdev.o \
-	$(WINOBJ)/netdev_pcap.o
+else
+DEFS += -DUSE_OPENGL=0
+endif
+
+ifdef USE_SDL
+DEFS += -DUSE_SDL_SOUND
+endif
+
+ifndef DONT_USE_NETWORK
+DEFS += -DSDLMAME_NET_PCAP
 endif
 
 CCOMFLAGS += -DDIRECT3D_VERSION=0x0900
@@ -380,10 +438,29 @@ $(WINOBJ)/drawgdi.o :   $(SRC)/emu/rendersw.inc
 
 # add debug-specific files
 OSDOBJS += \
-	$(OSDOBJ)/modules/debugger/debugwin.o
+	$(OSDOBJ)/modules/debugger/debugwin.o \
+	$(OSDOBJ)/modules/debugger/win/consolewininfo.o \
+	$(OSDOBJ)/modules/debugger/win/debugbaseinfo.o \
+	$(OSDOBJ)/modules/debugger/win/debugviewinfo.o \
+	$(OSDOBJ)/modules/debugger/win/debugwininfo.o \
+	$(OSDOBJ)/modules/debugger/win/disasmbasewininfo.o \
+	$(OSDOBJ)/modules/debugger/win/disasmviewinfo.o \
+	$(OSDOBJ)/modules/debugger/win/disasmwininfo.o \
+	$(OSDOBJ)/modules/debugger/win/editwininfo.o \
+	$(OSDOBJ)/modules/debugger/win/logwininfo.o \
+	$(OSDOBJ)/modules/debugger/win/memoryviewinfo.o \
+	$(OSDOBJ)/modules/debugger/win/memorywininfo.o \
+	$(OSDOBJ)/modules/debugger/win/pointswininfo.o \
+	$(OSDOBJ)/modules/debugger/win/uimetrics.o \
+	$(OSDOBJ)/modules/debugger/debugint.o \
+	$(OSDOBJ)/modules/debugger/debugqt.o \
+	$(OSDOBJ)/modules/debugger/none.o
 
 # add a stub resource file
 RESFILE = $(WINOBJ)/mame.res
+
+BGFX_LIB = $(OBJ)/libbgfx.a
+INCPATH += -I$(3RDPARTY)/bgfx/include -I$(3RDPARTY)/bx/include
 
 #-------------------------------------------------
 # QT Debug library
@@ -393,29 +470,36 @@ QT_INSTALL_HEADERS := $(shell qmake -query QT_INSTALL_HEADERS)
 QT_LIBS := -L$(shell qmake -query QT_INSTALL_LIBS)
 LIBS += $(QT_LIBS) -lqtmain -lQtGui4 -lQtCore4
 INCPATH += -I$(QT_INSTALL_HEADERS)/QtCore -I$(QT_INSTALL_HEADERS)/QtGui -I$(QT_INSTALL_HEADERS)
-CFLAGS += -DUSE_QTDEBUG
 
 MOC = @moc
 $(OSDOBJ)/%.moc.c: $(OSDSRC)/%.h
-	$(MOC) $(INCPATH) $(DEFS) $< -o $@
+	$(MOC) $(INCPATH) $< -o $@
 
 OSDOBJS += \
-	$(OSDOBJ)/modules/debugger/debugqt.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtview.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtwindow.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtlogwindow.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtdasmwindow.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtmainwindow.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtmemorywindow.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtbreakpointswindow.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtview.moc.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtwindow.moc.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtlogwindow.moc.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtdasmwindow.moc.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtmainwindow.moc.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtmemorywindow.moc.o \
-	$(OSDOBJ)/modules/debugger/qt/debugqtbreakpointswindow.moc.o
+	$(OSDOBJ)/modules/debugger/qt/debuggerview.o \
+	$(OSDOBJ)/modules/debugger/qt/windowqt.o \
+	$(OSDOBJ)/modules/debugger/qt/logwindow.o \
+	$(OSDOBJ)/modules/debugger/qt/dasmwindow.o \
+	$(OSDOBJ)/modules/debugger/qt/mainwindow.o \
+	$(OSDOBJ)/modules/debugger/qt/memorywindow.o \
+	$(OSDOBJ)/modules/debugger/qt/breakpointswindow.o \
+	$(OSDOBJ)/modules/debugger/qt/deviceswindow.o \
+	$(OSDOBJ)/modules/debugger/qt/deviceinformationwindow.o \
+	$(OSDOBJ)/modules/debugger/qt/debuggerview.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/windowqt.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/logwindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/dasmwindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/mainwindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/memorywindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/breakpointswindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/deviceswindow.moc.o \
+	$(OSDOBJ)/modules/debugger/qt/deviceinformationwindow.moc.o
 endif
+
+#-------------------------------------------------
+# WinPCap
+#-------------------------------------------------
+INCPATH += -I$(3RDPARTY)/winpcap/Include
 
 #-------------------------------------------------
 # rules for building the libaries
@@ -431,7 +515,7 @@ $(LIBOSD): $(OSDOBJS)
 # rule for making the ledutil sample
 #-------------------------------------------------
 
-LEDUTIL = ledutil$(EXE)
+LEDUTIL = $(BIN)ledutil$(EXE)
 TOOLS += $(LEDUTIL)
 
 LEDUTILOBJS = \
@@ -459,6 +543,6 @@ $(WINOBJ)/%.res: $(WINSRC)/%.rc | $(OSPREBUILD)
 
 $(RESFILE): $(WINSRC)/mame.rc $(WINOBJ)/mamevers.rc
 
-$(WINOBJ)/mamevers.rc: $(BUILDOUT)/verinfo$(BUILD_EXE) $(SRC)/version.c
+$(WINOBJ)/mamevers.rc: $(SRC)/build/verinfo.py $(SRC)/version.c
 	@echo Emitting $@...
-	@"$(BUILDOUT)/verinfo$(BUILD_EXE)" -b mame $(SRC)/version.c > $@
+	$(PYTHON) $(SRC)/build/verinfo.py -b mame -o $@ $(SRC)/version.c

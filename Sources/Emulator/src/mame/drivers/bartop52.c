@@ -27,18 +27,21 @@ class bartop52_state : public atari_common_state
 {
 public:
 	bartop52_state(const machine_config &mconfig, device_type type, const char *tag)
-		: atari_common_state(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		: atari_common_state(mconfig, type, tag)
+		{ }
 
-	required_device<cpu_device> m_maincpu;
+	TIMER_DEVICE_CALLBACK_MEMBER( bartop_interrupt );
+
+	virtual void machine_reset();
+	//required_device<cpu_device> m_maincpu;    // maincpu is already contained in atari_common_state
 };
 
 
 static ADDRESS_MAP_START(a5200_mem, AS_PROGRAM, 8, bartop52_state )
 	AM_RANGE(0x0000, 0x3fff) AM_RAM
 	AM_RANGE(0x4000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
-	AM_RANGE(0xd400, 0xd5ff) AM_READWRITE(atari_antic_r, atari_antic_w)
+	AM_RANGE(0xc000, 0xc0ff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
+	AM_RANGE(0xd400, 0xd5ff) AM_DEVREADWRITE("antic", antic_device, read, write)
 	AM_RANGE(0xe800, 0xe8ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
 	AM_RANGE(0xf800, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -47,38 +50,38 @@ ADDRESS_MAP_END
 #define JOYSTICK_SENSITIVITY    200
 
 static INPUT_PORTS_START(bartop52)
-	PORT_START("djoy_b")    /* IN3 digital joystick buttons (GTIA button bits) */
+	PORT_START("djoy_b")
 	PORT_BIT(0x01, 0x01, IPT_BUTTON1) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(1)
-	PORT_BIT(0x02, 0x02, IPT_BUTTON1) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(2)
+	PORT_BIT(0x02, 0x02, IPT_BUTTON1) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(2)
 	PORT_BIT(0x04, 0x04, IPT_UNUSED)
 	PORT_BIT(0x08, 0x08, IPT_UNUSED)
-	PORT_BIT(0x10, 0x10, IPT_BUTTON2) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(1)
+	PORT_BIT(0x10, 0x10, IPT_BUTTON2) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(1)
 	PORT_BIT(0x20, 0x20, IPT_BUTTON2) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(2)
 	PORT_BIT(0x40, 0x40, IPT_UNUSED)
 	PORT_BIT(0x80, 0x80, IPT_UNUSED)
 
-	PORT_START("keypad_0")
+	PORT_START("keypad.0")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("(Break)") PORT_CODE(KEYCODE_PAUSE)    // is this correct?
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Wind-Up") PORT_CODE(KEYCODE_ENTER_PAD)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[0]") PORT_CODE(KEYCODE_0_PAD)
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("No Wind-Up") PORT_CODE(KEYCODE_PLUS_PAD)
 	PORT_BIT(0xf0, IP_ACTIVE_HIGH, IPT_UNUSED)
 
-	PORT_START("keypad_1")
+	PORT_START("keypad.1")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Reset") PORT_CODE(KEYCODE_F3)
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Fast Ball Low") PORT_CODE(KEYCODE_9_PAD)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Change-Up Low") PORT_CODE(KEYCODE_8_PAD)
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Curve Low") PORT_CODE(KEYCODE_7_PAD)
 	PORT_BIT(0xf0, IP_ACTIVE_HIGH, IPT_UNUSED)
 
-	PORT_START("keypad_2")
+	PORT_START("keypad.2")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME(DEF_STR(Pause)) PORT_CODE(KEYCODE_F2)
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Fast Ball Med.") PORT_CODE(KEYCODE_6_PAD)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Change-Up Med.") PORT_CODE(KEYCODE_5_PAD)
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Curve Med") PORT_CODE(KEYCODE_4_PAD)
 	PORT_BIT(0xf0, IP_ACTIVE_HIGH, IPT_UNUSED)
 
-	PORT_START("keypad_3")
+	PORT_START("keypad.3")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_START)    PORT_NAME("Start")
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Fast Ball High") PORT_CODE(KEYCODE_3_PAD)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Change-Up High") PORT_CODE(KEYCODE_2_PAD)
@@ -100,11 +103,27 @@ static INPUT_PORTS_START(bartop52)
 INPUT_PORTS_END
 
 
+void bartop52_state::machine_reset()
+{
+	pokey_device *pokey = machine().device<pokey_device>("pokey");
+	pokey->write(15,0);
+}
+
+TIMER_DEVICE_CALLBACK_MEMBER( bartop52_state::bartop_interrupt )
+{
+	m_antic->generic_interrupt(4);
+}
+
 static MACHINE_CONFIG_START( a5200, bartop52_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, FREQ_17_EXACT)
 	MCFG_CPU_PROGRAM_MAP(a5200_mem)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a5200_interrupt, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", bartop52_state, bartop_interrupt, "screen", 0, 1)
+
+	MCFG_DEVICE_ADD("gtia", ATARI_GTIA, 0)
+
+	MCFG_DEVICE_ADD("antic", ATARI_ANTIC, 0)
+	MCFG_ANTIC_GTIA("gtia")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -112,7 +131,7 @@ static MACHINE_CONFIG_START( a5200, bartop52_state )
 	MCFG_SCREEN_VISIBLE_AREA(MIN_X, MAX_X, MIN_Y, MAX_Y)
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
-	MCFG_SCREEN_UPDATE_DRIVER(atari_common_state, screen_update_atari)
+	MCFG_SCREEN_UPDATE_DEVICE("antic", antic_device, screen_update)
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_PALETTE_ADD("palette", 256)
@@ -126,8 +145,8 @@ static MACHINE_CONFIG_START( a5200, bartop52_state )
 	MCFG_POKEY_POT1_R_CB(IOPORT("analog_1"))
 	MCFG_POKEY_POT2_R_CB(IOPORT("analog_2"))
 	MCFG_POKEY_POT3_R_CB(IOPORT("analog_3"))
-	MCFG_POKEY_KEYBOARD_HANDLER(atari_a5200_keypads)
-	MCFG_POKEY_INTERRUPT_HANDLER(atari_interrupt_cb)
+	MCFG_POKEY_KEYBOARD_CB(atari_common_state, a5200_keypads)
+	MCFG_POKEY_INTERRUPT_CB(atari_common_state, interrupt_cb)
 
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
 

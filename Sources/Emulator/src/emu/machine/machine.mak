@@ -521,6 +521,15 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/machine/e05a30.h,MACHINES += E05A30
+#-------------------------------------------------
+
+ifneq ($(filter E05A30,$(MACHINES)),)
+MACHINEOBJS += $(MACHINEOBJ)/e05a30.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/machine/eeprom.h,MACHINES += EEPROMDEV
 #@src/emu/machine/eepromser.h,MACHINES += EEPROMDEV
 #@src/emu/machine/eeprompar.h,MACHINES += EEPROMDEV
@@ -890,6 +899,15 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/machine/mb8421.h,MACHINES += MB8421
+#-------------------------------------------------
+
+ifneq ($(filter MB8421,$(MACHINES)),)
+MACHINEOBJS += $(MACHINEOBJ)/mb8421.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/machine/mb87078.h,MACHINES += MB87078
 #-------------------------------------------------
 
@@ -1212,11 +1230,32 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/machine/lpci.h,MACHINES += LPCI
+#-------------------------------------------------
+
+ifneq ($(filter LPCI,$(MACHINES)),)
+MACHINEOBJS += $(MACHINEOBJ)/lpci.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/machine/pci.h,MACHINES += PCI
 #-------------------------------------------------
 
 ifneq ($(filter PCI,$(MACHINES)),)
 MACHINEOBJS += $(MACHINEOBJ)/pci.o
+MACHINEOBJS += $(MACHINEOBJ)/pci-usb.o
+MACHINEOBJS += $(MACHINEOBJ)/pci-sata.o
+MACHINEOBJS += $(MACHINEOBJ)/pci-apic.o
+MACHINEOBJS += $(MACHINEOBJ)/pci-smbus.o
+MACHINEOBJS += $(MACHINEOBJ)/i82541.o
+MACHINEOBJS += $(MACHINEOBJ)/i82875p.o
+MACHINEOBJS += $(MACHINEOBJ)/i6300esb.o
+MACHINEOBJS += $(MACHINEOBJ)/lpc.o
+MACHINEOBJS += $(MACHINEOBJ)/lpc-acpi.o
+MACHINEOBJS += $(MACHINEOBJ)/lpc-rtc.o
+MACHINEOBJS += $(MACHINEOBJ)/lpc-pit.o
+MACHINEOBJS += $(MACHINEOBJ)/vrc4373.o
 endif
 
 #-------------------------------------------------
@@ -1253,6 +1292,33 @@ endif
 
 ifneq ($(filter PLA,$(MACHINES)),)
 MACHINEOBJS += $(MACHINEOBJ)/pla.o
+endif
+
+#-------------------------------------------------
+#
+#@src/emu/machine/r10696.h,MACHINES += R10696
+#-------------------------------------------------
+
+ifneq ($(filter R10696,$(MACHINES)),)
+MACHINEOBJS+= $(MACHINEOBJ)/r10696.o
+endif
+
+#-------------------------------------------------
+#
+#@src/emu/machine/r10788.h,MACHINES += R10788
+#-------------------------------------------------
+
+ifneq ($(filter R10788,$(MACHINES)),)
+MACHINEOBJS+= $(MACHINEOBJ)/r10788.o
+endif
+
+#-------------------------------------------------
+#
+#@src/emu/machine/ra17xx.h,MACHINES += RA17XX
+#-------------------------------------------------
+
+ifneq ($(filter RA17XX,$(MACHINES)),)
+MACHINEOBJS+= $(MACHINEOBJ)/ra17xx.o
 endif
 
 #-------------------------------------------------
@@ -1303,7 +1369,7 @@ endif
 
 #-------------------------------------------------
 #
-#@src/emu/machine/64h156.h,MACHINES += RP5C15
+#@src/emu/machine/64h156.h,MACHINES += R64H156
 #-------------------------------------------------
 
 ifneq ($(filter R64H156,$(MACHINES)),)
@@ -1398,15 +1464,6 @@ endif
 
 ifneq ($(filter SATURN,$(MACHINES)),)
 MACHINEOBJS += $(MACHINEOBJ)/saturn.o
-endif
-
-#-------------------------------------------------
-#
-#@src/emu/machine/seibu_cop.h,MACHINES += SEIBU_COP
-#-------------------------------------------------
-
-ifneq ($(filter SEIBU_COP,$(MACHINES)),)
-MACHINEOBJS += $(MACHINEOBJ)/seibu_cop.o
 endif
 
 #-------------------------------------------------
@@ -1876,6 +1933,15 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/machine/steppers.h,MACHINES += STEPPERS
+#-------------------------------------------------
+
+ifneq ($(filter STEPPERS,$(MACHINES)),)
+MACHINEOBJS += $(MACHINEOBJ)/steppers.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/machine/corvushd.h,MACHINES += CORVUSHD
 #-------------------------------------------------
 ifneq ($(filter CORVUSHD,$(MACHINES)),)
@@ -1898,3 +1964,11 @@ ifneq ($(filter DIABLO_HD,$(MACHINES)),)
 MACHINEOBJS += $(MACHINEOBJ)/diablo_hd.o
 endif
 
+#-------------------------------------------------
+#
+#@src/emu/machine/fdc37c665gt.h,MACHINES += FDC37C665GT
+#-------------------------------------------------
+
+ifneq ($(filter FDC37C665GT,$(MACHINES)),)
+MACHINEOBJS += $(MACHINEOBJ)/fdc37c665gt.o
+endif

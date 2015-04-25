@@ -146,6 +146,13 @@
 
 #include "emu.h"
 
+//**************************************************************************
+//  CONSTANTS / MACROS
+//**************************************************************************
+
+#define EXP_SLOT_TAG "exp"
+#define ZORROBUS_TAG "zorrobus"
+
 
 //**************************************************************************
 //  INTERFACE CONFIGURATION MACROS
@@ -159,9 +166,9 @@
 // ======================> expansion slot
 
 #define MCFG_EXPANSION_SLOT_ADD(_cputag, _slot_intf, _def_slot) \
-	MCFG_DEVICE_ADD("exp", EXP_SLOT, 0) \
+	MCFG_DEVICE_ADD(EXP_SLOT_TAG, EXP_SLOT, 0) \
 	zorro_device::set_cputag(*device, _cputag); \
-	MCFG_ZORRO_SLOT_ADD("exp", "slot", _slot_intf, _def_slot)
+	MCFG_ZORRO_SLOT_ADD(EXP_SLOT_TAG, "slot", _slot_intf, _def_slot)
 
 // callbacks
 #define MCFG_EXPANSION_SLOT_OVR_HANDLER(_devcb) \
@@ -179,11 +186,11 @@
 // ======================> zorro 2 bus
 
 #define MCFG_ZORRO2_ADD(_cputag) \
-	MCFG_DEVICE_ADD("zorrobus", ZORRO2, 0) \
+	MCFG_DEVICE_ADD(ZORROBUS_TAG, ZORRO2, 0) \
 	zorro_device::set_cputag(*device, _cputag);
 
 #define MCFG_ZORRO2_SLOT_ADD(_tag, _slot_intf, _def_slot) \
-	MCFG_ZORRO_SLOT_ADD("zorrobus", _tag, _slot_intf, _def_slot)
+	MCFG_ZORRO_SLOT_ADD(ZORROBUS_TAG, _tag, _slot_intf, _def_slot)
 
 #define MCFG_ZORRO2_OVR_HANDLER(_devcb) \
 	devcb = &zorro_device::set_ovr_handler(*device, DEVCB_##_devcb);
@@ -311,6 +318,7 @@ public:
 protected:
 	// device-level overrides
 	virtual void device_start();
+	virtual void device_reset();
 
 private:
 	devcb_write8 m_ipl_handler;
@@ -341,9 +349,6 @@ public:
 	template<class _Object> static devcb_base &set_eint7_handler(device_t &device, _Object object)
 		{ return downcast<zorro2_device &>(device).m_eint7_handler.set_callback(object); }
 
-	// device-level overrides
-	virtual void device_reset();
-
 	// the zorro2 bus supports multiple cards
 	virtual void add_card(device_zorro_card_interface *card);
 
@@ -361,6 +366,7 @@ public:
 protected:
 	// device-level overrides
 	virtual void device_start();
+	virtual void device_reset();
 
 private:
 	devcb_write_line m_eint1_handler;

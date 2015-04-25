@@ -49,7 +49,6 @@ Notes:
     - verify cursor keys
     - language DIP
     - mouse
-    - investigate unknown ROMs
     - MCS-48 PC:01DC - Unimplemented opcode = 75
         - 75 = ENT0 CLK : enable CLK (unscaled_clock/3) output on T0
         - halt Z2 when Z5 is reset, resume Z2 when Z5 executes ENT0 CLK instruction
@@ -81,15 +80,16 @@ const device_type ABC99 = &device_creator<abc99_device>;
 //-------------------------------------------------
 
 ROM_START( abc99 )
-	ROM_REGION( 0x800, I8035_Z2_TAG, 0 )
-	ROM_LOAD( "107268-17.z3", 0x000, 0x800, CRC(2f60cc35) SHA1(ebc6af9cd0a49a0d01698589370e628eebb6221c) )
+	ROM_REGION( 0x1000, I8035_Z2_TAG, 0 )
+	ROM_DEFAULT_BIOS("107268")
+	ROM_SYSTEM_BIOS( 0, "107268", "107268-17" )
+	ROMX_LOAD( "107268-17.z3", 0x0000, 0x0800, CRC(2f60cc35) SHA1(ebc6af9cd0a49a0d01698589370e628eebb6221c), ROM_BIOS(1) )
+	ROM_SYSTEM_BIOS( 1, "106819", "106819-09" )
+	ROMX_LOAD( "106819-09.z3", 0x0000, 0x1000, CRC(ffe32a71) SHA1(fa2ce8e0216a433f9bbad0bdd6e3dc0b540f03b7), ROM_BIOS(2) ) // ABC 99 6490423-01
 
 	ROM_REGION( 0x800, I8035_Z5_TAG, 0 )
-	ROM_LOAD( "107268-16.z6", 0x000, 0x800, CRC(785ec0c6) SHA1(0b261beae20dbc06fdfccc50b19ea48b5b6e22eb) )
-
-	ROM_REGION( 0x1800, "unknown", 0)
-	ROM_LOAD( "106819-09.bin", 0x0000, 0x1000, CRC(ffe32a71) SHA1(fa2ce8e0216a433f9bbad0bdd6e3dc0b540f03b7) )
-	ROM_LOAD( "107268-64.bin", 0x1000, 0x0800, CRC(e33683ae) SHA1(0c1d9e320f82df05f4804992ef6f6f6cd20623f3) )
+	ROMX_LOAD( "107268-16.z6", 0x0000, 0x0800, CRC(785ec0c6) SHA1(0b261beae20dbc06fdfccc50b19ea48b5b6e22eb), ROM_BIOS(1) )
+	ROMX_LOAD( "107268-64.z6", 0x0000, 0x0800, CRC(e33683ae) SHA1(0c1d9e320f82df05f4804992ef6f6f6cd20623f3), ROM_BIOS(2) )
 ROM_END
 
 
@@ -108,7 +108,7 @@ const rom_entry *abc99_device::device_rom_region() const
 //-------------------------------------------------
 
 static ADDRESS_MAP_START( abc99_z2_mem, AS_PROGRAM, 8, abc99_device )
-	AM_RANGE(0x0000, 0x07ff) AM_ROM AM_REGION(I8035_Z2_TAG, 0)
+	AM_RANGE(0x0000, 0x0fff) AM_ROM AM_REGION(I8035_Z2_TAG, 0)
 ADDRESS_MAP_END
 
 
@@ -302,7 +302,7 @@ INPUT_PORTS_START( abc99 )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("Keypad 2") PORT_CODE(KEYCODE_2_PAD) PORT_CHAR(UCHAR_MAMEKEY(2_PAD))
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_UNUSED )
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_UNUSED )
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("|"UTF8_LEFT) PORT_CODE(KEYCODE_RALT) PORT_CHAR(UCHAR_MAMEKEY(RALT))
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD ) PORT_NAME("|" UTF8_LEFT) PORT_CODE(KEYCODE_RALT) PORT_CHAR(UCHAR_MAMEKEY(RALT))
 
 	PORT_START("X9")
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_UNUSED )
@@ -488,24 +488,24 @@ inline void abc99_device::scan_mouse()
 //  abc99_device - constructor
 //-------------------------------------------------
 
-abc99_device::abc99_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, ABC99, "Luxor ABC 99", tag, owner, clock, "abc99", __FILE__),
-		abc_keyboard_interface(mconfig, *this),
-		m_maincpu(*this, I8035_Z2_TAG),
-		m_mousecpu(*this, I8035_Z5_TAG),
-		m_speaker(*this, "speaker"),
-		m_z14(*this, "Z14"),
-		m_mouseb(*this, "MOUSEB"),
-		m_si(1),
-		m_si_en(1),
-		m_so_z2(1),
-		m_so_z5(1),
-		m_keydown(0),
-		m_t1_z2(0),
-		m_t1_z5(0),
-		m_led_en(0),
-		m_reset(1),
-		m_txd(1)
+abc99_device::abc99_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+	device_t(mconfig, ABC99, "Luxor ABC 99", tag, owner, clock, "abc99", __FILE__),
+	abc_keyboard_interface(mconfig, *this),
+	m_maincpu(*this, I8035_Z2_TAG),
+	m_mousecpu(*this, I8035_Z5_TAG),
+	m_speaker(*this, "speaker"),
+	m_z14(*this, "Z14"),
+	m_mouseb(*this, "MOUSEB"),
+	m_si(1),
+	m_si_en(1),
+	m_so_z2(1),
+	m_so_z5(1),
+	m_keydown(0),
+	m_t1_z2(0),
+	m_t1_z5(0),
+	m_led_en(0),
+	m_reset(1),
+	m_txd(1)
 {
 }
 

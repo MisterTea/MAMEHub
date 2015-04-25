@@ -49,6 +49,8 @@ const device_type SEGA8_CARD_SLOT = &device_creator<sega8_card_slot_device>;
 
 device_sega8_cart_interface::device_sega8_cart_interface(const machine_config &mconfig, device_t &device)
 	: device_slot_card_interface(mconfig, device),
+		m_rom(NULL),
+		m_rom_size(0),
 		m_rom_page_count(0),
 		has_battery(FALSE),
 		m_late_battery_enable(FALSE),
@@ -70,11 +72,14 @@ device_sega8_cart_interface::~device_sega8_cart_interface()
 //  rom_alloc - alloc the space for the cart
 //-------------------------------------------------
 
-void device_sega8_cart_interface::rom_alloc(UINT32 size)
+void device_sega8_cart_interface::rom_alloc(UINT32 size, const char *tag)
 {
 	if (m_rom == NULL)
 	{
-		m_rom.resize(size);
+		astring tempstring(tag);
+		tempstring.cat(S8SLOT_ROM_REGION_TAG);
+		m_rom = device().machine().memory().region_alloc(tempstring, size, 1, ENDIANNESS_LITTLE)->base();
+		m_rom_size = size;
 		m_rom_page_count = size / 0x4000;
 		if (!m_rom_page_count)
 			m_rom_page_count = 1;   // we compute rom pages through (XXX % m_rom_page_count)!
@@ -89,11 +94,7 @@ void device_sega8_cart_interface::rom_alloc(UINT32 size)
 
 void device_sega8_cart_interface::ram_alloc(UINT32 size)
 {
-	if (m_ram == NULL)
-	{
-		m_ram.resize(size);
-		device().save_item(NAME(m_ram));
-	}
+	m_ram.resize(size);
 }
 
 
@@ -246,27 +247,22 @@ void sega8_cart_slot_device::set_lphaser_xoffset( UINT8 *rom, int size )
 		{ 0x54, 0x4d, 0x52, 0x20, 0x53, 0x45, 0x47, 0x41, 0x41, 0x4c, 0x15, 0x4a, 0x01, 0x80, 0x00, 0x4f }
 	};
 
-	int xoff = 44;
+	int xoff = 36;
 
 	if (size >= 0x8000)
 	{
 		if (!memcmp(&rom[0x7ff0], signatures[0], 16) || !memcmp(&rom[0x7ff0], signatures[1], 16))
-			xoff = 34;
-
-		if (!memcmp(&rom[0x7ff0], signatures[2], 16))
-			xoff = 44;
-
-		if (!memcmp(&rom[0x7ff0], signatures[3], 16))
-			xoff = 40;
-
-		if (!memcmp(&rom[0x7ff0], signatures[4], 16))
+			xoff = 26;
+		else if (!memcmp(&rom[0x7ff0], signatures[2], 16))
+			xoff = 36;
+		else if (!memcmp(&rom[0x7ff0], signatures[3], 16))
+			xoff = 32;
+		else if (!memcmp(&rom[0x7ff0], signatures[4], 16))
+			xoff = 30;
+		else if (!memcmp(&rom[0x7ff0], signatures[5], 16))
+			xoff = 39;
+		else if (!memcmp(&rom[0x7ff0], signatures[6], 16))
 			xoff = 38;
-
-		if (!memcmp(&rom[0x7ff0], signatures[5], 16))
-			xoff = 47;
-
-		if (!memcmp(&rom[0x7ff0], signatures[6], 16))
-			xoff = 46;
 	}
 
 	m_cart->set_lphaser_xoffs(xoff);
@@ -360,7 +356,7 @@ bool sega8_cart_slot_device::call_load()
 		if (len & 0x3fff)
 			len = ((len >> 14) + 1) << 14;
 
-		m_cart->rom_alloc(len);
+		m_cart->rom_alloc(len, tag());
 		ROM = m_cart->get_rom_base();
 
 		if (software_entry() == NULL)
@@ -520,7 +516,7 @@ int sega8_cart_slot_device::get_cart_type(UINT8 *ROM, UINT32 len)
 		LOG(("Mapper test: _0002 = %d, _8000 = %d, _a000 = %d, _ffff = %d\n", _0002, _8000, _a000, _ffff));
 
 		// 2 is a security measure, although tests on existing ROM showed it was not needed
-		if (len >= 0x10000 && (_0002 > _ffff + 2 || (_0002 > 0 && _ffff == 0)))
+		if (len > 0x10000 && (_0002 > _ffff + 2 || (_0002 > 0 && _ffff == 0)))
 		{
 			type = SEGA8_ZEMINA;
 
@@ -582,20 +578,23 @@ int sega8_cart_slot_device::get_cart_type(UINT8 *ROM, UINT32 len)
 	}
 
 	// Terebi Oekaki (TV Draw)
-	if (!strncmp((const char *)&ROM[0x13b3], "annakmn", 7))
+	if (len >= 0x13b3 + 7 && !strncmp((const char *)&ROM[0x13b3], "annakmn", 7))
 		type = SEGA8_TEREBIOEKAKI;
 
 	// The Castle (ROM+RAM)
-	if (!strncmp((const char *)&ROM[0x1cc3], "ASCII 1986", 10))
+	if (len >= 0x1cc3 + 10 && !strncmp((const char *)&ROM[0x1cc3], "ASCII 1986", 10))
 		type = SEGA8_CASTLE;
 
 	// BASIC Level 3
-	if (!strncmp((const char *)&ROM[0x6a20], "SC-3000 BASIC Level 3 ver 1.0", 29))
+	if (len >= 0x6a20 + 29 && !strncmp((const char *)&ROM[0x6a20], "SC-3000 BASIC Level 3 ver 1.0", 29))
 		type = SEGA8_BASIC_L3;
 
 	// Music Editor
-	if (!strncmp((const char *)&ROM[0x0841], "PIANO", 5) || !strncmp((const char *)&ROM[0x0841], "music", 5))
-		type = SEGA8_MUSIC_EDITOR;
+	if (len >= 0x0841 + 5)
+	{
+		if (!strncmp((const char *)&ROM[0x0841], "PIANO", 5) || !strncmp((const char *)&ROM[0x0841], "music", 5))
+			type = SEGA8_MUSIC_EDITOR;
+	}
 
 
 	return type;
@@ -815,3 +814,59 @@ void sega8_cart_slot_device::internal_header_logging(UINT8 *ROM, UINT32 len, UIN
 		logerror("\n" );
 	}
 }
+
+// slot interfaces
+#include "rom.h"
+#include "ccatch.h"
+#include "mgear.h"
+
+SLOT_INTERFACE_START(sg1000_cart)
+	SLOT_INTERFACE_INTERNAL("rom",  SEGA8_ROM_STD)
+	SLOT_INTERFACE_INTERNAL("othello",  SEGA8_ROM_OTHELLO)
+	SLOT_INTERFACE_INTERNAL("castle",  SEGA8_ROM_CASTLE)
+	SLOT_INTERFACE_INTERNAL("terebi",  SEGA8_ROM_TEREBI)
+	SLOT_INTERFACE_INTERNAL("level3",  SEGA8_ROM_BASIC_L3)
+	SLOT_INTERFACE_INTERNAL("music_editor",  SEGA8_ROM_MUSIC_EDITOR)
+	SLOT_INTERFACE_INTERNAL("dahjee_typea",  SEGA8_ROM_DAHJEE_TYPEA)
+	SLOT_INTERFACE_INTERNAL("dahjee_typeb",  SEGA8_ROM_DAHJEE_TYPEB)
+	SLOT_INTERFACE_INTERNAL("cardcatcher",  SEGA8_ROM_CARDCATCH)
+SLOT_INTERFACE_END
+
+SLOT_INTERFACE_START(sg1000mk3_cart)
+	SLOT_INTERFACE_INTERNAL("rom",  SEGA8_ROM_STD)
+	SLOT_INTERFACE_INTERNAL("terebi",  SEGA8_ROM_TEREBI)
+	SLOT_INTERFACE_INTERNAL("codemasters",  SEGA8_ROM_CODEMASTERS)
+	SLOT_INTERFACE_INTERNAL("4pak",  SEGA8_ROM_4PAK)
+	SLOT_INTERFACE_INTERNAL("zemina",  SEGA8_ROM_ZEMINA)
+	SLOT_INTERFACE_INTERNAL("nemesis",  SEGA8_ROM_NEMESIS)
+	SLOT_INTERFACE_INTERNAL("janggun",  SEGA8_ROM_JANGGUN)
+	SLOT_INTERFACE_INTERNAL("hicom",  SEGA8_ROM_HICOM)
+	SLOT_INTERFACE_INTERNAL("korean",  SEGA8_ROM_KOREAN)
+	SLOT_INTERFACE_INTERNAL("korean_nb",  SEGA8_ROM_KOREAN_NB)
+	SLOT_INTERFACE_INTERNAL("othello",  SEGA8_ROM_OTHELLO)
+	SLOT_INTERFACE_INTERNAL("castle",  SEGA8_ROM_CASTLE)
+	SLOT_INTERFACE_INTERNAL("dahjee_typea",  SEGA8_ROM_DAHJEE_TYPEA)
+	SLOT_INTERFACE_INTERNAL("dahjee_typeb",  SEGA8_ROM_DAHJEE_TYPEB)
+	// are these SC-3000 carts below actually compatible or not? remove if not!
+	SLOT_INTERFACE_INTERNAL("level3",  SEGA8_ROM_BASIC_L3)
+	SLOT_INTERFACE_INTERNAL("music_editor",  SEGA8_ROM_MUSIC_EDITOR)
+SLOT_INTERFACE_END
+
+SLOT_INTERFACE_START(sms_cart)
+	SLOT_INTERFACE_INTERNAL("rom",  SEGA8_ROM_STD)
+	SLOT_INTERFACE_INTERNAL("codemasters",  SEGA8_ROM_CODEMASTERS)
+	SLOT_INTERFACE_INTERNAL("4pak",  SEGA8_ROM_4PAK)
+	SLOT_INTERFACE_INTERNAL("zemina",  SEGA8_ROM_ZEMINA)
+	SLOT_INTERFACE_INTERNAL("nemesis",  SEGA8_ROM_NEMESIS)
+	SLOT_INTERFACE_INTERNAL("janggun",  SEGA8_ROM_JANGGUN)
+	SLOT_INTERFACE_INTERNAL("hicom",  SEGA8_ROM_HICOM)
+	SLOT_INTERFACE_INTERNAL("korean",  SEGA8_ROM_KOREAN)
+	SLOT_INTERFACE_INTERNAL("korean_nb",  SEGA8_ROM_KOREAN_NB)
+SLOT_INTERFACE_END
+
+SLOT_INTERFACE_START(gg_cart)
+	SLOT_INTERFACE_INTERNAL("rom",  SEGA8_ROM_STD)
+	SLOT_INTERFACE_INTERNAL("eeprom",  SEGA8_ROM_EEPROM)
+	SLOT_INTERFACE_INTERNAL("codemasters",  SEGA8_ROM_CODEMASTERS)
+	SLOT_INTERFACE_INTERNAL("mgear",  SEGA8_ROM_MGEAR)
+SLOT_INTERFACE_END

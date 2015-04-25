@@ -21,14 +21,14 @@ public:
 		m_bgpen_1(*this, "bgpen_1"),
 		m_bgpen_2(*this, "bgpen_2"),
 		m_paletteram(*this, "paletteram"),
-		m_io_select(*this, "io_select"),
-		m_ram(*this, "ram"),
 		m_maincpu(*this, "maincpu"),
 		m_eeprom(*this, "eeprom"),
 		m_gfxdecode(*this, "gfxdecode"),
 		m_palette(*this, "lpalette"),
 		m_palette2(*this, "rpalette"),
-		m_screen(*this, "screen")
+		m_lscreen(*this, "lscreen"),
+		m_rscreen(*this, "rscreen"),
+		m_keys(*this, "KEY")
 	{ }
 
 	/* memory pointers */
@@ -37,8 +37,10 @@ public:
 	required_shared_ptr<UINT32> m_bgpen_1;
 	required_shared_ptr<UINT32> m_bgpen_2;
 	required_shared_ptr<UINT32> m_paletteram;
-	required_shared_ptr<UINT32> m_io_select;
-	required_shared_ptr<UINT32> m_ram;
+
+	memory_bank *m_ymf_bank[4];
+	UINT8 m_ymf_max_bank;
+	UINT8 m_io_select;
 
 	/* video-related */
 	double         m_oldbrt1;
@@ -48,6 +50,11 @@ public:
 	required_device<sh2_device> m_maincpu;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	required_device<palette_device> m_palette2;
+	required_device<screen_device> m_lscreen;
+	required_device<screen_device> m_rscreen;
+	optional_ioport_array<8> m_keys;
 
 	DECLARE_WRITE32_MEMBER(ps4_paletteram32_RRRRRRRRGGGGGGGGBBBBBBBBxxxxxxxx_dword_w);
 	DECLARE_WRITE32_MEMBER(ps4_bgpen_1_dword_w);
@@ -55,25 +62,15 @@ public:
 	DECLARE_WRITE32_MEMBER(ps4_screen1_brt_w);
 	DECLARE_WRITE32_MEMBER(ps4_screen2_brt_w);
 	DECLARE_WRITE32_MEMBER(ps4_vidregs_w);
-	DECLARE_WRITE32_MEMBER(hotgmck_pcm_bank_w);
-	DECLARE_CUSTOM_INPUT_MEMBER(system_port_r);
+	DECLARE_WRITE32_MEMBER(io_select_w);
 	DECLARE_CUSTOM_INPUT_MEMBER(mahjong_ctrl_r);
 	DECLARE_WRITE32_MEMBER(ps4_eeprom_w);
 	DECLARE_READ32_MEMBER(ps4_eeprom_r);
-	DECLARE_DRIVER_INIT(hotgmck);
 	virtual void machine_start();
 	virtual void machine_reset();
 	virtual void video_start();
 	UINT32 screen_update_psikyo4_left(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_psikyo4_right(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(psikyosh_interrupt);
-	void hotgmck_pcm_bank_postload();
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 scr);
-	void set_hotgmck_pcm_bank( int n );
-	void install_hotgmck_pcm_bank();
-	DECLARE_WRITE_LINE_MEMBER(irqhandler);
-
-	required_device<palette_device> m_palette;
-	required_device<palette_device> m_palette2;
-	optional_device<screen_device> m_screen;
 };

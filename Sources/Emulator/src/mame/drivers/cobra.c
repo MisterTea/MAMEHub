@@ -313,7 +313,7 @@
 
 #include "emu.h"
 #include "cpu/powerpc/ppc.h"
-#include "machine/pci.h"
+#include "machine/lpci.h"
 #include "machine/ataintf.h"
 #include "machine/idehd.h"
 #include "machine/jvshost.h"
@@ -387,13 +387,13 @@ public:
 	void draw_line(const rectangle &visarea, vertex_t &v1, vertex_t &v2);
 
 	void gfx_init();
-	void gfx_exit(running_machine &machine);
-	void gfx_reset(running_machine &machine);
-	void gfx_fifo_exec(running_machine &machine);
+	void gfx_exit();
+	void gfx_reset();
+	void gfx_fifo_exec();
 	UINT32 gfx_read_gram(UINT32 address);
 	void gfx_write_gram(UINT32 address, UINT32 mask, UINT32 data);
-	UINT64 gfx_read_reg(running_machine &machine);
-	void gfx_write_reg(running_machine &machine, UINT64 data);
+	UINT64 gfx_read_reg();
+	void gfx_write_reg(UINT64 data);
 
 	void display(bitmap_rgb32 *bitmap, const rectangle &cliprect);
 	inline rgb_t texture_fetch(UINT32 *texture, int u, int v, int width, int format);
@@ -499,7 +499,7 @@ protected:
 const device_type COBRA_JVS = &device_creator<cobra_jvs>;
 
 cobra_jvs::cobra_jvs(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: jvs_device(mconfig, COBRA_JVS, "COBRA_JVS", tag, owner, clock, "cobra_jvs", __FILE__)
+	: jvs_device(mconfig, COBRA_JVS, "JVS (COBRA)", tag, owner, clock, "cobra_jvs", __FILE__)
 {
 }
 
@@ -557,7 +557,7 @@ private:
 const device_type COBRA_JVS_HOST = &device_creator<cobra_jvs_host>;
 
 cobra_jvs_host::cobra_jvs_host(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: jvs_host(mconfig, COBRA_JVS_HOST, "COBRA_JVS_HOST", tag, owner, clock, "cobra_jvs_host", __FILE__)
+	: jvs_host(mconfig, COBRA_JVS_HOST, "JVS-HOST (COBRA)", tag, owner, clock, "cobra_jvs_host", __FILE__)
 {
 	m_send_ptr = 0;
 }
@@ -633,6 +633,7 @@ public:
 	DECLARE_WRITE64_MEMBER(main_fifo_w);
 	DECLARE_READ64_MEMBER(main_mpc106_r);
 	DECLARE_WRITE64_MEMBER(main_mpc106_w);
+	DECLARE_WRITE32_MEMBER(main_cpu_dc_store);
 
 	DECLARE_READ32_MEMBER(sub_comram_r);
 	DECLARE_WRITE32_MEMBER(sub_comram_w);
@@ -653,6 +654,7 @@ public:
 	DECLARE_READ32_MEMBER(sub_psac2_r);
 	DECLARE_WRITE32_MEMBER(sub_psac2_w);
 	DECLARE_WRITE32_MEMBER(sub_psac_palette_w);
+	DECLARE_WRITE32_MEMBER(sub_sound_dma_w);
 
 	DECLARE_WRITE64_MEMBER(gfx_fifo0_w);
 	DECLARE_WRITE64_MEMBER(gfx_fifo1_w);
@@ -662,6 +664,9 @@ public:
 	DECLARE_WRITE64_MEMBER(gfx_unk1_w);
 	DECLARE_READ64_MEMBER(gfx_fifo_r);
 	DECLARE_WRITE64_MEMBER(gfx_buf_w);
+	DECLARE_WRITE32_MEMBER(gfx_cpu_dc_store);
+
+	DECLARE_WRITE8_MEMBER(sub_jvs_w);
 
 	DECLARE_WRITE_LINE_MEMBER(ide_interrupt);
 
@@ -998,7 +1003,7 @@ void cobra_renderer::draw_line(const rectangle &visarea, vertex_t &v1, vertex_t 
 
 void cobra_state::cobra_video_exit()
 {
-	m_renderer->gfx_exit(machine());
+	m_renderer->gfx_exit();
 }
 
 void cobra_state::video_start()
@@ -1599,14 +1604,12 @@ WRITE64_MEMBER(cobra_state::main_comram_w)
 	m_comram[page][(offset << 1) + 1] = (w2 & ~m2) | (d2 & m2);
 }
 
-static void main_cpu_dc_store(device_t *device, UINT32 address)
+WRITE32_MEMBER(cobra_state::main_cpu_dc_store)
 {
-	cobra_state *cobra = device->machine().driver_data<cobra_state>();
-
-	if ((address & 0xf0000000) == 0xc0000000)
+	if ((offset & 0xf0000000) == 0xc0000000)
 	{
 		// force sync when writing to GFX board main ram
-		cobra->m_maincpu->spin_until_time(attotime::from_usec(80));
+		m_maincpu->spin_until_time(attotime::from_usec(80));
 	}
 }
 
@@ -1675,7 +1678,7 @@ READ32_MEMBER(cobra_state::sub_mainbd_r)
 		// Register 0x7E380000
 		// M2S FIFO read
 
-		UINT64 value;
+		UINT64 value = 0;
 		m_m2sfifo->pop(&space.device(), &value);
 
 		r |= (value & 0xff) << 24;
@@ -1888,9 +1891,9 @@ WRITE32_MEMBER(cobra_state::sub_psac2_w)
 {
 }
 
-static void sub_sound_dma_w(device_t *device, int width, UINT32 data)
+WRITE32_MEMBER(cobra_state::sub_sound_dma_w)
 {
-	//printf("DMA write to unknown: size %d, data %08X\n", width, data);
+	//printf("DMA write to unknown: size %d, data %08X\n", address, data);
 
 	/*
 	static FILE *out;
@@ -1903,28 +1906,25 @@ static void sub_sound_dma_w(device_t *device, int width, UINT32 data)
 	fputc((data >> 0) & 0xff, out);
 	*/
 
-	cobra_state *cobra = device->machine().driver_data<cobra_state>();
-
 	INT16 ldata = (INT16)(data >> 16);
 	INT16 rdata = (INT16)(data);
 
-	cobra->m_sound_dma_buffer_l[cobra->m_sound_dma_ptr] = ldata;
-	cobra->m_sound_dma_buffer_r[cobra->m_sound_dma_ptr] = rdata;
-	cobra->m_sound_dma_ptr++;
+	m_sound_dma_buffer_l[m_sound_dma_ptr] = ldata;
+	m_sound_dma_buffer_r[m_sound_dma_ptr] = rdata;
+	m_sound_dma_ptr++;
 
-	if (cobra->m_sound_dma_ptr >= DMA_SOUND_BUFFER_SIZE)
+	if (m_sound_dma_ptr >= DMA_SOUND_BUFFER_SIZE)
 	{
-		cobra->m_sound_dma_ptr = 0;
+		m_sound_dma_ptr = 0;
 
-		dmadac_transfer(&cobra->m_dmadac[0], 1, 0, 1, DMA_SOUND_BUFFER_SIZE, cobra->m_sound_dma_buffer_l);
-		dmadac_transfer(&cobra->m_dmadac[1], 1, 0, 1, DMA_SOUND_BUFFER_SIZE, cobra->m_sound_dma_buffer_r);
+		dmadac_transfer(&m_dmadac[0], 1, 0, 1, DMA_SOUND_BUFFER_SIZE, m_sound_dma_buffer_l);
+		dmadac_transfer(&m_dmadac[1], 1, 0, 1, DMA_SOUND_BUFFER_SIZE, m_sound_dma_buffer_r);
 	}
 }
 
-static void sub_jvs_w(device_t *device, UINT8 data)
+WRITE8_MEMBER(cobra_state::sub_jvs_w)
 {
-	cobra_state *cobra = device->machine().driver_data<cobra_state>();
-	cobra_jvs_host *jvs = downcast<cobra_jvs_host *>(device->machine().device("cobra_jvs_host"));
+	cobra_jvs_host *jvs = machine().device<cobra_jvs_host>("cobra_jvs_host");
 
 #if LOG_JVS
 	printf("sub_jvs_w: %02X\n", data);
@@ -1948,7 +1948,7 @@ static void sub_jvs_w(device_t *device, UINT8 data)
 
 		for (int i=0; i < rec_size; i++)
 		{
-			cobra->m_subcpu->ppc4xx_spu_receive_byte(rec_data[i]);
+			m_subcpu->ppc4xx_spu_receive_byte(rec_data[i]);
 		}
 	}
 }
@@ -2032,7 +2032,7 @@ void cobra_renderer::gfx_init()
 	m_zbuffer->fill(*(int*)&zvalue, visarea);
 }
 
-void cobra_renderer::gfx_exit(running_machine &machine)
+void cobra_renderer::gfx_exit()
 {
 	/*
 	FILE *file;
@@ -2048,9 +2048,9 @@ void cobra_renderer::gfx_exit(running_machine &machine)
 	*/
 }
 
-void cobra_renderer::gfx_reset(running_machine &machine)
+void cobra_renderer::gfx_reset()
 {
-	cobra_state *cobra = machine.driver_data<cobra_state>();
+	cobra_state *cobra = machine().driver_data<cobra_state>();
 
 	cobra->m_gfx_re_status = RE_STATUS_IDLE;
 }
@@ -2125,12 +2125,12 @@ void cobra_renderer::gfx_write_gram(UINT32 address, UINT32 mask, UINT32 data)
 	m_gfx_gram[address/4] |= data & mask;
 }
 
-UINT64 cobra_renderer::gfx_read_reg(running_machine &machine)
+UINT64 cobra_renderer::gfx_read_reg()
 {
 	return m_gfx_register[m_gfx_register_select];
 }
 
-void cobra_renderer::gfx_write_reg(running_machine &machine, UINT64 data)
+void cobra_renderer::gfx_write_reg(UINT64 data)
 {
 	switch (m_gfx_register_select)
 	{
@@ -2150,9 +2150,9 @@ void cobra_renderer::gfx_write_reg(running_machine &machine, UINT64 data)
 	m_gfx_register[m_gfx_register_select] = data;
 }
 
-void cobra_renderer::gfx_fifo_exec(running_machine &machine)
+void cobra_renderer::gfx_fifo_exec()
 {
-	cobra_state *cobra = machine.driver_data<cobra_state>();
+	cobra_state *cobra = machine().driver_data<cobra_state>();
 
 	if (cobra->m_gfx_fifo_loopback != 0)
 		return;
@@ -2230,7 +2230,7 @@ void cobra_renderer::gfx_fifo_exec(running_machine &machine)
 					// 64-bit registers, top 32-bits in word 2, low 32-bit in word 3
 					printf("GFX: register write %08X: %08X %08X\n", m_gfx_register_select, w[2], w[3]);
 
-					gfx_write_reg(machine, ((UINT64)(w[2]) << 32) | w[3]);
+					gfx_write_reg(((UINT64)(w[2]) << 32) | w[3]);
 				}
 				else if (w2 == 0x10521000)
 				{
@@ -2832,7 +2832,7 @@ READ64_MEMBER(cobra_state::gfx_fifo_r)
 {
 	UINT64 r = 0;
 
-	m_renderer->gfx_fifo_exec(space.machine());
+	m_renderer->gfx_fifo_exec();
 
 	if (ACCESSING_BITS_32_63)
 	{
@@ -2958,7 +2958,7 @@ WRITE64_MEMBER(cobra_state::gfx_buf_w)
 
 //  printf("prc_read %08X%08X at %08X\n", (UINT32)(data >> 32), (UINT32)(data), activecpu_get_pc());
 
-	m_renderer->gfx_fifo_exec(space.machine());
+	m_renderer->gfx_fifo_exec();
 
 	if (data == U64(0x00a0000110500018))
 	{
@@ -2966,7 +2966,7 @@ WRITE64_MEMBER(cobra_state::gfx_buf_w)
 
 		// reads back the register selected by gfx register select
 
-		UINT64 regdata = m_renderer->gfx_read_reg(space.machine());
+		UINT64 regdata = m_renderer->gfx_read_reg();
 
 		m_gfxfifo_out->push(&space.device(), (UINT32)(regdata >> 32));
 		m_gfxfifo_out->push(&space.device(), (UINT32)(regdata));
@@ -2991,32 +2991,30 @@ WRITE64_MEMBER(cobra_state::gfx_buf_w)
 	}
 }
 
-static void gfx_cpu_dc_store(device_t *device, UINT32 address)
+WRITE32_MEMBER(cobra_state::gfx_cpu_dc_store)
 {
-	cobra_state *cobra = device->machine().driver_data<cobra_state>();
-
-	UINT32 addr = address >> 24;
+	UINT32 addr = offset >> 24;
 	if (addr == 0x10 || addr == 0x18 || addr == 0x1e)
 	{
-		UINT64 i = (UINT64)(cobra->m_gfx_fifo_cache_addr) << 32;
-		cobra_fifo *fifo_in = cobra->m_gfxfifo_in;
+		UINT64 i = (UINT64)(m_gfx_fifo_cache_addr) << 32;
+		cobra_fifo *fifo_in = m_gfxfifo_in;
 
-		UINT32 a = (address / 8) & 0xff;
+		UINT32 a = (offset / 8) & 0xff;
 
-		fifo_in->push(device, (UINT32)(cobra->m_gfx_fifo_mem[a+0] >> 32) | i);
-		fifo_in->push(device, (UINT32)(cobra->m_gfx_fifo_mem[a+0] >>  0) | i);
-		fifo_in->push(device, (UINT32)(cobra->m_gfx_fifo_mem[a+1] >> 32) | i);
-		fifo_in->push(device, (UINT32)(cobra->m_gfx_fifo_mem[a+1] >>  0) | i);
-		fifo_in->push(device, (UINT32)(cobra->m_gfx_fifo_mem[a+2] >> 32) | i);
-		fifo_in->push(device, (UINT32)(cobra->m_gfx_fifo_mem[a+2] >>  0) | i);
-		fifo_in->push(device, (UINT32)(cobra->m_gfx_fifo_mem[a+3] >> 32) | i);
-		fifo_in->push(device, (UINT32)(cobra->m_gfx_fifo_mem[a+3] >>  0) | i);
+		fifo_in->push(&space.device(), (UINT32)(m_gfx_fifo_mem[a+0] >> 32) | i);
+		fifo_in->push(&space.device(), (UINT32)(m_gfx_fifo_mem[a+0] >>  0) | i);
+		fifo_in->push(&space.device(), (UINT32)(m_gfx_fifo_mem[a+1] >> 32) | i);
+		fifo_in->push(&space.device(), (UINT32)(m_gfx_fifo_mem[a+1] >>  0) | i);
+		fifo_in->push(&space.device(), (UINT32)(m_gfx_fifo_mem[a+2] >> 32) | i);
+		fifo_in->push(&space.device(), (UINT32)(m_gfx_fifo_mem[a+2] >>  0) | i);
+		fifo_in->push(&space.device(), (UINT32)(m_gfx_fifo_mem[a+3] >> 32) | i);
+		fifo_in->push(&space.device(), (UINT32)(m_gfx_fifo_mem[a+3] >>  0) | i);
 
-		cobra->m_renderer->gfx_fifo_exec(device->machine());
+		m_renderer->gfx_fifo_exec();
 	}
 	else
 	{
-		logerror("gfx: data cache store at %08X\n", address);
+		logerror("gfx: data cache store at %08X\n", offset);
 	}
 }
 
@@ -3150,7 +3148,7 @@ void cobra_state::machine_reset()
 	identify_device[51] = 0x0200;        /* 51: PIO data transfer cycle timing mode */
 	identify_device[67] = 0x01e0;        /* 67: minimum PIO transfer cycle time without flow control */
 
-	m_renderer->gfx_reset(machine());
+	m_renderer->gfx_reset();
 
 	m_sound_dma_ptr = 0;
 
@@ -3263,12 +3261,12 @@ DRIVER_INIT_MEMBER(cobra_state, cobra)
 								cobra_fifo::event_delegate(FUNC(cobra_state::s2mfifo_event_callback), this))
 								);
 
-	m_maincpu->ppc_set_dcstore_callback(main_cpu_dc_store);
+	m_maincpu->ppc_set_dcstore_callback(write32_delegate(FUNC(cobra_state::main_cpu_dc_store),this));
 
-	m_gfxcpu->ppc_set_dcstore_callback(gfx_cpu_dc_store);
+	m_gfxcpu->ppc_set_dcstore_callback(write32_delegate(FUNC(cobra_state::gfx_cpu_dc_store), this));
 
-	m_subcpu->ppc4xx_set_dma_write_handler(0, sub_sound_dma_w, 44100);
-	m_subcpu->ppc4xx_spu_set_tx_handler(sub_jvs_w);
+	m_subcpu->ppc4xx_set_dma_write_handler(0, write32_delegate(FUNC(cobra_state::sub_sound_dma_w), this), 44100);
+	m_subcpu->ppc4xx_spu_set_tx_handler(write8_delegate(FUNC(cobra_state::sub_jvs_w), this));
 
 
 	m_comram[0] = auto_alloc_array(machine(), UINT32, 0x40000/4);
@@ -3473,7 +3471,7 @@ ROM_START(bujutsu)
 	ROM_REGION(0x2000, "m48t58", ROMREGION_ERASE00)
 	ROM_LOAD( "m48t58-70pc1.17l", 0x000000, 0x002000, NO_DUMP )
 
-	ROM_REGION(0x1000000, "rfsnd", ROMREGION_ERASE00)
+	ROM_REGION16_LE(0x1000000, "rfsnd", ROMREGION_ERASE00)
 
 	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE_READONLY( "645c04", 0, SHA1(c0aabe69f6eb4e4cf748d606ae50674297af6a04) )
@@ -3492,7 +3490,7 @@ ROM_START(racjamdx)
 	ROM_REGION(0x2000, "m48t58", ROMREGION_ERASE00)
 	ROM_LOAD( "m48t58-70pc1.17l", 0x000000, 0x002000, NO_DUMP )
 
-	ROM_REGION(0x1000000, "rfsnd", ROMREGION_ERASE00)
+	ROM_REGION16_LE(0x1000000, "rfsnd", ROMREGION_ERASE00)
 
 	DISK_REGION( "ata:0:hdd:image" )
 	DISK_IMAGE_READONLY( "676a04", 0, SHA1(8e89d3e5099e871b99fccba13adaa3cf8a6b71f0) )

@@ -37,7 +37,7 @@ public:
 		m_comms_ram(*this, "comms_ram"),
 		m_maincpu(*this, "maincpu"),
 		m_subcpu(*this, "sub"),
-		m_region_gfx1(*this, "gfx1"),
+		m_gfxrom(*this, "gfx1"),
 		m_io_cr_clear(*this, "CR_CLEAR"),
 		m_io_coins(*this, "COINS"),
 		m_io_pl1_1(*this, "PL1_1"),
@@ -108,7 +108,7 @@ public:
 	UINT32 screen_update_nightgal(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 
 protected:
-	required_memory_region m_region_gfx1;
+	required_region_ptr<UINT8> m_gfxrom;
 	required_ioport m_io_cr_clear;
 	required_ioport m_io_coins;
 	required_ioport m_io_pl1_1;
@@ -169,15 +169,13 @@ UINT32 nightgal_state::screen_update_nightgal(screen_device &screen, bitmap_ind1
 
 UINT8 nightgal_state::nightgal_gfx_nibble( int niboffset )
 {
-	UINT8 *blit_rom = m_region_gfx1->base();
-
 	if (niboffset & 1)
 	{
-		return (blit_rom[(niboffset >> 1) & 0x1ffff] & 0xf0) >> 4;
+		return (m_gfxrom[(niboffset >> 1) & 0x1ffff] & 0xf0) >> 4;
 	}
 	else
 	{
-		return (blit_rom[(niboffset >> 1) & 0x1ffff] & 0x0f);
+		return (m_gfxrom[(niboffset >> 1) & 0x1ffff] & 0x0f);
 	}
 }
 
@@ -367,10 +365,10 @@ master-slave algorithm
 -executes a wai (i.e. halt) opcode then expects to receive another irq...
 */
 
-#define MAIN_Z80_RUN   if(offset == 2) state->m_z80_latch = 0x00
-#define MAIN_Z80_HALT  if(offset == 2) state->m_z80_latch = 0x80
-//#define SUB_NCS_RUN state->m_ncs_latch = 0x00
-//#define SUB_NCS_HALT state->m_ncs_latch = 0x80
+#define MAIN_Z80_RUN   if(offset == 2) m_z80_latch = 0x00
+#define MAIN_Z80_HALT  if(offset == 2) m_z80_latch = 0x80
+//#define SUB_NCS_RUN m_ncs_latch = 0x00
+//#define SUB_NCS_HALT m_ncs_latch = 0x80
 #ifdef UNUSED_CODE
 WRITE8_MEMBER(nightgal_state::nsc_latch_w)
 {
@@ -1165,11 +1163,11 @@ ROM_END
 
 ROM_START( sweetgal )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "10(__sweetgal).3n",  0x00000, 0x04000, CRC(0f6c4bf0) SHA1(50e5c6f08e124641f5df8938ccfcdebde18f6a0f) )
+	ROM_LOAD( "10.3n", 0x00000, 0x04000, CRC(0f6c4bf0) SHA1(50e5c6f08e124641f5df8938ccfcdebde18f6a0f) ) // sldh
 	ROM_LOAD( "11.3p", 0x04000, 0x04000, CRC(7388e9b3) SHA1(e318d2d3888679bbd43a0aab68252fd359b7969d) )
 
 	ROM_REGION( 0x10000, "sub", 0 )
-	ROM_LOAD( "1(__sweetgal).3a", 0x0e000, 0x2000, CRC(5342c757) SHA1(b4ff84c45bd2c6a6a468f1d0daaf5b19c4dbf8fe) )
+	ROM_LOAD( "1.3a",  0x0e000, 0x2000, CRC(5342c757) SHA1(b4ff84c45bd2c6a6a468f1d0daaf5b19c4dbf8fe) ) // sldh
 
 	ROM_REGION( 0xc000, "samples", 0 ) // sound samples
 	ROM_LOAD( "v2_12.bin",  0x00000, 0x04000, CRC(66a35be2) SHA1(4f0d73d753387acacc5ccc90e91d848a5ecce55e) )
@@ -1177,8 +1175,8 @@ ROM_START( sweetgal )
 	ROM_LOAD( "v2_14.bin",  0x08000, 0x04000, CRC(149e84c1) SHA1(5c4e18637bef2f31bc3578cae6525fb6280fbc06) )
 
 	ROM_REGION( 0x20000, "gfx1", 0 )
-	ROM_LOAD( "2(__sweetgal).3c",  0x00000, 0x04000, CRC(3a3d78f7) SHA1(71e35529f30c43ee8ec2363f85fe17042f1d304e) )
-	ROM_LOAD( "3(__sweetgal).3d",  0x04000, 0x04000, CRC(c6f9b884) SHA1(32d6fe1906a3f1f528f30dbd3f89971b2ea1925b) )
+	ROM_LOAD( "2.3c",  0x00000, 0x04000, CRC(3a3d78f7) SHA1(71e35529f30c43ee8ec2363f85fe17042f1d304e) ) // sldh
+	ROM_LOAD( "3.3d",  0x04000, 0x04000, CRC(c6f9b884) SHA1(32d6fe1906a3f1f528f30dbd3f89971b2ea1925b) ) // sldh
 	// all roms below match sexygal
 	ROM_LOAD( "4.3e",  0x08000, 0x04000, CRC(f1cdbedb) SHA1(caacf2887a3a05e498d57d570a1e9873f95a5d5f) )
 	ROM_LOAD( "5.3f",  0x0c000, 0x04000, CRC(76569186) SHA1(79cb32c1f1a96f90d59f331a01ca548936933b87) )

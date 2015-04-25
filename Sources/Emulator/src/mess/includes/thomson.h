@@ -19,7 +19,6 @@
 #include "sound/dac.h"
 #include "audio/mea8000.h"
 #include "bus/centronics/ctronics.h"
-#include "imagedev/cartslot.h"
 #include "imagedev/cassette.h"
 #include "machine/mc6843.h"
 #include "machine/mc6846.h"
@@ -28,6 +27,9 @@
 #include "formats/thom_dsk.h"
 #include "machine/thomflop.h"
 #include "machine/ram.h"
+
+#include "bus/generic/slot.h"
+#include "bus/generic/carts.h"
 
 
 /* 6821 PIAs */
@@ -256,27 +258,33 @@ public:
 	TIMER_CALLBACK_MEMBER( thom_set_init );
 	void to770_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void mo5_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
+	void mo5alt_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void to9_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void bitmap4_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void bitmap4alt_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
+	void bitmap4althalf_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void bitmap16_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void mode80_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void mode80_to9_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void page1_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void page2_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void overlay_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
+	void overlayhalf_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void overlay3_scandraw_16( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void to770_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void mo5_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
+	void mo5alt_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void to9_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void bitmap4_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void bitmap4alt_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
+	void bitmap4althalf_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void bitmap16_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void mode80_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void mode80_to9_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void page1_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void page2_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void overlay_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
+	void overlayhalf_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void overlay3_scandraw_8( UINT8* vram, UINT16* dst, UINT16* pal, int org, int len );
 	void thom_vblank( screen_device &screen, bool state );
 	DECLARE_VIDEO_START( thom );
@@ -306,6 +314,7 @@ public:
 	WRITE_LINE_MEMBER( fdc_index_3_w );
 	void thomson_index_callback(legacy_floppy_image_device *device, int state);
 	DECLARE_PALETTE_INIT(thom);
+	DECLARE_PALETTE_INIT(mo5);
 
 	optional_device<mc6854_device> m_mc6854;
 
@@ -519,6 +528,7 @@ protected:
 	void thom_set_mode_point( int point );
 	void thom_floppy_active( int write );
 	unsigned to7_lightpen_gpl( int decx, int decy );
+	void thom_configure_palette( double gamma, const UINT16* pal, palette_device& palette );
 
 	int thom_floppy_make_addr( chrn_id id, UINT8* dst, int sector_size );
 	int thom_floppy_make_sector( legacy_floppy_image_device* img, chrn_id id, UINT8* dst, int sector_size );
@@ -602,7 +612,10 @@ protected:
 #define THOM_VMODE_OVERLAY3    9
 #define THOM_VMODE_TO9        10
 #define THOM_VMODE_80_TO9     11
-#define THOM_VMODE_NB         12
+#define THOM_VMODE_BITMAP4_ALT_HALF 12
+#define THOM_VMODE_MO5_ALT    13
+#define THOM_VMODE_OVERLAY_HALF     14
+#define THOM_VMODE_NB         15
 
 
 class to7_io_line_device : public device_t

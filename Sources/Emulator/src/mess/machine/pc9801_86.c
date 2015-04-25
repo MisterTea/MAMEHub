@@ -99,7 +99,7 @@ static INPUT_PORTS_START( pc9801_86 )
 	PORT_BIT( 0xc0, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("OPNA_DSW")
-	PORT_CONFNAME( 0x01, 0x00, "PC-9801-86: Port Base" )
+	PORT_CONFNAME( 0x01, 0x01, "PC-9801-86: Port Base" )
 	PORT_CONFSETTING(    0x00, "0x088" )
 	PORT_CONFSETTING(    0x01, "0x188" )
 INPUT_PORTS_END
@@ -154,7 +154,6 @@ void pc9801_86_device::install_device(offs_t start, offs_t end, offs_t mask, off
 			break;
 		default:
 			fatalerror("PC-9801-86: Bus width %d not supported\n", buswidth);
-			break;
 	}
 }
 

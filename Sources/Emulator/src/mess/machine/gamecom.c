@@ -7,50 +7,53 @@ static const int gamecom_timer_limit[8] = { 2, 1024, 2048, 4096, 8192, 16384, 32
 
 TIMER_CALLBACK_MEMBER(gamecom_state::gamecom_clock_timer_callback)
 {
-	UINT8 * RAM = m_region_maincpu->base();
-	UINT8 val = ( ( RAM[SM8521_CLKT] & 0x3F ) + 1 ) & 0x3F;
-	RAM[SM8521_CLKT] = ( RAM[SM8521_CLKT] & 0xC0 ) | val;
+	UINT8 val = m_p_ram[SM8521_CLKT] + 1;
+	m_p_ram[SM8521_CLKT] = ( m_p_ram[SM8521_CLKT] & 0xC0 ) | (val & 0x3f);
 	m_maincpu->set_input_line(sm8500_cpu_device::CK_INT, ASSERT_LINE );
 }
 
 void gamecom_state::machine_reset()
 {
 	UINT8 *rom = m_region_kernel->base();
-	m_bank1->set_base( rom );
-	m_bank2->set_base( rom );
-	m_bank3->set_base( rom );
-	m_bank4->set_base( rom );
+	m_bank1->set_base(rom);
+	m_bank2->set_base(rom);
+	m_bank3->set_base(rom);
+	m_bank4->set_base(rom);
 
-	m_cartridge = NULL;
+	m_cart_ptr = NULL;
 	m_lch_reg = 0x07;
 	m_lcv_reg = 0x27;
 	m_lcdc_reg = 0xb0;
+
+	astring region_tag;
+	m_cart1_rom = memregion(region_tag.cpy(m_cart1->tag()).cat(GENERIC_ROM_REGION_TAG));
+	m_cart2_rom = memregion(region_tag.cpy(m_cart2->tag()).cat(GENERIC_ROM_REGION_TAG));
 }
 
-void gamecom_state::gamecom_set_mmu(UINT8 mmu, UINT8 data )
+void gamecom_state::gamecom_set_mmu(UINT8 mmu, UINT8 data)
 {
 	if (data < 0x20)
 	{
 		/* select internal ROM bank */
-		switch ( mmu )
+		switch (mmu)
 		{
-			case 1: m_bank1->set_base( m_region_kernel->base() + (data << 13) ); break;
-			case 2: m_bank2->set_base( m_region_kernel->base() + (data << 13) ); break;
-			case 3: m_bank3->set_base( m_region_kernel->base() + (data << 13) ); break;
-			case 4: m_bank4->set_base( m_region_kernel->base() + (data << 13) ); break;
+			case 1: m_bank1->set_base(m_region_kernel->base() + (data << 13)); break;
+			case 2: m_bank2->set_base(m_region_kernel->base() + (data << 13)); break;
+			case 3: m_bank3->set_base(m_region_kernel->base() + (data << 13)); break;
+			case 4: m_bank4->set_base(m_region_kernel->base() + (data << 13)); break;
 		}
 	}
 	else
 	{
 		/* select cartridge bank */
-		if ( m_cartridge )
+		if (m_cart_ptr)
 		{
-			switch ( mmu )
+			switch (mmu)
 			{
-				case 1: m_bank1->set_base( m_cartridge + ( data << 13 ) ); break;
-				case 2: m_bank2->set_base( m_cartridge + ( data << 13 ) ); break;
-				case 3: m_bank3->set_base( m_cartridge + ( data << 13 ) ); break;
-				case 4: m_bank4->set_base( m_cartridge + ( data << 13 ) ); break;
+				case 1: m_bank1->set_base(m_cart_ptr + (data << 13)); break;
+				case 2: m_bank2->set_base(m_cart_ptr + (data << 13)); break;
+				case 3: m_bank3->set_base(m_cart_ptr + (data << 13)); break;
+				case 4: m_bank4->set_base(m_cart_ptr + (data << 13)); break;
 			}
 		}
 	}
@@ -58,31 +61,17 @@ void gamecom_state::gamecom_set_mmu(UINT8 mmu, UINT8 data )
 
 void gamecom_state::handle_stylus_press( int column )
 {
-	static const UINT16 row_data[17] = { 0x3FE, 0x3FD, 0x3FB, 0x3F7, 0x3EF, 0x3DF, 0x3BF, 0x37F, 0x2FF, 0x1FF };
-
-	if ( column == 0 )
+	UINT16 data = m_io_grid[column]->read();
+	if (data)
 	{
-		if ( !BIT( m_io_in2->read(), 2) )
-		{
-			m_stylus_x = m_io_styx->read() >> 4;
-			m_stylus_y = m_io_styy->read() >> 4;
-		}
-		else
-		{
-			m_stylus_x = 16;
-			m_stylus_y = 16;
-		}
-	}
-
-	if ( m_stylus_x == column )
-	{
-		m_p_ram[SM8521_P0] = row_data[m_stylus_y];
-		m_p_ram[SM8521_P1] = ( m_p_ram[SM8521_P1] & 0xFC ) | ( ( row_data[m_stylus_y] >> 8 ) & 3 );
+		UINT16 stylus_y = data ^ 0x3ff;
+		m_p_ram[SM8521_P0] = stylus_y;
+		m_p_ram[SM8521_P1] = ( m_p_ram[SM8521_P1] & 0xFC ) | ( stylus_y >> 8 );
 	}
 	else
 	{
 		m_p_ram[SM8521_P0] = 0xFF;
-		m_p_ram[SM8521_P1] = ( m_p_ram[SM8521_P1] & 0xFC ) | 3;
+		m_p_ram[SM8521_P1] |= 3;
 	}
 }
 
@@ -175,7 +164,7 @@ WRITE8_MEMBER( gamecom_state::gamecom_pio_w )
 {
 	offset += 0x14;
 	m_p_ram[offset] = data;
-	switch( offset )
+	switch (offset)
 	{
 		case SM8521_P1:
 		case SM8521_P2:
@@ -184,11 +173,11 @@ WRITE8_MEMBER( gamecom_state::gamecom_pio_w )
 		case SM8521_P3:
 				/* P3 bit7 clear, bit6 set -> enable cartridge port #0? */
 				/* P3 bit6 clear, bit7 set -> enable cartridge port #1? */
-				switch( data & 0xc0 )
+				switch (data & 0xc0)
 				{
-				case 0x40: m_cartridge = m_cartridge1; break;
-				case 0x80: m_cartridge = m_cartridge2; break;
-				default:   m_cartridge = NULL;       break;
+				case 0x40: m_cart_ptr = m_cart1_rom->base(); break;
+				case 0x80: m_cart_ptr = m_cart2_rom->base(); break;
+				default:   m_cart_ptr = NULL;       break;
 				}
 				return;
 	}
@@ -201,8 +190,9 @@ READ8_MEMBER( gamecom_state::gamecom_pio_r )
 
 READ8_MEMBER( gamecom_state::gamecom_internal_r )
 {
-	if(SM8521_LCV == offset + 0x20)
-		popmessage("Read from vblank bit, TODO");
+// ToDo: Read from vblank bit
+//  if(SM8521_LCV == offset + 0x20)
+//      popmessage("Read from vblank bit, TODO");
 
 	return m_p_ram[offset + 0x20];
 }
@@ -426,14 +416,9 @@ WRITE8_MEMBER( gamecom_state::gamecom_internal_w )
 
 /* The manual is not conclusive as to which bit of the DMVP register (offset 0x3D) determines
    which page for source or destination is used */
-/* For now the increment/decrement-x and increment/decrement-y parts are NOT supported.
-   Their usage is also not explained properly in the manuals. Guess we'll have to wait
-   for them to show up in some rom images...
- */
 WRITE8_MEMBER( gamecom_state::gamecom_handle_dma )
 {
-	UINT8 * RAM = m_region_maincpu->base();
-	UINT8 dmc = RAM[SM8521_DMC];
+	UINT8 dmc = m_p_ram[SM8521_DMC];
 	m_dma.overwrite_mode = dmc & 0x01;
 	m_dma.transfer_mode = dmc & 0x06;
 	m_dma.decrement_x = dmc & 0x08;
@@ -444,66 +429,55 @@ WRITE8_MEMBER( gamecom_state::gamecom_handle_dma )
 		return;
 	}
 
-	if ( m_dma.decrement_x || m_dma.decrement_y )
-	{
-		popmessage( "TODO: Decrement-x and decrement-y are not supported yet\n" );
-	}
-
-	m_dma.width_x = RAM[SM8521_DMDX];
+	m_dma.width_x = m_p_ram[SM8521_DMDX];
 	m_dma.width_x_count = 0;
-	m_dma.width_y = RAM[SM8521_DMDY];
+	m_dma.width_y = m_p_ram[SM8521_DMDY];
 	m_dma.width_y_count = 0;
-	m_dma.source_x = RAM[SM8521_DMX1];
+	m_dma.source_x = m_p_ram[SM8521_DMX1];
 	m_dma.source_x_current = m_dma.source_x;
-	m_dma.source_y = RAM[SM8521_DMY1];
-	m_dma.source_width = ( RAM[SM8521_LCH] & 0x20 ) ? 50 : 40;
-	m_dma.dest_x = RAM[SM8521_DMX2];
+	m_dma.source_y = m_p_ram[SM8521_DMY1];
+	m_dma.source_width = ( m_p_ram[SM8521_LCH] & 0x20 ) ? 50 : 40;
+	m_dma.dest_x = m_p_ram[SM8521_DMX2];
 	m_dma.dest_x_current = m_dma.dest_x;
-	m_dma.dest_y = RAM[SM8521_DMY2];
-	m_dma.dest_width = ( RAM[SM8521_LCH] & 0x20 ) ? 50 : 40;
-	m_dma.palette[0] = RAM[SM8521_DMPL] & 0x03;
-	m_dma.palette[1] = ( RAM[SM8521_DMPL] >> 2 ) & 3;
-	m_dma.palette[2] = ( RAM[SM8521_DMPL] >> 4 ) & 3;
-	m_dma.palette[3] = RAM[SM8521_DMPL] >> 6;
+	m_dma.dest_y = m_p_ram[SM8521_DMY2];
+	m_dma.dest_width = ( m_p_ram[SM8521_LCH] & 0x20 ) ? 50 : 40;
+	m_dma.palette[0] = m_p_ram[SM8521_DMPL] & 0x03;
+	m_dma.palette[1] = ( m_p_ram[SM8521_DMPL] >> 2 ) & 3;
+	m_dma.palette[2] = ( m_p_ram[SM8521_DMPL] >> 4 ) & 3;
+	m_dma.palette[3] = m_p_ram[SM8521_DMPL] >> 6;
 	m_dma.source_mask = 0x1FFF;
 	m_dma.dest_mask = 0x1FFF;
-//  logerror("DMA: width %Xx%X, source (%X,%X), dest (%X,%X), transfer_mode %X, banks %X \n", m_dma.width_x, m_dma.width_y, m_dma.source_x, m_dma.source_y, m_dma.dest_x, m_dma.dest_y, m_dma.transfer_mode, RAM[SM8521_DMVP] );
+//  logerror("DMA: width %Xx%X, source (%X,%X), dest (%X,%X), transfer_mode %X, banks %X \n", m_dma.width_x, m_dma.width_y, m_dma.source_x, m_dma.source_y, m_dma.dest_x, m_dma.dest_y, m_dma.transfer_mode, m_p_ram[SM8521_DMVP] );
 //  logerror( "   Palette: %d, %d, %d, %d\n", m_dma.palette[0], m_dma.palette[1], m_dma.palette[2], m_dma.palette[3] );
 	switch( m_dma.transfer_mode )
 	{
 	case 0x00:
 		/* VRAM->VRAM */
-		m_dma.source_bank = &m_p_videoram[(RAM[SM8521_DMVP] & 0x01) ? 0x2000 : 0x0000];
-		m_dma.dest_bank = &m_p_videoram[(RAM[SM8521_DMVP] & 0x02) ? 0x2000 : 0x0000];
+		m_dma.source_bank = &m_p_videoram[(m_p_ram[SM8521_DMVP] & 0x01) ? 0x2000 : 0x0000];
+		m_dma.dest_bank = &m_p_videoram[(m_p_ram[SM8521_DMVP] & 0x02) ? 0x2000 : 0x0000];
 		break;
 	case 0x02:
 		/* ROM->VRAM */
-//      logerror( "DMA DMBR = %X\n", RAM[SM8521_DMBR] );
+//      logerror( "DMA DMBR = %X\n", m_p_ram[SM8521_DMBR] );
 		m_dma.source_width = 64;
 		m_dma.source_mask = 0x3FFF;
-		if ( RAM[SM8521_DMBR] < 16 )
-		{
-			m_dma.source_bank = m_region_kernel->base() + (RAM[SM8521_DMBR] << 14);
-		}
+		if (m_p_ram[SM8521_DMBR] < 16)
+			m_dma.source_bank = m_region_kernel->base() + (m_p_ram[SM8521_DMBR] << 14);
 		else
-		{
-			if (m_cartridge)
-			{
-				m_dma.source_bank = m_cartridge + (RAM[SM8521_DMBR] << 14);
-			}
-		}
+		if (m_cart_ptr)
+			m_dma.source_bank = m_cart_ptr + (m_p_ram[SM8521_DMBR] << 14);
 
-		m_dma.dest_bank = &m_p_videoram[(RAM[SM8521_DMVP] & 0x02) ? 0x2000 : 0x0000];
+		m_dma.dest_bank = &m_p_videoram[(m_p_ram[SM8521_DMVP] & 0x02) ? 0x2000 : 0x0000];
 		break;
 	case 0x04:
 		/* Extend RAM->VRAM */
 		m_dma.source_width = 64;
 		m_dma.source_bank = &m_p_nvram[0x0000];
-		m_dma.dest_bank = &m_p_videoram[(RAM[SM8521_DMVP] & 0x02) ? 0x2000 : 0x0000];
+		m_dma.dest_bank = &m_p_videoram[(m_p_ram[SM8521_DMVP] & 0x02) ? 0x2000 : 0x0000];
 		break;
 	case 0x06:
 		/* VRAM->Extend RAM */
-		m_dma.source_bank = &m_p_videoram[(RAM[SM8521_DMVP] & 0x01) ? 0x2000 : 0x0000];
+		m_dma.source_bank = &m_p_videoram[(m_p_ram[SM8521_DMVP] & 0x01) ? 0x2000 : 0x0000];
 		m_dma.dest_width = 64;
 		m_dma.dest_bank = &m_p_nvram[0x0000];
 		break;
@@ -522,50 +496,22 @@ WRITE8_MEMBER( gamecom_state::gamecom_handle_dma )
 	{
 		for( x_count = 0; x_count <= m_dma.width_x; x_count++ )
 		{
-			int source_pixel = 0;
-			int dest_pixel = 0;
-			int src_addr = m_dma.source_current & m_dma.source_mask;
-			int dest_addr = m_dma.dest_current & m_dma.dest_mask;
+			UINT16 src_addr = m_dma.source_current & m_dma.source_mask;
+			UINT16 dest_addr = m_dma.dest_current & m_dma.dest_mask;
+			UINT8 dest_adj = (3 - (m_dma.dest_x_current & 3)) << 1;
+			UINT8 src_adj = (3 - (m_dma.source_x_current & 3)) << 1;
+
 			/* handle DMA for 1 pixel */
-			/* Read pixel data */
-			switch ( m_dma.source_x_current & 0x03 )
-			{
-			case 0x00: source_pixel = m_dma.source_bank[src_addr] >> 6; break;
-			case 0x01: source_pixel = ( m_dma.source_bank[src_addr] >> 4 ) & 3; break;
-			case 0x02: source_pixel = ( m_dma.source_bank[src_addr] >> 2 ) & 3; break;
-			case 0x03: source_pixel = m_dma.source_bank[src_addr] & 3;      break;
-			}
+			// Get new pixel
+			UINT8 source_pixel = (m_dma.source_bank[src_addr] >> src_adj) & 3;
 
-			if ( !m_dma.overwrite_mode && source_pixel == 0 )
+			// If overwrite mode, write new pixel
+			if ( m_dma.overwrite_mode || source_pixel)
 			{
-				switch ( m_dma.dest_x_current & 0x03 )
-				{
-				case 0x00: dest_pixel = m_dma.dest_bank[dest_addr] >> 6; break;
-				case 0x01: dest_pixel = ( m_dma.dest_bank[dest_addr] >> 4 ) & 3; break;
-				case 0x02: dest_pixel = ( m_dma.dest_bank[dest_addr] >> 2 ) & 3; break;
-				case 0x03: dest_pixel = m_dma.dest_bank[dest_addr] & 3;      break;
-				}
-				source_pixel = dest_pixel;
-			}
-
-			/* Translate pixel data using DMA palette. */
-			/* Not sure if this should be done before the compound stuff - WP */
-			source_pixel = m_dma.palette[ source_pixel ];
-			/* Write pixel data */
-			switch( m_dma.dest_x_current & 0x03 )
-			{
-			case 0x00:
-				m_dma.dest_bank[dest_addr] = ( m_dma.dest_bank[dest_addr] & 0x3F ) | ( source_pixel << 6 );
-				break;
-			case 0x01:
-				m_dma.dest_bank[dest_addr] = ( m_dma.dest_bank[dest_addr] & 0xCF ) | ( source_pixel << 4 );
-				break;
-			case 0x02:
-				m_dma.dest_bank[dest_addr] = ( m_dma.dest_bank[dest_addr] & 0xF3 ) | ( source_pixel << 2 );
-				break;
-			case 0x03:
-				m_dma.dest_bank[dest_addr] = ( m_dma.dest_bank[dest_addr] & 0xFC ) | source_pixel;
-				break;
+				// Get 4 pixels and remove the one about to be replaced
+				UINT8 other_pixels = m_dma.dest_bank[dest_addr] & ~(3 << dest_adj);
+				// Get palette of new pixel and place into the hole
+				m_dma.dest_bank[dest_addr] = other_pixels | (m_dma.palette[ source_pixel ] << dest_adj);
 			}
 
 			/* Advance a pixel */
@@ -589,7 +535,10 @@ WRITE8_MEMBER( gamecom_state::gamecom_handle_dma )
 		/* Advance a line */
 		m_dma.source_x_current = m_dma.source_x;
 		m_dma.dest_x_current = m_dma.dest_x;
-		m_dma.source_line += m_dma.source_width;
+		if ( m_dma.decrement_y )
+			m_dma.source_line -= m_dma.source_width;
+		else
+			m_dma.source_line += m_dma.source_width;
 		m_dma.source_current = m_dma.source_line;
 		m_dma.dest_line += m_dma.dest_width;
 		m_dma.dest_current = m_dma.dest_line;
@@ -600,17 +549,16 @@ WRITE8_MEMBER( gamecom_state::gamecom_handle_dma )
 
 WRITE8_MEMBER( gamecom_state::gamecom_update_timers )
 {
-	UINT8 * RAM = m_region_maincpu->base();
 	if ( m_timer[0].enabled )
 	{
 		m_timer[0].state_count += data;
 		while ( m_timer[0].state_count >= m_timer[0].state_limit )
 		{
 			m_timer[0].state_count -= m_timer[0].state_limit;
-			RAM[SM8521_TM0D]++;
-			if ( RAM[SM8521_TM0D] >= m_timer[0].check_value )
+			m_p_ram[SM8521_TM0D]++;
+			if ( m_p_ram[SM8521_TM0D] >= m_timer[0].check_value )
 			{
-				RAM[SM8521_TM0D] = 0;
+				m_p_ram[SM8521_TM0D] = 0;
 				m_maincpu->set_input_line(sm8500_cpu_device::TIM0_INT, ASSERT_LINE );
 			}
 		}
@@ -621,10 +569,10 @@ WRITE8_MEMBER( gamecom_state::gamecom_update_timers )
 		while ( m_timer[1].state_count >= m_timer[1].state_limit )
 		{
 			m_timer[1].state_count -= m_timer[1].state_limit;
-			RAM[SM8521_TM1D]++;
-			if ( RAM[SM8521_TM1D] >= m_timer[1].check_value )
+			m_p_ram[SM8521_TM1D]++;
+			if ( m_p_ram[SM8521_TM1D] >= m_timer[1].check_value )
 			{
-				RAM[SM8521_TM1D] = 0;
+				m_p_ram[SM8521_TM1D] = 0;
 				m_maincpu->set_input_line(sm8500_cpu_device::TIM1_INT, ASSERT_LINE );
 			}
 		}
@@ -637,94 +585,43 @@ DRIVER_INIT_MEMBER(gamecom_state,gamecom)
 	m_p_ram = m_region_maincpu->base(); // required here because pio_w gets called before machine_reset
 }
 
-DEVICE_IMAGE_LOAD_MEMBER( gamecom_state, gamecom_cart1 )
+int gamecom_state::common_load(device_image_interface &image, generic_slot_device *slot)
 {
-	UINT32 filesize;
+	UINT32 size = slot->common_get_size("rom");
 	UINT32 load_offset = 0;
 
-	m_cartridge1 = memregion("cart1")->base();
-
-	if (image.software_entry() == NULL)
-		filesize = image.length();
-	else
-		filesize = image.get_software_region_length("rom");
-
-	switch(filesize)
+	if (size != 0x008000 && size != 0x040000 && size != 0x080000
+			&& size != 0x100000 && size != 0x1c0000 && size != 0x200000)
 	{
-		case 0x008000: load_offset = 0;        break;  /* 32 KB */
-		case 0x040000: load_offset = 0;        break;  /* 256KB */
-		case 0x080000: load_offset = 0;        break;  /* 512KB */
-		case 0x100000: load_offset = 0;        break;  /* 1  MB */
-		case 0x1c0000: load_offset = 0x040000; break;  /* 1.8MB */
-		case 0x200000: load_offset = 0;        break;  /* 2  MB */
-		default:                                       /* otherwise */
-			logerror("Error loading cartridge: Invalid file size 0x%X\n", filesize);
-			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Unhandled cart size");
-			return IMAGE_INIT_FAIL;
+		image.seterror(IMAGE_ERROR_UNSPECIFIED, "Unsupported cartridge size");
+		return IMAGE_INIT_FAIL;
 	}
 
-	if (image.software_entry() == NULL)
-	{
-		if (image.fread( m_cartridge1 + load_offset, filesize) != filesize)
-		{
-			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Unable to load all of the cart");
-			return IMAGE_INIT_FAIL;
-		}
-	}
-	else
-		memcpy(m_cartridge1 + load_offset, image.get_software_region("rom"), filesize);
+	if (size == 0x1c0000)
+		load_offset = 0x40000;
 
-	if (filesize < 0x010000) { memcpy(m_cartridge1 + 0x008000, m_cartridge1, 0x008000); } /* ->64KB */
-	if (filesize < 0x020000) { memcpy(m_cartridge1 + 0x010000, m_cartridge1, 0x010000); } /* ->128KB */
-	if (filesize < 0x040000) { memcpy(m_cartridge1 + 0x020000, m_cartridge1, 0x020000); } /* ->256KB */
-	if (filesize < 0x080000) { memcpy(m_cartridge1 + 0x040000, m_cartridge1, 0x040000); } /* ->512KB */
-	if (filesize < 0x100000) { memcpy(m_cartridge1 + 0x080000, m_cartridge1, 0x080000); } /* ->1MB */
-	if (filesize < 0x1c0000) { memcpy(m_cartridge1 + 0x100000, m_cartridge1, 0x100000); } /* -> >=1.8MB */
+	// in order to simplify banked access from the driver, we always allocate 0x200000,
+	slot->rom_alloc(0x200000, GENERIC_ROM8_WIDTH, ENDIANNESS_LITTLE);
+	// we load what we have
+	slot->common_load_rom(slot->get_rom_base() + load_offset, size, "rom");
+	// and then we mirror the content, instead of masking out larger accesses
+	UINT8 *crt = slot->get_rom_base();
+	if (size < 0x010000) { memcpy(crt + 0x008000, crt, 0x008000); } /* ->64KB */
+	if (size < 0x020000) { memcpy(crt + 0x010000, crt, 0x010000); } /* ->128KB */
+	if (size < 0x040000) { memcpy(crt + 0x020000, crt, 0x020000); } /* ->256KB */
+	if (size < 0x080000) { memcpy(crt + 0x040000, crt, 0x040000); } /* ->512KB */
+	if (size < 0x100000) { memcpy(crt + 0x080000, crt, 0x080000); } /* ->1MB */
+	if (size < 0x1c0000) { memcpy(crt + 0x100000, crt, 0x100000); } /* -> >=1.8MB */
+
 	return IMAGE_INIT_PASS;
+}
+
+DEVICE_IMAGE_LOAD_MEMBER( gamecom_state, gamecom_cart1 )
+{
+	return common_load(image, m_cart1);
 }
 
 DEVICE_IMAGE_LOAD_MEMBER( gamecom_state, gamecom_cart2 )
 {
-	UINT32 filesize;
-	UINT32 load_offset = 0;
-
-	m_cartridge2 = memregion("cart2")->base();
-
-//  if (image.software_entry() == NULL)
-		filesize = image.length();
-//  else
-//      filesize = image.get_software_region_length("rom");
-
-	switch(filesize)
-	{
-		case 0x008000: load_offset = 0;        break;  /* 32 KB */
-		case 0x040000: load_offset = 0;        break;  /* 256KB */
-		case 0x080000: load_offset = 0;        break;  /* 512KB */
-		case 0x100000: load_offset = 0;        break;  /* 1  MB */
-		case 0x1c0000: load_offset = 0x040000; break;  /* 1.8MB */
-		case 0x200000: load_offset = 0;        break;  /* 2  MB */
-		default:                                       /* otherwise */
-			logerror("Error loading cartridge: Invalid file size 0x%X\n", filesize);
-			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Unhandled cart size");
-			return IMAGE_INIT_FAIL;
-	}
-
-//  if (image.software_entry() == NULL)
-	{
-		if (image.fread( m_cartridge2 + load_offset, filesize) != filesize)
-		{
-			image.seterror(IMAGE_ERROR_UNSPECIFIED, "Unable to load all of the cart");
-			return IMAGE_INIT_FAIL;
-		}
-	}
-//  else
-//      memcpy(state->m_cartridge2 + load_offset, image.get_software_region("rom"), filesize);
-
-	if (filesize < 0x010000) { memcpy(m_cartridge2 + 0x008000, m_cartridge2, 0x008000); } /* ->64KB */
-	if (filesize < 0x020000) { memcpy(m_cartridge2 + 0x010000, m_cartridge2, 0x010000); } /* ->128KB */
-	if (filesize < 0x040000) { memcpy(m_cartridge2 + 0x020000, m_cartridge2, 0x020000); } /* ->256KB */
-	if (filesize < 0x080000) { memcpy(m_cartridge2 + 0x040000, m_cartridge2, 0x040000); } /* ->512KB */
-	if (filesize < 0x100000) { memcpy(m_cartridge2 + 0x080000, m_cartridge2, 0x080000); } /* ->1MB */
-	if (filesize < 0x1c0000) { memcpy(m_cartridge2 + 0x100000, m_cartridge2, 0x100000); } /* -> >=1.8MB */
-	return IMAGE_INIT_PASS;
+	return common_load(image, m_cart2);
 }

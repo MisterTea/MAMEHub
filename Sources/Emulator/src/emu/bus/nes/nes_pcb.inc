@@ -37,6 +37,7 @@ static const nes_pcb pcb_list[] =
 	{ "tqrom",            STD_TQROM },
 	{ "txsrom",           STD_TXSROM },
 	{ "exrom",            STD_EXROM },
+	{ "disksys",          STD_DISKSYS },
 	{ "pal_zz",           PAL_ZZ },
 	{ "nes_qj",           NES_QJ },
 	{ "nes_event",        STD_EVENT },
@@ -311,6 +312,7 @@ static const nes_pcb pcb_list[] =
 	{ "unl_dance",        UNSUPPORTED_BOARD },
 	{ "bmc_hik_kof",      UNSUPPORTED_BOARD },
 	{ "onebus",           UNSUPPORTED_BOARD },
+	{ "coolboy",           UNSUPPORTED_BOARD },
 	{ "a9746",            UNSUPPORTED_BOARD },
 	{ "dance2k",          UNSUPPORTED_BOARD },
 	{ "pec586",           UNSUPPORTED_BOARD },
@@ -555,11 +557,11 @@ void nes_cart_slot_device::call_load_pcb()
 	logerror("-- PRG WRAM: %d\n",  prgram_size);
 
 	// SETUP steps 5/6: allocate pointers for PRG/VROM and load the data!
-	m_cart->prg_alloc(prg_size);
+	m_cart->prg_alloc(prg_size, tag());
 	memcpy(m_cart->get_prg_base(), get_software_region("prg"), prg_size);
 	if (vrom_size)
 	{
-		m_cart->vrom_alloc(vrom_size);
+		m_cart->vrom_alloc(vrom_size, tag());
 		memcpy(m_cart->get_vrom_base(), get_software_region("chr"), vrom_size);
 	}
 

@@ -9,7 +9,7 @@ extern const device_type KOF98_PROT = &device_creator<kof98_prot_device>;
 
 
 kof98_prot_device::kof98_prot_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, KOF98_PROT, "NeoGeo KOF98 Protection Device", tag, owner, clock, "kof98_prot", __FILE__)
+	: device_t(mconfig, KOF98_PROT, "NeoGeo Protection (KOF98)", tag, owner, clock, "kof98_prot", __FILE__)
 {
 }
 
@@ -104,7 +104,8 @@ READ16_MEMBER(kof98_prot_device::kof98_prot_r)
 	else
 		return m_default_rom[1];
 
-	return 0xffff;
+	// never executed
+	//return 0xffff;
 }
 
 WRITE16_MEMBER( kof98_prot_device::kof98_prot_w )

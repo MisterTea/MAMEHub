@@ -67,7 +67,9 @@ const device_type SNS_BSX_CART_SLOT = &device_creator<sns_bsx_cart_slot_device>;
 //-------------------------------------------------
 
 device_sns_cart_interface::device_sns_cart_interface(const machine_config &mconfig, device_t &device)
-	: device_slot_card_interface(mconfig, device)
+	: device_slot_card_interface(mconfig, device),
+		m_rom(NULL),
+		m_rom_size(0)
 {
 }
 
@@ -84,10 +86,15 @@ device_sns_cart_interface::~device_sns_cart_interface()
 //  rom_alloc - alloc the space for the cart
 //-------------------------------------------------
 
-void device_sns_cart_interface::rom_alloc(UINT32 size)
+void device_sns_cart_interface::rom_alloc(UINT32 size, const char *tag)
 {
 	if (m_rom == NULL)
-		m_rom.resize(size);
+	{
+		astring tempstring(tag);
+		tempstring.cat(SNSSLOT_ROM_REGION_TAG);
+		m_rom = device().machine().memory().region_alloc(tempstring, size, 1, ENDIANNESS_LITTLE)->base();
+		m_rom_size = size;
+	}
 }
 
 
@@ -97,11 +104,7 @@ void device_sns_cart_interface::rom_alloc(UINT32 size)
 
 void device_sns_cart_interface::nvram_alloc(UINT32 size)
 {
-	if (m_nvram == NULL)
-	{
-		m_nvram.resize(size);
-		device().save_item(NAME(m_nvram));
-	}
+	m_nvram.resize(size);
 }
 
 
@@ -114,11 +117,7 @@ void device_sns_cart_interface::nvram_alloc(UINT32 size)
 
 void device_sns_cart_interface::rtc_ram_alloc(UINT32 size)
 {
-	if (m_rtc_ram == NULL)
-	{
-		m_rtc_ram.resize(size);
-		device().save_item(NAME(m_rtc_ram));
-	}
+	m_rtc_ram.resize(size);
 }
 
 
@@ -129,8 +128,7 @@ void device_sns_cart_interface::rtc_ram_alloc(UINT32 size)
 
 void device_sns_cart_interface::addon_bios_alloc(UINT32 size)
 {
-	if (m_bios == NULL)
-		m_bios.resize(size);
+	m_bios.resize(size);
 }
 
 
@@ -622,7 +620,7 @@ bool base_sns_cart_slot_device::call_load()
 
 		len = (software_entry() == NULL) ? (length() - offset) : get_software_region_length("rom");
 
-		m_cart->rom_alloc(len);
+		m_cart->rom_alloc(len, tag());
 		ROM = m_cart->get_rom_base();
 		if (software_entry() == NULL)
 			fread(ROM, len);
@@ -661,7 +659,6 @@ bool base_sns_cart_slot_device::call_load()
 		// in carts with an add-on CPU having internal dump, this speeds up access to the internal rom
 		// by installing read_bank in address space and mapping m_bios there
 		m_cart->speedup_addon_bios_access();
-
 
 		setup_nvram();
 
@@ -1362,8 +1359,10 @@ void base_sns_cart_slot_device::internal_header_logging(UINT8 *ROM, UINT32 len)
 
 	logerror( "\tSize:          %d megabits [%d]\n", 1 << (ROM[hilo_mode + 0x17] - 7), ROM[hilo_mode + 0x17]);
 	logerror( "\tSRAM:          %d kilobits [%d]\n", ROM[hilo_mode + 0x18] * 8, ROM[hilo_mode + 0x18] );
-	assert(ROM[hilo_mode + 0x19] >= 0 && ROM[hilo_mode + 0x19] < ARRAY_LENGTH(countries));
-	logerror( "\tCountry:       %s [%d]\n", countries[ROM[hilo_mode + 0x19]], ROM[hilo_mode + 0x19]);
+	if (ROM[hilo_mode + 0x19] < ARRAY_LENGTH(countries))
+		logerror( "\tCountry:       %s [%d]\n", countries[ROM[hilo_mode + 0x19]], ROM[hilo_mode + 0x19]);
+	else
+		logerror( "\tCountry:       Unknown [%d]\n", ROM[hilo_mode + 0x19]);
 	logerror( "\tLicense:       %s [%X]\n", companies[ROM[hilo_mode + 0x1a]], ROM[hilo_mode + 0x1a]);
 	logerror( "\tVersion:       1.%d\n", ROM[hilo_mode + 0x1b]);
 	logerror( "\tInv Checksum:  %X %X\n", ROM[hilo_mode + 0x1d], ROM[hilo_mode + 0x1c]);

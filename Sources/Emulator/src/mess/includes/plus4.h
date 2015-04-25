@@ -10,7 +10,7 @@
 #include "bus/pet/cass.h"
 #include "bus/plus4/exp.h"
 #include "bus/plus4/user.h"
-#include "bus/vcs/ctrl.h"
+#include "bus/vcs_ctrl/ctrl.h"
 #include "cpu/m6502/m7501.h"
 #include "imagedev/snapquik.h"
 #include "machine/mos6529.h"
@@ -31,7 +31,7 @@
 #define SCREEN_TAG          "screen"
 #define CONTROL1_TAG        "joy1"
 #define CONTROL2_TAG        "joy2"
-#define PET_USER_PORT_TAG     "user"
+#define PET_USER_PORT_TAG   "user"
 
 class plus4_state : public driver_device
 {
@@ -71,7 +71,7 @@ public:
 	{ }
 
 	required_device<m7501_device> m_maincpu;
-	required_device<pls100_device> m_pla;
+	required_device<pla_device> m_pla;
 	required_device<mos7360_device> m_ted;
 	optional_device<mos6551_device> m_acia;
 	optional_device<mos6529_device> m_spi_user;

@@ -10,7 +10,7 @@
 
 *********************************************************************/
 
-#include "emu.h"
+#include "emu.h" // emu_fatalerror, fatalerror
 #include "formats/d64_dsk.h"
 
 d64_format::d64_format()
@@ -167,7 +167,7 @@ floppy_image_format_t::desc_e* d64_format::get_sector_desc(const format &f, int 
 	return desc;
 }
 
-void d64_format::build_sector_description(const format &f, UINT8 *sectdata, offs_t sect_offs, offs_t error_offs, desc_s *sectors, int sector_count) const
+void d64_format::build_sector_description(const format &f, UINT8 *sectdata, UINT32 sect_offs, UINT32 error_offs, desc_s *sectors, int sector_count) const
 {
 	for (int i = 0; i < sector_count; i++) {
 		sectors[i].data = sectdata + sect_offs;
@@ -673,7 +673,7 @@ static floperr_t d64_read_track(floppy_image_legacy *floppy, int head, int track
 		gcr_track_size = sectors_per_track * SECTOR_SIZE_GCR;
 		gcr_track_data = (UINT8 *)alloca(gcr_track_size);
 
-		if (buflen < gcr_track_size) { printf("D64 track buffer too small: %u!", (UINT32)buflen); exit(-1); }
+		if (buflen < gcr_track_size) { fatalerror("D64 track buffer too small: %u!\n", (UINT32)buflen); }
 
 		/* read D64 track data */
 		floppy_image_read(floppy, d64_track_data, track_offset, d64_track_size);

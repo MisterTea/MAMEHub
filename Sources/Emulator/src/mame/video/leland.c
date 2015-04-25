@@ -63,7 +63,6 @@ VIDEO_START_MEMBER(leland_state,leland)
 	/* scanline timer */
 	m_scanline_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(leland_state::scanline_callback),this));
 	m_scanline_timer->adjust(m_screen->time_until_pos(0));
-
 }
 
 VIDEO_START_MEMBER(leland_state,ataxx)
@@ -110,14 +109,16 @@ WRITE8_MEMBER(leland_state::leland_scroll_w)
 
 		default:
 			fatalerror("Unexpected leland_gfx_port_w\n");
-			break;
 	}
 }
 
 
 WRITE8_MEMBER(leland_state::leland_gfx_port_w)
 {
-	m_screen->update_partial(m_screen->vpos());
+	int scanline = m_screen->vpos();
+	if (scanline > 0)
+		m_screen->update_partial(scanline - 1);
+
 	m_gfxbank = data;
 }
 
@@ -382,8 +383,6 @@ READ8_MEMBER(leland_state::ataxx_svram_port_r)
 
 UINT32 leland_state::screen_update_leland(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int y;
-
 	const UINT8 *bg_prom = memregion("user1")->base();
 	const UINT8 *bg_gfx = memregion("gfx1")->base();
 	offs_t bg_gfx_bank_page_size = memregion("gfx1")->bytes() / 3;
@@ -391,16 +390,15 @@ UINT32 leland_state::screen_update_leland(screen_device &screen, bitmap_ind16 &b
 	offs_t prom_bank = ((m_gfxbank >> 3) & 0x01) * 0x2000;
 
 	/* for each scanline in the visible region */
-	for (y = cliprect.min_y; y <= cliprect.max_y; y++)
+	for (int y = cliprect.min_y; y <= cliprect.max_y; y++)
 	{
-		int x;
 		UINT8 fg_data = 0;
 
 		UINT16 *dst = &bitmap.pix16(y);
 		UINT8 *fg_src = &m_video_ram[y << 8];
 
 		/* for each pixel on the scanline */
-		for (x = 0; x < VIDEO_WIDTH; x++)
+		for (int x = 0; x < VIDEO_WIDTH; x++)
 		{
 			/* compute the effective scrolled pixel coordinates */
 			UINT16 sx = (x + m_xscroll) & 0x07ff;
@@ -434,7 +432,6 @@ UINT32 leland_state::screen_update_leland(screen_device &screen, bitmap_ind16 &b
 
 			*dst++ = pen;
 		}
-
 	}
 
 	return 0;
@@ -450,23 +447,20 @@ UINT32 leland_state::screen_update_leland(screen_device &screen, bitmap_ind16 &b
 
 UINT32 leland_state::screen_update_ataxx(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	int y;
-
 	const UINT8 *bg_gfx = memregion("gfx1")->base();
 	offs_t bg_gfx_bank_page_size = memregion("gfx1")->bytes() / 6;
 	offs_t bg_gfx_offs_mask = bg_gfx_bank_page_size - 1;
 
 	/* for each scanline in the visible region */
-	for (y = cliprect.min_y; y <= cliprect.max_y; y++)
+	for (int y = cliprect.min_y; y <= cliprect.max_y; y++)
 	{
-		int x;
 		UINT8 fg_data = 0;
 
 		UINT16 *dst = &bitmap.pix16(y);
 		UINT8 *fg_src = &m_video_ram[y << 8];
 
 		/* for each pixel on the scanline */
-		for (x = 0; x < VIDEO_WIDTH; x++)
+		for (int x = 0; x < VIDEO_WIDTH; x++)
 		{
 			/* compute the effective scrolled pixel coordinates */
 			UINT16 sx = (x + m_xscroll) & 0x07ff;

@@ -6,9 +6,11 @@ name                 year  CPU    board/rom numbers
 
 Robot Bowl           1977  6502   4020-4027, 4010-4013
 Circus               1977  6502   9000-9003, 9004-9011
-Rip Cord         May,1979  6502   RC30-0014 (cpu) 0015 (snd)
+Trapeze          Jun 1978  6502   unknown
+Football         Aug 1978  6502   unknown
+Rip Cord         May 1979  6502   RC30-0014 (cpu) 0015 (snd)
                                   9023-9026, 9027-9034, 9035
-Crash           July,1979  6502   CR30-3162 (cpu) 3161 (snd)  9036 (?)
+Crash           July 1979  6502   CR30-3162 (cpu) 3161 (snd)  9036 (?)
 
 ***************************************************************************
 
@@ -300,11 +302,13 @@ static MACHINE_CONFIG_START( circus, circus_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", circus_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(3)
+	MCFG_SAMPLES_NAMES(circus_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(circus)
+	MCFG_DISCRETE_INTF(circus)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -333,11 +337,13 @@ static MACHINE_CONFIG_START( robotbwl, circus_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", robotbwl_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(5)
+	MCFG_SAMPLES_NAMES(robotbwl_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(robotbwl)
+	MCFG_DISCRETE_INTF(robotbwl)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -373,11 +379,13 @@ static MACHINE_CONFIG_START( crash, circus_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", crash_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(crash_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(crash)
+	MCFG_DISCRETE_INTF(crash)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 
@@ -405,11 +413,13 @@ static MACHINE_CONFIG_START( ripcord, circus_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", ripcord_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(4)
+	MCFG_SAMPLES_NAMES(ripcord_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(circus)
+	MCFG_DISCRETE_INTF(circus)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 

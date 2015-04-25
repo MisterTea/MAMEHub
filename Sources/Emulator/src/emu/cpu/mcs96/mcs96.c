@@ -94,18 +94,13 @@ UINT32 mcs96_device::execute_input_lines() const
 	return 1;
 }
 
-UINT64 mcs96_device::get_cycle()
-{
-	return end_cycles == 0 || icount <= 0 ? machine().time().as_ticks(clock()) : end_cycles - icount;
-}
-
 void mcs96_device::recompute_bcount(UINT64 event_time)
 {
-	if(!event_time || event_time >= end_cycles) {
+	if(!event_time || event_time >= total_cycles() + icount) {
 		bcount = 0;
 		return;
 	}
-	bcount = end_cycles - event_time;
+	bcount = total_cycles() + icount - event_time;
 }
 
 void mcs96_device::check_irq()
@@ -115,27 +110,24 @@ void mcs96_device::check_irq()
 
 void mcs96_device::execute_run()
 {
-	UINT64 start_cycles = machine().time().as_ticks(clock());
-	end_cycles = start_cycles + icount;
+	internal_update(total_cycles());
 
-	internal_update(start_cycles);
-
-	if(/*inst_substate*/ 0)
-		do_exec_partial();
+	//  if(inst_substate)
+	//      do_exec_partial();
 
 	while(icount > 0) {
 		while(icount > bcount) {
 			int picount = inst_state >= 0x200 ? -1 : icount;
 			do_exec_full();
 			if(icount == picount) {
-				fprintf(stderr, "Unhandled %x (%04x)\n", inst_state, PPC);
-				exit(0);
+				fatalerror("Unhandled %x (%04x)\n", inst_state, PPC);
 			}
 		}
 		while(bcount && icount <= bcount)
-			internal_update(end_cycles - bcount);
+			internal_update(total_cycles() + icount - bcount);
+		//      if(inst_substate)
+		//          do_exec_partial();
 	}
-	end_cycles = 0;
 }
 
 void mcs96_device::execute_set_input(int inputnum, int state)

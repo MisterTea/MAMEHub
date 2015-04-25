@@ -129,7 +129,6 @@ void m6502_device::init()
 	inst_substate = 0;
 	inst_state_base = 0;
 	sync = false;
-	end_cycles = 0;
 	inhibit_interrupts = false;
 }
 
@@ -143,7 +142,6 @@ void m6502_device::device_reset()
 	apu_irq_state = false;
 	irq_taken = false;
 	v_state = false;
-	end_cycles = 0;
 	sync = false;
 	sync_w(CLEAR_LINE);
 	inhibit_interrupts = false;
@@ -400,18 +398,8 @@ UINT8 m6502_device::do_asr(UINT8 v)
 	return v;
 }
 
-UINT64 m6502_device::get_cycle()
-{
-	return end_cycles == 0 || icount <= 0 ? machine().time().as_ticks(clock()) : end_cycles - icount;
-}
-
 void m6502_device::execute_run()
 {
-	// get_cycle() is currently unused, and this precalculation
-	// enormously slows down drivers with high interleave
-#if 0
-	end_cycles = machine().time().as_ticks(clock()) + icount;
-#endif
 	if(inst_substate)
 		do_exec_partial();
 
@@ -424,7 +412,6 @@ void m6502_device::execute_run()
 		}
 		do_exec_full();
 	}
-	end_cycles = 0;
 }
 
 void m6502_device::execute_set_input(int inputnum, int state)
@@ -592,7 +579,7 @@ offs_t m6502_device::disassemble_generic(char *buffer, offs_t pc, const UINT8 *o
 		break;
 
 	case DASM_rw2:
-		sprintf(buffer, " $%04x", (pc & 0xf0000) | UINT16(pc + 3 + INT16((opram[2] << 8) | opram[1])));
+		sprintf(buffer, " $%04x", (pc & 0xf0000) | UINT16(pc + 2 + INT16((opram[2] << 8) | opram[1])));
 		flags |= 3;
 		break;
 

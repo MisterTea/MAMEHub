@@ -20,7 +20,7 @@
 	typelist.append(*global_alloc(input_type_entry(IPT_##_type, IPG_##_group, (_player == 0) ? _player : (_player) - 1, (_player == 0) ? #_type : ("P" #_player "_" #_type), _name, _seq, _decseq, _incseq)));
 
 /* These input port macros expand to a great deal of code and break compilers */
-#if defined(__GNUC__) && __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 4)
+#if defined(__GNUC__) && __GNUC__ > 4 || (__GNUC__ == 4 && __GNUC_MINOR__ >= 5) || (__GNUC__ == 4 && __GNUC_MINOR__ == 4 && __GNUC_PATCHLEVEL__ >= 4)
 #pragma GCC optimize ("O1")
 #endif
 #ifdef _MSC_VER
@@ -749,6 +749,8 @@ void construct_core_types_UI(simple_list<input_type_entry> &typelist)
 	INPUT_PORT_DIGITAL_TYPE( 0, UI,      UI_TOGGLE_DEBUG,     "Toggle Debugger",        input_seq(KEYCODE_F5) )
 	INPUT_PORT_DIGITAL_TYPE( 0, UI,      UI_SAVE_STATE,       "Save State",             input_seq(KEYCODE_F7, KEYCODE_LSHIFT) )
 	INPUT_PORT_DIGITAL_TYPE( 0, UI,      UI_LOAD_STATE,       "Load State",             input_seq(KEYCODE_F7, input_seq::not_code, KEYCODE_LSHIFT) )
+	INPUT_PORT_DIGITAL_TYPE( 0, UI,      UI_TAPE_START,       "UI (First) Tape Start",  input_seq(KEYCODE_F2, input_seq::not_code, KEYCODE_LSHIFT) )
+	INPUT_PORT_DIGITAL_TYPE( 0, UI,      UI_TAPE_STOP,        "UI (First) Tape Stop",   input_seq(KEYCODE_F2, KEYCODE_LSHIFT) )
 }
 
 void construct_core_types_OSD(simple_list<input_type_entry> &typelist)

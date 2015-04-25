@@ -104,7 +104,11 @@ const device_type NES_CART_SLOT = &device_creator<nes_cart_slot_device>;
 
 device_nes_cart_interface::device_nes_cart_interface(const machine_config &mconfig, device_t &device)
 						: device_slot_card_interface(mconfig, device),
+						m_prg(NULL),
+						m_vrom(NULL),
 						m_ciram(NULL),
+						m_prg_size(0),
+						m_vrom_size(0),
 						m_mapper_sram(NULL),
 						m_mapper_sram_size(0),
 						m_ce_mask(0),
@@ -140,11 +144,14 @@ device_nes_cart_interface::~device_nes_cart_interface()
 //  pointer allocators
 //-------------------------------------------------
 
-void device_nes_cart_interface::prg_alloc(size_t size)
+void device_nes_cart_interface::prg_alloc(size_t size, const char *tag)
 {
 	if (m_prg == NULL)
 	{
-		m_prg.resize(size);
+		astring tempstring(tag);
+		tempstring.cat(NESSLOT_PRGROM_REGION_TAG);
+		m_prg = device().machine().memory().region_alloc(tempstring, size, 1, ENDIANNESS_LITTLE)->base();
+		m_prg_size = size;
 		m_prg_chunks = size / 0x4000;
 		if (size % 0x2000)
 		{
@@ -206,34 +213,32 @@ void device_nes_cart_interface::prg_alloc(size_t size)
 	}
 }
 
-void device_nes_cart_interface::prgram_alloc(size_t size)
-{
-	if (m_prgram == NULL)
-		m_prgram.resize(size);
-}
-
-void device_nes_cart_interface::vrom_alloc(size_t size)
+void device_nes_cart_interface::vrom_alloc(size_t size, const char *tag)
 {
 	if (m_vrom == NULL)
 	{
-		m_vrom.resize(size);
+		astring tempstring(tag);
+		tempstring.cat(NESSLOT_CHRROM_REGION_TAG);
+		m_vrom = device().machine().memory().region_alloc(tempstring, size, 1, ENDIANNESS_LITTLE)->base();
+		m_vrom_size = size;
 		m_vrom_chunks = size / 0x2000;
 	}
 }
 
+void device_nes_cart_interface::prgram_alloc(size_t size)
+{
+	m_prgram.resize(size);
+}
+
 void device_nes_cart_interface::vram_alloc(size_t size)
 {
-	if (m_vram == NULL)
-	{
-		m_vram.resize(size);
-		m_vram_chunks = size / 0x2000;
-	}
+	m_vram.resize(size);
+	m_vram_chunks = size / 0x2000;
 }
 
 void device_nes_cart_interface::battery_alloc(size_t size)
 {
-	if (m_battery == NULL)
-		m_battery.resize(size);
+	m_battery.resize(size);
 }
 
 
@@ -663,21 +668,31 @@ WRITE8_MEMBER(device_nes_cart_interface::write_h)
 }
 
 
-void device_nes_cart_interface::pcb_start(running_machine &machine, UINT8 *ciram_ptr)
+void device_nes_cart_interface::pcb_start(running_machine &machine, UINT8 *ciram_ptr, bool cart_mounted)
 {
-	// Setup PRG
-	m_prg_bank_mem[0] = machine.root_device().membank("prg0");
-	m_prg_bank_mem[1] = machine.root_device().membank("prg1");
-	m_prg_bank_mem[2] = machine.root_device().membank("prg2");
-	m_prg_bank_mem[3] = machine.root_device().membank("prg3");
-	for (int i = 0; i < 4; i++)
+	// HACK: to reduce tagmap lookups for PPU-related IRQs, we add a hook to the
+	// main NES CPU here, even if it does not belong to this device.
+	m_maincpu = machine.device<cpu_device>("maincpu");
+
+	if (cart_mounted)       // disksys expansion can arrive here without the memory banks!
 	{
-		m_prg_bank_mem[i]->configure_entries(0, m_prg.count() / 0x2000, m_prg, 0x2000);
-		m_prg_bank_mem[i]->set_entry(i);
-		m_prg_bank[i] = i;
+		// Setup PRG
+		m_prg_bank_mem[0] = machine.root_device().membank("prg0");
+		m_prg_bank_mem[1] = machine.root_device().membank("prg1");
+		m_prg_bank_mem[2] = machine.root_device().membank("prg2");
+		m_prg_bank_mem[3] = machine.root_device().membank("prg3");
+		for (int i = 0; i < 4; i++)
+		{
+			if (m_prg_bank_mem[i])
+			{
+				m_prg_bank_mem[i]->configure_entries(0, m_prg_size / 0x2000, m_prg, 0x2000);
+				m_prg_bank_mem[i]->set_entry(i);
+				m_prg_bank[i] = i;
+			}
+		}
 	}
 
-	// Setup CHR
+	// Setup CHR (VRAM can be present also without PRG rom)
 	m_chr_source = m_vrom_chunks ? CHRROM : CHRRAM;
 	chr8(0, m_chr_source);
 
@@ -770,7 +785,7 @@ void nes_cart_slot_device::device_config_complete()
 void nes_cart_slot_device::pcb_start(UINT8 *ciram_ptr)
 {
 	if (m_cart)
-		m_cart->pcb_start(machine(), ciram_ptr);
+		m_cart->pcb_start(machine(), ciram_ptr, exists());
 }
 
 void nes_cart_slot_device::pcb_reset()
@@ -889,7 +904,7 @@ void nes_cart_slot_device::call_unload()
 
 bool nes_cart_slot_device::call_softlist_load(software_list_device &swlist, const char *swname, const rom_entry *start_entry)
 {
-	load_software_part_region(*this, swlist, swname, start_entry );
+	load_software_part_region(*this, swlist, swname, start_entry);
 	return TRUE;
 }
 

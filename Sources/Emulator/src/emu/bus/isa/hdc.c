@@ -121,11 +121,35 @@ ROM_START( hdc )
 	ROM_LOAD("wdbios.rom",  0x00000, 0x02000, CRC(8e9e2bd4) SHA1(601d7ceab282394ebab50763c267e915a6a2166a)) /* WDC IDE Superbios 2.0 (06/28/89) Expansion Rom C8000-C9FFF  */
 ROM_END
 
+static INPUT_PORTS_START( isa_hdc )
+	PORT_START("HDD")
+	PORT_BIT(     0xb0, 0xb0, IPT_UNUSED )
+	PORT_DIPNAME( 0x40, 0x40, "IRQ level")
+	PORT_DIPSETTING(    0x40, "5" )
+	PORT_DIPSETTING(    0x00, "2" )
+	PORT_DIPNAME( 0x0c, 0x0c, "Type of 1st drive")
+	PORT_DIPSETTING(    0x0c, "0" )
+	PORT_DIPSETTING(    0x08, "1" )
+	PORT_DIPSETTING(    0x04, "2" )
+	PORT_DIPSETTING(    0x00, "3" )
+	PORT_DIPNAME( 0x03, 0x03, "Type of 2nd drive")
+	PORT_DIPSETTING(    0x03, "0" )
+	PORT_DIPSETTING(    0x02, "1" )
+	PORT_DIPSETTING(    0x01, "2" )
+	PORT_DIPSETTING(    0x00, "3" )
+
+	PORT_START("ROM")
+	PORT_DIPNAME( 0x01, 0x01, "Install ROM?")
+	PORT_DIPSETTING(    0x01, DEF_STR(Yes) )
+	PORT_DIPSETTING(    0x00, DEF_STR(No) )
+INPUT_PORTS_END
+
 //**************************************************************************
 //  GLOBAL VARIABLES
 //**************************************************************************
 
 const device_type ISA8_HDC = &device_creator<isa8_hdc_device>;
+const device_type ISA8_HDC_EC1841 = &device_creator<isa8_hdc_ec1841_device>;
 
 //-------------------------------------------------
 //  machine_config_additions - device-specific
@@ -146,6 +170,15 @@ const rom_entry *isa8_hdc_device::device_rom_region() const
 	return ROM_NAME( hdc );
 }
 
+//-------------------------------------------------
+//  input_ports - device-specific input ports
+//-------------------------------------------------
+
+ioport_constructor isa8_hdc_device::device_input_ports() const
+{
+	return INPUT_PORTS_NAME( isa_hdc );
+}
+
 //**************************************************************************
 //  LIVE DEVICE
 //**************************************************************************
@@ -158,6 +191,19 @@ isa8_hdc_device::isa8_hdc_device(const machine_config &mconfig, const char *tag,
 		device_t(mconfig, ISA8_HDC, "Fixed Disk Controller Card", tag, owner, clock, "hdc", __FILE__),
 		device_isa8_card_interface(mconfig, *this)
 {
+	m_type = STANDARD;
+}
+
+isa8_hdc_device::isa8_hdc_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source) :
+		device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+		device_isa8_card_interface(mconfig, *this)
+{
+}
+
+isa8_hdc_ec1841_device::isa8_hdc_ec1841_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
+		isa8_hdc_device( mconfig, ISA8_HDC_EC1841, "EC1841 HDC", tag, owner, clock, "hdc_ec1841", __FILE__)
+{
+	m_type = EC1841;
 }
 
 //-------------------------------------------------
@@ -167,7 +213,6 @@ isa8_hdc_device::isa8_hdc_device(const machine_config &mconfig, const char *tag,
 void isa8_hdc_device::device_start()
 {
 	set_isa_device();
-	m_isa->install_rom(this, 0xc8000, 0xc9fff, 0, 0, "hdc", "hdc");
 	m_isa->install_device(0x0320, 0x0323, 0, 0, read8_delegate( FUNC(isa8_hdc_device::pc_hdc_r), this ), write8_delegate( FUNC(isa8_hdc_device::pc_hdc_w), this ) );
 	m_isa->set_dma_channel(3, this, FALSE);
 	buffer.resize(17*4*512);
@@ -203,8 +248,10 @@ void isa8_hdc_device::device_reset()
 	csb = 0;
 	status = 0;
 	error = 0;
-	dip = 0xff;
+	dip = ioport("HDD")->read();
 
+	if (ioport("ROM")->read() == 1)
+		m_isa->install_rom(this, 0xc8000, 0xc9fff, 0, 0, "hdc", "hdc");
 }
 
 hard_disk_file *isa8_hdc_device::pc_hdc_file(int id)
@@ -393,6 +440,26 @@ void isa8_hdc_device::pc_hdc_dack_w(int data)
 
 
 
+void isa8_hdc_device::pc_hdc_dack_ws(int data)
+{
+	*(hdcdma_dst++) = data;
+
+	if( --hdcdma_write == 0 )
+	{
+		hdcdma_write = 512;
+		hdcdma_size -= 512;
+		hdcdma_dst = hdcdma_data;
+	}
+
+	if (!no_dma())
+	{
+		m_isa->drq3_w(hdcdma_size ? 1 : 0);
+		if(!hdcdma_size) pc_hdc_result(1);
+	}
+}
+
+
+
 void isa8_hdc_device::execute_read()
 {
 	hard_disk_file *disk = NULL;
@@ -441,6 +508,28 @@ void isa8_hdc_device::execute_write()
 		do
 		{
 			pc_hdc_dack_w(buffer[data_cnt++]);
+		}
+		while (hdcdma_write || hdcdma_size);
+	}
+	else
+	{
+		m_isa->drq3_w(1);
+	}
+}
+
+
+
+void isa8_hdc_device::execute_writesbuff()
+{
+	hdcdma_dst = hdcdma_data;
+	hdcdma_write = 512;
+	hdcdma_size = 512;
+
+	if (no_dma())
+	{
+		do
+		{
+			pc_hdc_dack_ws(buffer[data_cnt++]);
 		}
 		while (hdcdma_write || hdcdma_size);
 	}
@@ -562,6 +651,15 @@ void isa8_hdc_device::hdc_command()
 				execute_write();
 			break;
 
+		case CMD_WRITESBUFF:
+			if (LOG_HDC_STATUS)
+			{
+				logerror("%s hdc write sector buffer\n", machine().describe_context());
+			}
+
+			execute_writesbuff();
+			break;
+
 		case CMD_SETPARAM:
 			get_chsn();
 			cylinders[drv] = ((buffer[6]&3)<<8) | buffer[7];
@@ -576,7 +674,6 @@ void isa8_hdc_device::hdc_command()
 			break;
 
 		case CMD_READSBUFF:
-		case CMD_WRITESBUFF:
 		case CMD_RAMDIAG:
 		case CMD_INTERNDIAG:
 			break;
@@ -666,7 +763,12 @@ void isa8_hdc_device::pc_hdc_data_w(int data)
 			logerror("hdc_data_w $%02x\n", data);
 
 		*buffer_ptr++ = data;
-		status |= STA_READY;
+		// XXX ec1841 wants this
+		if (buffer[0] == CMD_SETPARAM && data_cnt == 9 && (m_type == EC1841)) {
+			status &= ~STA_READY;
+		} else {
+			status |= STA_READY;
+		}
 		if (--data_cnt == 0)
 		{
 			if (LOG_HDC_STATUS)
@@ -675,8 +777,7 @@ void isa8_hdc_device::pc_hdc_data_w(int data)
 			status &= ~STA_COMMAND;
 			status &= ~STA_REQUEST;
 			status &= ~STA_READY;
-			status |= STA_INPUT;
-
+			status &= ~STA_INPUT;
 			timer->adjust(attotime::from_msec(1),0);
 		}
 	}
@@ -768,6 +869,9 @@ UINT8 isa8_hdc_device::pc_hdc_status_r()
 
 UINT8 isa8_hdc_device::pc_hdc_dipswitch_r()
 {
+	status |= STA_READY; // XXX
+	if (LOG_HDC_STATUS)
+		logerror("%s: pc_hdc_dipswitch_r: status $%02X\n", machine().describe_context(), status);
 	return dip;
 }
 
@@ -819,5 +923,8 @@ UINT8 isa8_hdc_device::dack_r(int line)
 
 void isa8_hdc_device::dack_w(int line,UINT8 data)
 {
-	pc_hdc_dack_w(data);
+	if (buffer[0] == CMD_WRITESBUFF)
+		pc_hdc_dack_ws(data);
+	else
+		pc_hdc_dack_w(data);
 }

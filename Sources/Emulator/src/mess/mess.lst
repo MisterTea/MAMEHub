@@ -54,14 +54,19 @@ lynx      // Atari Lynx Handheld
 jaguar  // Atari Jaguar
 jaguarcd  // Atari Jaguar CD
 
+//BancTec
+banctec // BancTec ESeries panel
+
 // Nintendo
 nes       // Nintendo Entertainment System
-nespal  // Nintendo Entertainment System PAL
+nespal    // Nintendo Entertainment System PAL
 m82       // Nintendo M82 Display Unit
-famicom   // Nintendo Family Computer (a.k.a. Famicom) + Disk System add-on
+famicom   // Nintendo Family Computer (a.k.a. Famicom)
+fds       // Nintendo Family Computer (a.k.a. Famicom) + Disk System add-on
 famitwin  // Sharp Famicom Twin System
 drpcjr    // Bung Doctor PC Jr
 dendy     // Dendy (Classic russian famiclone)
+gchinatv  // Golden China TV Game Centre (Chinese famiclone)
 gameboy   // Nintendo Game Boy Handheld
 supergb   // Nintendo Super Game Boy SNES Cartridge
 gbpocket  // Nintendo Game Boy Pocket Handheld
@@ -72,7 +77,6 @@ snespal   // Nintendo Super Nintendo PAL
 n64       // Nintendo N64
 n64dd     // Nintendo N64 (64DD Attachment)
 pokemini  // Nintendo Pokemon Mini
-gchinatv // Golden China TV Game Centre
 
 megaduck  // Megaduck
 
@@ -292,6 +296,7 @@ vectrex   // General Consumer Electric Vectrex - 1982-1984
 intv      // Mattel Intellivision - 1979 AKA INTV
 intv2     // Mattel Intellivision II- 1982?
 intvsrs   // Intellivision (Sears License) - 19??
+intvoice      // Mattel Intellivision + IntelliVoice expansion - 1982
 
 // Milton Bradley
 microvsn  // MicroVision - 1979
@@ -330,6 +335,9 @@ wscolor   // Bandai WonderSwan Color Handheld
 // EPOCH
 gamepock  // Epoch Game Pocket Computer
 
+// Bit Corp
+gamate   // Bit Corp Gamate
+
 // KOEI
 pasogo  // KOEI PasoGo
 
@@ -350,6 +358,7 @@ mu100r  // 1997 MU-100 Rackable version
 fb01    // 1986 FB-01
 
 // Roland
+tb303
 mt32
 cm32l
 d110
@@ -385,6 +394,10 @@ a3020     // 1988 Acorn Archimedes 3020
 a7000     // 1995 Acorn Archimedes 7000
 a7000p    // 1997 Acorn Archimedes 7000+
 a6809
+rpc600
+rpc700
+sarpc
+sarpc_j233
 
 // ACT
 apricot // 1983 ACT
@@ -456,12 +469,14 @@ apple2eeuk  // Mar 1985 Apple //e Enhanced (UK)
 apple2ep  // Jan 1987 Apple //e Platinum
 apple2c   // Apr 1984 Apple //c
 tk2000      // Microdigital TK2000
+tk3000      // Microdigital TK3000
 prav8c  // Pravetz 8C
 apple2c0  // ??? 1985 Apple //c (3.5 ROM)
 apple2c3  // Sep 1986 Apple //c (Original Mem. Exp.)
 apple2c4  // ??? 198? Apple //c (rev 4)
 apple2cp  // Sep 1988 Apple //c+
 apple2gsr0p // June 19, 1986 Apple IIgs ROM00 prototype
+apple2gsr0p2 // March 10, 1986 Apple IIgs ROM00 prototype
 apple2gsr0  // Sep 1986 Apple IIgs ROM00
 apple2gsr1  // Sep 1987 Apple IIgs ROM01
 apple2gs  // Aug 1989 Apple IIgs ROM03
@@ -472,7 +487,7 @@ apple3  // May 1980 Apple ///
 ace100  // ??? 1982 Franklin Ace 100
 laser128  // ??? 1987 Laser 128
 las128ex  // ??? 1988 Laser 128 EX
-las3000   // ??? 1983 Laser 3000
+las128e2  // ??? Laser 128 EX2
 ivelultr  // Ivasim Ivel Ultra
 agat7    // Agat-7
 agat9    // Agat-9
@@ -632,6 +647,7 @@ cbm8296ed
 cbm8296d
 cbm8296d_de
 cbm8296gd
+cbm8296dgv_de
 
 vic1001   // Commodore VIC-1001 (Japan)
 vic20    // Commodore VIC 20 (NTSC)
@@ -755,12 +771,15 @@ europc  // 1988 Schneider Euro PC (CGA or Hercules)
 compc1  // 1984 Commodore PC-1
 pc10iii // 1987 Commodore PC-10 III
 pc7000  // 1985 Sharp PC-7000
-pcd     // Siemens PC-D
 olypeopl // Olympia People PC
 sx16    // Sanyo SX-16
 mbc16   // Sanyo MBC-16
 ataripc3
 ssam88s
+
+// Non-PC msdos
+pcd     // Siemens PC-D
+slicer  // 1983 Slicer Computers
 
 // PC Junior
 ibmpcjr   // 1984 IBM PC Jr
@@ -801,6 +820,7 @@ olivm15
 asst128
 ec1840
 ec1841
+ec1842
 ec1845
 ec1847
 iskr1030m
@@ -1047,24 +1067,45 @@ avigo_fr     // 1997 Avigo (French)
 avigo_es     // 1997 Avigo (Spanish)
 avigo_it     // 1997 Avigo (Italian)
 
+// TI Speak & Spell
+snspell
+snspella
+snspelluk
+snspelluka
+snspelljp
+ladictee
+snmath
+snmathp
+lantutor
+
 // Texas Instruments Calculators
+tisr16    // 1974 SR-16
+ti1270
+ti30      // 1976 TI-30
+tiprog
+tibusan1
+wizatron
+lilprof
+lilprof78
 ti73      // 1990 TI-73
-ti74      // 1986 TI-74
+ti74      // 1985 TI-74
+ti95      // 1986 TI-95
 ti81      // 1990 TI-81 (Z80 2 MHz)
-ti81v2  // 1990 TI-81 (Z80 2 MHz)
+ti81v2    // 1990 TI-81 (Z80 2 MHz)
 ti85      // 1992 TI-85 (Z80 6 MHz)
 ti82      // 1993 TI-82 (Z80 6 MHz)
 ti83      // 1996 TI-83 (Z80 6 MHz)
 ti86      // 1997 TI-86 (Z80 6 MHz)
-ti83p    // 1999 TI-83 Plus (Z80 6 MHz)
+ti83p     // 1999 TI-83 Plus (Z80 6 MHz)
 ti83pse   // 2001 TI-83 Plus Silver Edition
-//ti84p  // 2004 TI-84 Plus
+ti84p     // 2004 TI-84 Plus
 ti84pse   // 2004 TI-84 Plus Silver Edition
+//ti84cse // 2013 TI-84 Plus C Silver Edition (color screen)
 ti89      // 1998 TI-89
 ti92      // 1995 TI-92
-ti92p    // 1999 TI-92 Plus
+ti92p     // 1999 TI-92 Plus
 v200      // 2002 Voyage 200 PLT
-ti89t    // 2004 TI-89 Titanium
+ti89t     // 2004 TI-89 Titanium
 evmbug
 
 // Exelvision (founded by former TI employees)
@@ -1113,6 +1154,7 @@ pc9801bx2 // 1993
 
 pc9821
 pc9821as
+pc9821ap2
 pc9821ce2
 pc9821ne
 pc9821v13
@@ -1172,8 +1214,8 @@ mbeepc85s   // Microbee 32 PC85 (Swedish)
 mbeeppc // Microbee 32 PPC85
 mbeett  // Microbee Teleterm
 mbee56  // Microbee 56K (CP/M)
-mbee64  // Microbee 64K (CP/M)
-mbee128 // Microbee 128K (CP/M)
+mbee128 // Microbee 128K standard (CP/M)
+mbee128p // Microbee 128K premium (CP/M)
 mbee256 // Microbee 256TC (CP/M)
 
 // Tandy / Radio Shack
@@ -1203,6 +1245,7 @@ coco2b  // Color Computer 2B (uses M6847T1 video chip)
 coco3    // Color Computer 3 (NTSC)
 coco3p  // Color Computer 3 (PAL)
 coco3h  // Hacked Color Computer 3 (6309)
+coco3dw1  // Coco 3 with HDB-DOS
 dragon32  // Dragon 32
 dragon64  // Dragon 64
 dragon200 // Dragon 200
@@ -1261,6 +1304,7 @@ bs9009cx  // 1999 BrainStation 9009 CXL (Germany)
 iq128_fr // 1997 Genius PC (France)
 iq128    // 1997 Genius IQ 128 (Germany)
 iqtv512 // IQ TV512 (Germany)
+pc1000 // 1988 PreComputer 1000
 misterx // 1988 (Yeno) MisterX
 pc2000 // 1993 PreComputer 2000
 gl2000 // 1993 Genius Leader 2000
@@ -1279,10 +1323,25 @@ gl5005x // Genius Leader 5005X (Germany)
 gmtt     // 1998 Genius Master Table Top (Germany)
 gbs5505x // 2001 Genius BrainStation 5505X (Germany)
 prestige // PreComputer Prestige Elite
+gwnf     // Genius Winner Notebook Fun (Germany)
 gl6000sl // Genius Leader 6000SL (Germany)
 gl7007sl // Genius Leader 7007SL (Germany)
 glcolor  // Genius Leader Color (Germany)
+glmcolor // Genius Leader Magic Color (Germany)
+glscolor // Genius Leader Super Color (Germany)
+gjrstar3 // Genius Junior Redstar 3 (Germany)
+gj4000   // Genius Junior 4000 (Germany)
+gjmovie  // Genius Junior Movie (Germany)
+gjrstar  // Genius Junior Redstar(Germany)
+gjrstar2 // Genius Junior Redstar 2 (Germany)
+gj5000   // Genius Junior 5000 (Germany)
+gl6600cx // Genius Leader 6600CX (Germany)
+glpn     // Genius Leader Power Notebook (Germany)
+lexipcm  // LexiPC Mega 2000 (Germany)
 pitagjr  // Pitagorin Junior
+
+// Other Video Technology Laser machines
+las3000   // 1983 Laser 3000
 
 
 // Tangerine
@@ -1314,22 +1373,51 @@ c1p
 c1pmf
 
 // ASCII & Microsoft
-msx    // 1983 MSX
+// MSX1
+ax150
 ax170
+canonv8
 canonv10
 canonv20
+canonv20e
+canonv20f
+canonv20g
+canonv20s
+mx10
+mx101
+mx15
+pv7
 pv16
+cpc88
 dpc100  // 1984 MSX Korea
 dpc180  // 1984 MSX Korea
 dpc200  // 1984 MSX Korea
+dpc200e
+cpc50a
+cpc50b
+cpc51
+fdpc200
+fpc500
+fspc800
+bruc100
+fmx
+gsfc80u
 gsfc200
+gfc1080
+gfc1080a
 expert10  // 1983 MSX Brazil
 expert11  // 1984 MSX Brazil
 expert13  // 1984 MSX Brazil
 expertdp  // 1985 MSX Brazil
 expertpl  // 1984 MSX Brazil
+mbh2
+mbh25
+mbh50
 jvchc7gb
+mlf48
 mlf80
+mlf110
+mlf120
 mlfx1
 cf1200  // 1984 MSX Japan
 cf2000  // 1983 MSX Japan
@@ -1338,9 +1426,11 @@ cf3000  // 1984 MSX Japan
 cf3300  // 1985 MSX Japan
 fs1300  // 1985 MSX Japan
 fs4000  // 1985 MSX Japan
+fs4000a
 phc2
 phc28
 cf2700g
+perfect1
 nms801
 vg8000
 vg8010
@@ -1349,9 +1439,13 @@ vg802000
 vg802020  // 1985 MSX
 vg8020f
 piopx7
+piopx7uk
+piopxv60
 spc800
 mpc64
 mpc100
+mpc200
+mpc200sp
 phc28l
 phc28s
 mpc10
@@ -1360,24 +1454,46 @@ hotbit12  // 1985 MSX Brazil
 hotbi13b  // 1985 MSX Brazil
 hotbi13p  // 1985 MSX Brazil
 hotbit20  // 1986 MSX2 Brazil
+hb10
 hb10p
 hb20p
 hb201    // 1985 MSX Japan
 hb201p  // 1985 MSX
 hb501p  // 1984 MSX
+hb55
 hb55d    // 1983 MSX Germany
 hb55p    // 1983 MSX
 hb75d    // 1983 MSX Germany
 hb75p    // 1983 MSX
+hb101p
+hb701fd
 svi728  // 1985 MSX
 svi738  // 1985 MSX
+svi738ar
+svi738dk
 svi738sw  // 1985 MSX
 svi738pl  // 1985 MSX
+svi738sp
 tadpc200
 tadpc20a
 hx10      // 1984 MSX
+hx10d
+hx10dp
+hx10e
+hx10f
 hx10s    // 1984 MSX
+hx10sa
 hx20      // 1984 MSX
+hx20i
+hx21
+hx21i
+hx22
+hx22i
+hc5
+hc6
+hc7
+cx5f1
+cx5f
 cx5m
 cx5m128
 cx5m2
@@ -1390,15 +1506,19 @@ y503iir2
 yis503m
 yc64
 mx64
-bruc100
-
-
-msx2      // 1985 MSX2
+// MSX2
 ax350
 ax370
+canonv25
+canonv30
+canonv30f
+fpc900
+mbh70
+kmc5000
 hbf9p    // 1985 MSX2
 hbf9pr
 hbf9s    // 1985 MSX2
+hbf500f
 hbf500p   // 1985 MSX2
 hbf700d   // 1985 MSX2 Germany
 hbf700f   // 1985 MSX2
@@ -1416,17 +1536,40 @@ vg8240 // 1986 MSX2
 nms8245   // 1986 MSX2
 nms8245f   // 1986 MSX2
 nms8250   // 1986 MSX2
+nms8250f
 nms8250j
 nms8255   // 1986 MSX2
+nms8255f
+nms8260
 nms8280   // 1986 MSX2
+nms8280f
 nms8280g   // 1986 MSX2
+mpc27
+phc55fd2
+phc77
 tpc310   // 1986 MSX2
 tpp311
 tps312
 hx23       // 1986 MSX2
 hx23f   // 1986 MSX2
+hx23i
+hx33
+hx34
+hx34i
+fstm1
 cx7m       // 1986 MSX2
 cx7m128 // 1986 MSX2
+y503iiir
+y503iiire
+yis60464
+yis604
+y805128
+y805128r2
+y805128r2e
+y805256
+mlg1
+mlg3
+mlg10
 mlg30
 fs5500f1  // 1985 MSX2 Japan
 fs5500f2  // 1985 MSX2 Japan
@@ -1448,15 +1591,21 @@ hbf12    // 1987 MSX2 Japan
 hbf1xd  // 1987 MSX2 Japan
 hbf1xdm2  // 1988 MSX2 Japan
 mpc2300
+mpc2500f
 mpc25fd
 phc23    // 1986 MSX2 Japan
 cpc300  // 1986 MSX2 Korea
 cpc300e   // 1986 MSX2 Korea
+cpc330k
 cpc400  // 1986 MSX2 Korea
 cpc400s   // 1986 MSX2 Korea
+cpc61
+cpg120
 expert20 // 1986 MSX2 Korea
-
-msx2p    // 1988 MSX2+ Japan
+victhc90
+victhc95
+victhc95a
+// MSX2+
 expert3i
 expert3t
 expertac
@@ -1471,7 +1620,7 @@ phc70fd   // 1988 MSX2+ Japan
 phc70fd2  // 1988 MSX2+ Japan
 phc35j  // 1989 MSX2+ Japan
 hbf9sp
-
+// MSX Turbo-R
 fsa1gt
 fsa1st
 
@@ -1490,7 +1639,7 @@ pdp1      // 1961 DEC PDP1
 vt100 // 1978 Digital Equipment Corporation
 //vt100wp // 1978 Digital Equipment Corporation
 //vt100stp // 1978 Digital Equipment Corporation
-//vt101 // 1981 Digital Equipment Corporation
+vt101 // 1981 Digital Equipment Corporation
 vt102 // 1981 Digital Equipment Corporation
 //vt103 // 1979 Digital Equipment Corporation
 vt105 // 1978 Digital Equipment Corporation
@@ -1508,13 +1657,14 @@ vt320 // 1987 Digital Equipment Corporation
 vt520 // 1994 Digital Equipment Corporation
 //vt525
 vk100 // 1980 Digital Equipment Corporation
-dectalk // 1982 Digital Equipment Corporation
-//vt240
+dectalk // 1983 Digital Equipment Corporation
+//vt240 // 1983 Digital Equipment Corporation
 //vt241
 mc7105 // Elektronika MC7105
 rainbow100a  // 1982 DEC Rainbow 100-A
 rainbow     // 1983 DEC Rainbow 100-B
 rainbow190  // 1985 DEC Rainbow 190
+//dtc03 // 1985 Digital Equipment Corporation
 
 // Memotech
 mtx512  // 1983 Memotech MTX 512
@@ -1524,7 +1674,7 @@ rs128    // 1984 Memotech RS 128
 // Mattel
 intvkbd   // 1981 - Mattel Intellivision Keyboard Component
 // (Test marketed, later recalled)
-intvecs   // 1983 - Mattel Intellivision ECS
+intvecs   // 1983 - Mattel Intellivision w/ECS and IntelliVoice expansions
 aquarius  // 1983 Aquarius
 //aquariu2  // 1984 Aquarius II
 juicebox
@@ -1581,6 +1731,9 @@ hp48gx  // HP 48GX
 hp48gp  // HP 48G+
 hp49g
 hp49gp  // HP 49G+
+hp1650b
+hp1651b
+hp165ka0
 hp16500b
 hp9816
 hp9845a
@@ -1590,6 +1743,13 @@ hp9835b
 hp9845b
 hp9845t
 hp9845c
+hp9k310
+hp9k320
+hp9k330
+hp9k340
+hp9k370
+hp9k380
+hp9k382
 
 // SpectraVideo
 svi318  // SVI-318 (PAL)
@@ -1940,6 +2100,8 @@ swtpc09i  // S09, DC4 Floppy + PIA IDE SBUG rom - FLEX
 swtpc09u  // S09, DMF2 Floppy UNIBUG rom - UniFLEX
 swtpc09d3 // S09, DMF3 Floppy UNIBUG U3 rom - UniFLEX U3
 
+// Intel
+imds2 // Intellec MDS series-II
 
 //***************Games******************************************************
 // Computer Electronic
@@ -1957,7 +2119,6 @@ sexpertb // 1988 Novag Expert B Chess Computer
 sfortec  // 1989 Novag Super Forte C Chess Computer
 sexpertc // 1989 Novag Super Expert C Chess Computer
 diablo68 // 1991 Novag Diablo 68000 Chess Computer
-
 
 // Hegener & Glaser Munich
 //mephisto  // Mephisto 1 - roms needed - not in driver
@@ -2011,10 +2172,68 @@ fanucspg    // 1983
 fanucspgm   // 1983
 fanucs15    // 1990
 
+// Convergent
+ngen        // 1983
+ngenb38     // 1991
+386i        // 199?
+
+// Dedicated handhelds/tabletops
+bambball    // Bambino
+packmon     // Bandai
+zackman     // Bandai
+alnattck    // Coleco
+cdkong      // Coleco
+cgalaxn     // Coleco
+cpacman     // Coleco
+cpacmanr1   //
+cmspacmn    // Coleco
+egalaxn2    // Entex
+epacman2    // Entex
+pbqbert     // Parker Brothers
+kingman     // Tomy
+tmtron      // Tomy
+
+maniac      // Ideal
+
+mathmagi    // APF
+amaztron    // Coleco
+tc4         // Coleco
+ebball      // Entex
+ebball2     // Entex
+ebball3     // Entex
+elecdet     // Ideal
+starwbc     // Kenner
+starwbcp    // Kenner (prototype)
+comp4       // Milton Bradley
+simon       // Milton Bradley
+//ssimon      // Milton Bradley
+cnsector    // Parker Bros
+merlin      // Parker Bros
+stopthie    // Parker Bros
+stopthiep   // Parker Bros (prototype)
+bankshot    // Parker Bros
+splitsec    // Parker Bros
+tandy12     // Tandy Radio Shack
+
+elecbowl    // Marx
+mbdtower    // Milton Bradley
+
+ssfball     // Bambino
+splasfgt    // Bambino
+astrocmd    // Epoch
+edracula    // Epoch
+tmpacman    // Tomy
+tmtennis    // Tomy
+alnchase    // Tomy
+
+wildfire    // Parker Bros
+
+
 //********** Misc **********************************************************
 
 ssem // Manchester Small-Scale Experimental Machine, "Baby"
 craft // Craft, by [lft]
+
 
 //********** To sort (mostly skeleton drivers) *****************************
 
@@ -2103,7 +2322,6 @@ swyft
 mmd1
 mmd2
 mpf1p
-stopthie
 amico2k
 jtc
 jtces88
@@ -2195,6 +2413,7 @@ scv
 scv_pal
 vii // Chintendo / KenSingTon / Jungle Soft / Siatronics Vii
 vsmile
+vsmilef
 walle
 zsbc3
 dms5000
@@ -2216,6 +2435,7 @@ dm500
 cgc7900
 hr16
 hr16b
+mmt8
 sr16
 vidbrain
 cd2650
@@ -2292,6 +2512,7 @@ okean240
 okean240a
 okean240t
 vixen
+pt68k2
 pt68k4
 jupiter2
 jupiter3
@@ -2309,6 +2530,7 @@ terak
 ti630
 sacstate
 prose2k
+prose2ko
 eacc
 argo
 applix
@@ -2357,10 +2579,10 @@ itt3030
 vax785
 ms0515
 ie15
+dvk_ksm
 asmapro
 asma2k
 altos5
-merlin
 ts802
 ts802h
 ts803h
@@ -2424,3 +2646,9 @@ alto2
 gimix
 tecnbras
 minicom
+gameking
+leapster
+leapstertv
+excali64
+bitgrpha
+bitgrphb

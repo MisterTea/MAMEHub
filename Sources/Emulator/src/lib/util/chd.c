@@ -8,6 +8,8 @@
 
 ***************************************************************************/
 
+#include <assert.h>
+
 #include "chd.h"
 #include "avhuff.h"
 #include "hashing.h"
@@ -19,6 +21,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 #include <new>
+#include "eminline.h"
 
 
 //**************************************************************************
@@ -451,6 +454,9 @@ chd_error chd_file::hunk_info(UINT32 hunknum, chd_codec_type &compressor, UINT32
 					compressor = CHD_CODEC_PARENT;
 					compbytes = 0;
 					break;
+
+				default:
+					return CHDERR_UNKNOWN_COMPRESSION;
 			}
 			break;
 	}
@@ -2418,7 +2424,7 @@ chd_error chd_file_compressor::compress_continue(double &progress, double &ratio
 
 		// queue the next read
 		for (curitem = startitem; curitem < enditem; curitem++)
-			m_work_item[curitem % WORK_BUFFER_HUNKS].m_status = WS_READING;
+			atomic_exchange32(&m_work_item[curitem % WORK_BUFFER_HUNKS].m_status, WS_READING);
 		osd_work_item_queue(m_read_queue, async_read_static, this, WORK_ITEM_FLAG_AUTO_RELEASE);
 		m_read_queue_offset += WORK_BUFFER_HUNKS * hunk_bytes() / 2;
 	}
@@ -2489,7 +2495,7 @@ chd_error chd_file_compressor::compress_continue(double &progress, double &ratio
 		} while (0);
 
 		// reset the item and advance
-		item.m_status = WS_READY;
+		atomic_exchange32(&item.m_status, WS_READY);
 		m_write_hunk++;
 
 		// if we hit the end, finalize
@@ -2502,7 +2508,7 @@ chd_error chd_file_compressor::compress_continue(double &progress, double &ratio
 				m_read_queue_offset = m_read_done_offset = 0;
 				m_write_hunk = 0;
 				for (int itemnum = 0; itemnum < WORK_BUFFER_HUNKS; itemnum++)
-					m_work_item[itemnum].m_status = WS_READY;
+					atomic_exchange32(&m_work_item[itemnum].m_status, WS_READY);
 			}
 
 			// wait for all reads to finish and if we're compressed, write the final SHA1 and map
@@ -2555,7 +2561,7 @@ void chd_file_compressor::async_walk_parent(work_item &item)
 		item.m_hash[unit].m_crc16 = crc16_creator::simple(item.m_data + unit * unit_bytes(), hunk_bytes());
 		item.m_hash[unit].m_sha1 = sha1_creator::simple(item.m_data + unit * unit_bytes(), hunk_bytes());
 	}
-	item.m_status = WS_COMPLETE;
+	atomic_exchange32(&item.m_status, WS_COMPLETE);
 }
 
 
@@ -2583,12 +2589,13 @@ void chd_file_compressor::async_compress_hunk(work_item &item, int threadid)
 
 	// find the best compression scheme, unless we already have a self or parent match
 	// (note we may miss a self match from blocks not yet added, but this just results in extra work)
+	// TODO: data race
 	if (m_current_map.find(item.m_hash[0].m_crc16, item.m_hash[0].m_sha1) == hashmap::NOT_FOUND &&
 		m_parent_map.find(item.m_hash[0].m_crc16, item.m_hash[0].m_sha1) == hashmap::NOT_FOUND)
 		item.m_compression = item.m_codecs->find_best_compressor(item.m_data, item.m_compressed, item.m_complen);
 
 	// mark us complete
-	item.m_status = WS_COMPLETE;
+	atomic_exchange32(&item.m_status, WS_COMPLETE);
 }
 
 
@@ -2644,7 +2651,7 @@ void chd_file_compressor::async_read()
 			UINT32 hunknum = curoffs / hunk_bytes();
 			work_item &item = m_work_item[hunknum % WORK_BUFFER_HUNKS];
 			assert(item.m_status == WS_READING);
-			item.m_status = WS_QUEUED;
+			atomic_exchange32(&item.m_status, WS_QUEUED);
 			item.m_hunknum = hunknum;
 			item.m_osd = osd_work_item_queue(m_work_queue, m_walking_parent ? async_walk_parent_static : async_compress_hunk_static, &item, 0);
 		}
@@ -2659,6 +2666,11 @@ void chd_file_compressor::async_read()
 
 		// advance the read pointer
 		m_read_done_offset += numbytes;
+	}
+	catch (chd_error& err)
+	{
+		fprintf(stderr, "CHD error occured: %s\n", chd_file::error_string(err));
+		m_read_error = true;
 	}
 	catch (std::exception& ex)
 	{

@@ -9,11 +9,13 @@
 
 #include "emu.h"
 #include "cpu/z80/z80.h"
-#include "imagedev/cartslot.h"
+#include "video/tea1002.h"
 #include "imagedev/cassette.h"
 #include "machine/ram.h"
 #include "sound/ay8910.h"
 #include "sound/speaker.h"
+#include "bus/generic/slot.h"
+#include "bus/generic/carts.h"
 
 class aquarius_state : public driver_device
 {
@@ -23,8 +25,8 @@ public:
 			m_maincpu(*this, "maincpu"),
 			m_cassette(*this, "cassette"),
 			m_speaker(*this, "speaker"),
+			m_cart(*this, "cartslot"),
 			m_ram(*this, RAM_TAG),
-			m_rom(*this, "maincpu"),
 			m_videoram(*this, "videoram"),
 			m_colorram(*this, "colorram"),
 			m_y0(*this, "Y0"),
@@ -37,14 +39,15 @@ public:
 			m_y7(*this, "Y7"),
 			m_gfxdecode(*this, "gfxdecode"),
 			m_screen(*this, "screen"),
+			m_tea1002(*this, "encoder"),
 			m_palette(*this, "palette")
 	{ }
 
 	required_device<cpu_device> m_maincpu;
 	required_device<cassette_image_device> m_cassette;
 	required_device<speaker_sound_device> m_speaker;
+	required_device<generic_slot_device> m_cart;
 	required_device<ram_device> m_ram;
-	required_memory_region m_rom;
 	required_shared_ptr<UINT8> m_videoram;
 	required_shared_ptr<UINT8> m_colorram;
 	required_ioport m_y0;
@@ -57,6 +60,7 @@ public:
 	required_ioport m_y7;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<screen_device> m_screen;
+	required_device<tea1002_device> m_tea1002;
 	required_device<palette_device> m_palette;
 
 	UINT8 m_scrambler;

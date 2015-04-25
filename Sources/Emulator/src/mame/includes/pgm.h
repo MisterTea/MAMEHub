@@ -411,6 +411,7 @@ public:
 	DECLARE_DRIVER_INIT(dw2v100x);
 	DECLARE_DRIVER_INIT(drgw2c);
 	DECLARE_DRIVER_INIT(drgw2j);
+	DECLARE_DRIVER_INIT(drgw2hk);
 
 	DECLARE_MACHINE_RESET(drgw2);
 
@@ -471,6 +472,7 @@ ADDRESS_MAP_EXTERN( pgm_base_mem, 16 );
 
 
 INPUT_PORTS_EXTERN( orlegend );
+INPUT_PORTS_EXTERN( orlegendt );
 INPUT_PORTS_EXTERN( orld105k );
 
 MACHINE_CONFIG_EXTERN( pgm_asic3 );
@@ -511,6 +513,7 @@ MACHINE_CONFIG_EXTERN( pgm_arm_type3 );
 INPUT_PORTS_EXTERN(theglad);
 INPUT_PORTS_EXTERN(happy6);
 INPUT_PORTS_EXTERN(svg);
+INPUT_PORTS_EXTERN(svgtw);
 
 /*----------- defined in machine/pgmprot4.c -----------*/
 

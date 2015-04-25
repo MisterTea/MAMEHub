@@ -221,7 +221,7 @@ READ8_MEMBER(altos5_state::memory_read_byte)
 WRITE8_MEMBER(altos5_state::memory_write_byte)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
-	return prog_space.write_byte(offset, data);
+	prog_space.write_byte(offset, data);
 }
 
 READ8_MEMBER(altos5_state::io_read_byte)
@@ -233,7 +233,7 @@ READ8_MEMBER(altos5_state::io_read_byte)
 WRITE8_MEMBER(altos5_state::io_write_byte)
 {
 	address_space& prog_space = m_maincpu->space(AS_IO);
-	return prog_space.write_byte(offset, data);
+	prog_space.write_byte(offset, data);
 }
 
 WRITE_LINE_MEMBER( altos5_state::busreq_w )
@@ -327,7 +327,7 @@ WRITE8_MEMBER( altos5_state::port09_w )
 }
 
 static SLOT_INTERFACE_START( altos5_floppies )
-	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
+	SLOT_INTERFACE( "525qd", FLOPPY_525_QD )
 SLOT_INTERFACE_END
 
 WRITE_LINE_MEMBER( altos5_state::fdc_intrq_w )
@@ -433,8 +433,10 @@ static MACHINE_CONFIG_START( altos5, altos5_state )
 	MCFG_FD1797x_ADD("fdc", XTAL_8MHz / 8)
 	MCFG_WD_FDC_INTRQ_CALLBACK(WRITELINE(altos5_state, fdc_intrq_w))
 	MCFG_WD_FDC_DRQ_CALLBACK(DEVWRITELINE("z80dma", z80dma_device, rdy_w))
-	MCFG_FLOPPY_DRIVE_ADD("fdc:0", altos5_floppies, "525dd", floppy_image_device::default_floppy_formats)
-	MCFG_FLOPPY_DRIVE_ADD("fdc:1", altos5_floppies, "525dd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:0", altos5_floppies, "525qd", floppy_image_device::default_floppy_formats)
+	MCFG_FLOPPY_DRIVE_ADD("fdc:1", altos5_floppies, "525qd", floppy_image_device::default_floppy_formats)
+
+	MCFG_SOFTWARE_LIST_ADD("flop_list", "altos5")
 MACHINE_CONFIG_END
 
 

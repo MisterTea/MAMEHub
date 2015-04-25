@@ -221,7 +221,6 @@ WRITE8_MEMBER( vidbrain_state::f3853_w )
 	case 3:
 		// timer 8-bit polynomial counter
 		fatalerror("%s: F3853 Timer not supported!\n", machine().describe_context());
-		break;
 	}
 }
 
@@ -551,7 +550,7 @@ static MACHINE_CONFIG_START( vidbrain, vidbrain_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD(DISCRETE_TAG, DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(vidbrain)
+	MCFG_DISCRETE_INTF(vidbrain)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 	MCFG_SOUND_ADD(DAC_TAG, DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)

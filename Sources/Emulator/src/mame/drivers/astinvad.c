@@ -618,13 +618,6 @@ static const char *const astinvad_sample_names[] =
 	0
 };
 
-static const samples_interface astinvad_samples_interface =
-{
-	6,   /* channels */
-	astinvad_sample_names
-};
-
-
 
 /*************************************
  *
@@ -659,7 +652,9 @@ static MACHINE_CONFIG_START( kamikaze, astinvad_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", astinvad_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(6)
+	MCFG_SAMPLES_NAMES(astinvad_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -701,7 +696,9 @@ static MACHINE_CONFIG_START( spaceint, astinvad_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", astinvad_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(6)
+	MCFG_SAMPLES_NAMES(astinvad_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
@@ -820,7 +817,7 @@ DRIVER_INIT_MEMBER(astinvad_state,spcking2)
 
 GAME( 1979, kamikaze, 0,        kamikaze, kamikaze,  astinvad_state, kamikaze, ROT270, "Leijac Corporation", "Kamikaze", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, astinvad, kamikaze, kamikaze, astinvad,  astinvad_state, kamikaze, ROT270, "Leijac Corporation (Stern Electronics license)", "Astro Invader", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME( 19??, kosmokil, kamikaze, kamikaze, kamikaze,  astinvad_state, kamikaze, ROT270, "bootleg", "Kosmo Killer", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE ) // says >BEM< Mi Italy but it looks hacked in, dif revision of game tho.
+GAME( 19??, kosmokil, kamikaze, kamikaze, kamikaze,  astinvad_state, kamikaze, ROT270, "bootleg (BEM)", "Kosmo Killer", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE ) // says >BEM< Mi Italy but it looks hacked in, dif revision of game tho.
 GAME( 1979, spcking2, 0,        spcking2, spcking2,  astinvad_state, spcking2, ROT270, "Konami", "Space King 2", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
 GAME( 1980, spaceint, 0,        spaceint, spaceint,  driver_device,  0,        ROT90,  "Shoei", "Space Intruder", GAME_IMPERFECT_SOUND | GAME_WRONG_COLORS | GAME_SUPPORTS_SAVE )
 GAME( 1980, spaceintj,spaceint, spaceint, spaceintj, driver_device,  0,        ROT90,  "Shoei", "Space Intruder (Japan)", GAME_IMPERFECT_SOUND | GAME_WRONG_COLORS | GAME_SUPPORTS_SAVE )

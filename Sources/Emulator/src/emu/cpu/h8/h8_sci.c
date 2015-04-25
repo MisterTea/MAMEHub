@@ -461,19 +461,19 @@ void h8_sci_device::clock_start(int mode)
 		case CLKM_INTERNAL_ASYNC_OUT:
 		case CLKM_INTERNAL_SYNC_OUT:
 			logerror("%s: Starting internal clock\n", tag());
-			clock_base = cpu->get_cycle();
+			clock_base = cpu->total_cycles();
 			cpu->internal_update();
 			break;
 
 		case CLKM_EXTERNAL_RATE_ASYNC:
 			logerror("%s: Simulating external clock async\n", tag());
-			clock_base = UINT64(cpu->get_cycle()*internal_to_external_ratio);
+			clock_base = UINT64(cpu->total_cycles()*internal_to_external_ratio);
 			cpu->internal_update();
 			break;
 
 		case CLKM_EXTERNAL_RATE_SYNC:
 			logerror("%s: Simulating external clock sync\n", tag());
-			clock_base = UINT64(cpu->get_cycle()*2*internal_to_external_ratio);
+			clock_base = UINT64(cpu->total_cycles()*2*internal_to_external_ratio);
 			cpu->internal_update();
 			break;
 
@@ -591,7 +591,7 @@ void h8_sci_device::rx_start()
 	ssr |= SSR_TDRE;
 	rx_parity = smr & SMR_OE ? 0 : 1;
 	rsr = 0x00;
-	logerror("%s: start recieve\n", tag());
+	logerror("%s: start receive\n", tag());
 	if(smr & SMR_CA) {
 		rx_state = ST_BIT;
 		rx_bit = 8;
@@ -609,13 +609,13 @@ void h8_sci_device::rx_done()
 	if(!(ssr & SSR_FER)) {
 		if((smr & SMR_PE) && rx_parity) {
 			ssr |= SSR_PER;
-			logerror("%s: Recieve parity error\n", tag());
+			logerror("%s: Receive parity error\n", tag());
 		} else if(ssr & SSR_RDRF) {
 			ssr |= SSR_ORER;
-			logerror("%s: Recieve overrun\n", tag());
+			logerror("%s: Receive overrun\n", tag());
 		} else {
 			ssr |= SSR_RDRF;
-			logerror("%s: Recieved %02x\n", tag(), rsr);
+			logerror("%s: Received %02x\n", tag(), rsr);
 			rdr = rsr;
 		}
 	}

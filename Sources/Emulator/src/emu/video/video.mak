@@ -174,6 +174,15 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/video/gf7600gs.h,VIDEOS += GF7600GS
+#-------------------------------------------------
+
+ifneq ($(filter GF7600GS,$(VIDEOS)),)
+VIDEOOBJS+= $(VIDEOOBJ)/gf7600gs.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/video/h63484.h,VIDEOS += H63484
 #-------------------------------------------------
 
@@ -381,6 +390,7 @@ VIDEOOBJS+= $(VIDEOOBJ)/cgapal.o
 
 ifneq ($(filter PC_VGA,$(VIDEOS)),)
 VIDEOOBJS+= $(VIDEOOBJ)/pc_vga.o
+VIDEOOBJS+= $(BUSOBJ)/isa/trident.o
 endif
 
 #-------------------------------------------------
@@ -445,6 +455,14 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/video/scn2674.h,VIDEOS += SCN2674
+#-------------------------------------------------
+ifneq ($(filter SCN2674,$(VIDEOS)),)
+VIDEOOBJS+= $(VIDEOOBJ)/scn2674.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/video/snes_ppu.h,VIDEOS += SNES_PPU
 #-------------------------------------------------
 ifneq ($(filter SNES_PPU,$(VIDEOS)),)
@@ -469,6 +487,15 @@ endif
 
 ifneq ($(filter T6A04,$(VIDEOS)),)
 VIDEOOBJS+= $(VIDEOOBJ)/t6a04.o
+endif
+
+#-------------------------------------------------
+#
+#@src/emu/video/tea1002.h,VIDEOS += TEA1002
+#-------------------------------------------------
+
+ifneq ($(filter TEA1002,$(VIDEOS)),)
+VIDEOOBJS += $(VIDEOOBJ)/tea1002.o
 endif
 
 #-------------------------------------------------
@@ -568,6 +595,16 @@ endif
 
 ifneq ($(filter VOODOO,$(VIDEOS)),)
 VIDEOOBJS+= $(VIDEOOBJ)/voodoo.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/video/voodoo_pci.h,VIDEOS += VOODOO_PCI
+#-------------------------------------------------
+
+ifneq ($(filter VOODOO_PCI,$(VIDEOS)),)
+VIDEOOBJS+= $(VIDEOOBJ)/voodoo_pci.o
 endif
 
 

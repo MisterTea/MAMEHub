@@ -11,6 +11,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <zlib.h>
+#include <assert.h>
 #include "osdcore.h"
 #include "astring.h"
 #include "corefile.h"
@@ -404,7 +405,7 @@ int parse_for_drivers(const char *srcfile)
     main - main entry point
 -------------------------------------------------*/
 
-void usage(const char *argv0)
+void ATTR_NORETURN usage(const char *argv0)
 {
 	fprintf(stderr, "Usage:\n%s <source.lst> <srcroot> [-Iincpath [-Iincpath [...]]]\n", argv0);
 	exit(1);

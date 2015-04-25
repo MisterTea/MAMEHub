@@ -1,10 +1,32 @@
 /*
 Taito TC0100SCN
 ---------
-Tilemap generator. The front tilemap fetches gfx data from RAM,
-the others use ROMs as usual.
+Tilemap generator. Manages two background tilemaps with 8x8 tiles fetched
+from ROM, and one foreground text tilemap with tiles fetched from RAM.
+Both background layers support rowscroll and one of them additionally
+supports columnscroll. The three tilemaps are mixed internally (the text
+tilemap is always on top, the other two are selectable) and output as
+15 bits of pixel data.
+The TC0100SCN uses 0x10000 bytes of RAM, plus an optional 0x4000 bytes to
+allow wider tilemaps (mainly used by multiscreen games). It can address
+up to 0x200000 bytes of ROM (0x10000 tiles), 16 bits at a time.
 
-Standard memory layout (three 64x64 tilemaps with 8x8 tiles)
+Inputs and outputs (based on Operation Thunderbolt schematics):
+- CPU address bus (VA1-VA17)
+- CPU data bus (D0-D15)
+- CPU control lines (CS, UDS, LDS, R/W, DTACK)
+- RAM address bus (SA0-SA14)
+- RAM data bus (SD0-SD15)
+- RAM control lines (WEH, WEL, SCE0, SCE1)
+  (SCE0 is connected to CS of two 32Kx8 SRAMs. SCE1 is unconnected.
+   SCE1 is probably for the optional RAM, which isn't present on
+   Operation Thunderbolt)
+- ROM address bus (AD0-AD19)
+- ROM data bus (RD0-RD15)
+- Pixel output (SC0-SC14)
+- Clocks and video sync (HSYNC, HBLANK, VSYNC, VBLANK)
+
+Standard memory layout (three 64x64 tilemaps)
 
 0000-3fff BG0
 4000-5fff FG0
@@ -14,7 +36,7 @@ Standard memory layout (three 64x64 tilemaps with 8x8 tiles)
 c000-c3ff BG0 rowscroll (second half unused*)
 c400-c7ff BG1 rowscroll (second half unused*)
 c800-dfff unused (probably)
-e000-e0ff BG0 colscroll [see info below]
+e000-e0ff BG1 colscroll [see info below]
 e100-ffff unused (probably)
 
 Double width tilemaps memory layout (two 128x64 tilemaps, one 128x32 tilemap)
@@ -23,7 +45,7 @@ Double width tilemaps memory layout (two 128x64 tilemaps, one 128x32 tilemap)
 08000-0ffff BG1 (128x64)
 10000-103ff BG0 rowscroll (second half unused*)
 10400-107ff BG1 rowscroll (second half unused*)
-10800-108ff BG0 colscroll [evidenced by Warriorb inits from $1634]
+10800-108ff BG1 colscroll [evidenced by Warriorb inits from $1634]
 10900-10fff unused (probably)
 11000-11fff gfx data for FG0
 12000-13fff FG0 (128x32)
@@ -107,6 +129,13 @@ sprites cross the screen (scrolling down with the starfield). 16 starfield
 columns [rows, as the game is rotated] scroll across with the ship.
 $84fc0 and neighbouring routines poke col scroll area.
 
+TC0620SCC
+---------
+The TC0620SCC seems to be similar to the TC0100SCN except that the ROM tiles
+are 6bpp instead of 4bpp. It probably has a 24-bit bus to the ROMs instead
+of 16-bit, but nothing else is known about it (such as whether it supports
+the wide tilemap mode)
+
 */
 
 #include "emu.h"
@@ -132,11 +161,8 @@ tc0100scn_device::tc0100scn_device(const machine_config &mconfig, const char *ta
 	m_bgscrolly(0),
 	m_fgscrollx(0),
 	m_fgscrolly(0),
-	m_bg_col_mult(0),
 	m_bg_tilemask(0),
-	m_tx_col_mult(0),
 	m_gfxbank(0),
-	m_colbank(0),
 	m_bg0_colbank(0),
 	m_bg1_colbank(0),
 	m_tx_colbank(0),
@@ -257,26 +283,23 @@ void tc0100scn_device::device_start()
 
 	m_bg_tilemask = 0xffff;    /* Mjnquest has 0x7fff tilemask */
 
-	m_bg_col_mult = 1; /* multiplier for when bg gfx != 4bpp */
-	m_tx_col_mult = 1; /* multiplier needed when bg gfx is 6bpp */
-
-	if (m_gfxdecode->gfx(m_gfxnum)->granularity() == 2)    /* Yuyugogo, Yesnoj */
-		m_bg_col_mult = 8;
-
-	if (m_gfxdecode->gfx(m_gfxnum)->granularity() == 0x40) /* Undrfire */
-		m_tx_col_mult = 4;
-
-//logerror("TC0100SCN bg gfx granularity %04x: multiplier %04x\n", m_gfxdecode->gfx(m_gfxnum)->granularity(), m_tx_col_mult);
-
 	m_ram = auto_alloc_array_clear(machine(), UINT16, TC0100SCN_RAM_SIZE / 2);
 
 	set_layer_ptrs();
 
+	/* create the char set (gfx will then be updated dynamically from RAM) */
+	m_gfxdecode->set_gfx(m_txnum, global_alloc(gfx_element(m_palette, tc0100scn_charlayout, (UINT8 *)m_char_ram, NATIVE_ENDIAN_VALUE_LE_BE(8,0), 256, 0)));
+
+	gfx_element *gfx = m_gfxdecode->gfx(m_gfxnum);
+	gfx_element *txt = m_gfxdecode->gfx(m_txnum);
+
+	if (gfx->granularity() == 2)    /* Yuyugogo, Yesnoj */
+		gfx->set_granularity(16);
+
+	txt->set_granularity(gfx->granularity());
+
 	set_colbanks(0, 0, 0);  /* standard values, only Wgp & multiscreen games change them */
 									/* we call this here, so that they can be modified at video_start*/
-
-	/* create the char set (gfx will then be updated dynamically from RAM) */
-	m_gfxdecode->set_gfx(m_txnum, global_alloc(gfx_element(m_palette, tc0100scn_charlayout, (UINT8 *)m_char_ram, NATIVE_ENDIAN_VALUE_LE_BE(8,0), 64, 0)));
 
 	save_pointer(NAME(m_ram), TC0100SCN_RAM_SIZE / 2);
 	save_item(NAME(m_ctrl));
@@ -292,7 +315,6 @@ void tc0100scn_device::device_start()
 void tc0100scn_device::device_reset()
 {
 	m_dblwidth = 0;
-	m_colbank = 0;
 	m_gfxbank = 0; /* Mjnquest uniquely banks tiles */
 
 	for (int i = 0; i < 8; i++)
@@ -304,11 +326,11 @@ void tc0100scn_device::device_reset()
     DEVICE HANDLERS
 *****************************************************************************/
 
-void tc0100scn_device::common_get_bg0_tile_info( tile_data &tileinfo, int tile_index, UINT16 *ram, int gfxnum, int colbank, int dblwidth )
+void tc0100scn_device::common_get_tile_info( tile_data &tileinfo, int tile_index, UINT16 *ram, int colbank )
 {
 	int code, attr;
 
-	if (!dblwidth)
+	if (!m_dblwidth)
 	{
 		/* Mahjong Quest (F2 system) inexplicably has a banking feature */
 		code = (ram[2 * tile_index + 1] & m_bg_tilemask) + (m_gfxbank << 15);
@@ -320,62 +342,30 @@ void tc0100scn_device::common_get_bg0_tile_info( tile_data &tileinfo, int tile_i
 		attr = ram[2 * tile_index];
 	}
 
-	SET_TILE_INFO_MEMBER(gfxnum,
+	SET_TILE_INFO_MEMBER(m_gfxnum,
 			code,
-			(((attr * m_bg_col_mult) + m_bg0_colbank) & 0xff) + colbank,
-			TILE_FLIPYX((attr & 0xc000) >> 14));
-}
-
-void tc0100scn_device::common_get_bg1_tile_info( tile_data &tileinfo, int tile_index, UINT16 *ram, int gfxnum, int colbank, int dblwidth )
-{
-	int code, attr;
-
-	if (!dblwidth)
-	{
-		/* Mahjong Quest (F2 system) inexplicably has a banking feature */
-		code = (ram[2 * tile_index + 1] & m_bg_tilemask) + (m_gfxbank << 15);
-		attr = ram[2 * tile_index];
-	}
-	else
-	{
-		code = ram[2 * tile_index + 1] & m_bg_tilemask;
-		attr = ram[2 * tile_index];
-	}
-
-	SET_TILE_INFO_MEMBER(gfxnum,
-			code,
-			(((attr * m_bg_col_mult) + m_bg1_colbank) & 0xff) + colbank,
-			TILE_FLIPYX((attr & 0xc000) >> 14));
-}
-
-void tc0100scn_device::common_get_tx_tile_info( tile_data &tileinfo, int tile_index, UINT16 *ram, int gfxnum, int colbank, int dblwidth )
-{
-	int attr = ram[tile_index];
-
-	SET_TILE_INFO_MEMBER(gfxnum,
-			attr & 0xff,
-			((((attr >> 6) & 0xfc) * m_tx_col_mult + (m_tx_colbank << 2)) & 0x3ff) + colbank * 4,
+			((attr + colbank) & 0xff),
 			TILE_FLIPYX((attr & 0xc000) >> 14));
 }
 
 TILE_GET_INFO_MEMBER(tc0100scn_device::get_bg_tile_info)
 {
-	common_get_bg0_tile_info(tileinfo, tile_index, m_bg_ram, m_gfxnum, m_colbank, m_dblwidth);
+	common_get_tile_info(tileinfo, tile_index, m_bg_ram, m_bg0_colbank);
 }
 
 TILE_GET_INFO_MEMBER(tc0100scn_device::get_fg_tile_info)
 {
-	common_get_bg1_tile_info(tileinfo, tile_index, m_fg_ram, m_gfxnum, m_colbank, m_dblwidth);
+	common_get_tile_info(tileinfo, tile_index, m_fg_ram, m_bg1_colbank);
 }
 
 TILE_GET_INFO_MEMBER(tc0100scn_device::get_tx_tile_info)
 {
-	common_get_tx_tile_info(tileinfo, tile_index, m_tx_ram, m_txnum, m_colbank, m_dblwidth);
-}
+	int attr = m_tx_ram[tile_index];
 
-void tc0100scn_device::set_colbank( int col )
-{
-	m_colbank = col;
+	SET_TILE_INFO_MEMBER(m_txnum,
+			attr & 0x00ff,
+			((attr & 0x3f00) >> 8) + m_tx_colbank,
+			TILE_FLIPYX((attr & 0xc000) >> 14));
 }
 
 void tc0100scn_device::set_colbanks( int bg0, int bg1, int tx )

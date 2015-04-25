@@ -718,7 +718,7 @@ static MACHINE_CONFIG_START( cliffhgr, cliffhgr_state )
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(cliffhgr)
+	MCFG_DISCRETE_INTF(cliffhgr)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 MACHINE_CONFIG_END
 
@@ -748,6 +748,17 @@ ROM_START( cliffhgra )
 	ROM_LOAD( "cliff_alt_1.bin",    0x2000, 0x2000, CRC(6e5f1515) SHA1(1c4116f4f5910857408826d73c630abbf1434119) )
 	ROM_LOAD( "cliff_alt_2.bin",    0x4000, 0x2000, CRC(045f895d) SHA1(364e259a9630d87ca917c7a9dc1a94d6f0d0eba5) )
 	ROM_LOAD( "cliff_alt_3.bin",    0x6000, 0x2000, CRC(54cdb4a1) SHA1(6b1d73aec029af4a88ca2f883b4ed706d153592d) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "cliffhgr", 0, SHA1(4442995c824d7891a2a19c607bb3301d696fbdc8) )
+ROM_END
+
+ROM_START( cliffhgra2 )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "cliff_alt2_0.bin",    0x0000, 0x2000, CRC(598d57fc) SHA1(3514b262ba4c5e9ec42452af6202aa83ca5fee8e) )
+	ROM_LOAD( "cliff_alt2_1.bin",    0x2000, 0x2000, CRC(7bce618e) SHA1(3ef5a7d2b41f82a903b264199a0c5d611cdf36ac) )
+	ROM_LOAD( "cliff_alt2_2.bin",    0x4000, 0x2000, CRC(65d2b984) SHA1(3076f2aac076b5db9ad3aa81e4c15a3d7b06becd) )
+	ROM_LOAD( "cliff_alt2_3.bin",    0x6000, 0x2000, CRC(f43a5269) SHA1(19795cb163a72d3549f9f7d75282e4a1b23a8d08) )
 
 	DISK_REGION( "laserdisc" )
 	DISK_IMAGE_READONLY( "cliffhgr", 0, SHA1(4442995c824d7891a2a19c607bb3301d696fbdc8) )
@@ -785,6 +796,7 @@ DRIVER_INIT_MEMBER(cliffhgr_state,cliff)
  *
  *************************************/
 
-GAME( 1983, cliffhgr, 0,        cliffhgr, cliffhgr, cliffhgr_state,  cliff, ROT0, "Stern Electronics", "Cliff Hanger (set 1)", 0)
-GAME( 1983, cliffhgra,cliffhgr, cliffhgr, cliffhgra, cliffhgr_state, cliff, ROT0, "Stern Electronics", "Cliff Hanger (set 2)", 0)
-GAME( 1983, goaltogo, 0,        cliffhgr, goaltogo, cliffhgr_state,  cliff, ROT0, "Stern Electronics", "Goal To Go", GAME_NOT_WORKING)
+GAME( 1983, cliffhgr,  0,        cliffhgr, cliffhgr, cliffhgr_state,  cliff, ROT0, "Stern Electronics", "Cliff Hanger (set 1)", 0)
+GAME( 1983, cliffhgra, cliffhgr, cliffhgr, cliffhgra, cliffhgr_state, cliff, ROT0, "Stern Electronics", "Cliff Hanger (set 2)", 0)
+GAME( 1983, cliffhgra2,cliffhgr, cliffhgr, cliffhgra, cliffhgr_state, cliff, ROT0, "Stern Electronics", "Cliff Hanger (set 3)", 0)
+GAME( 1983, goaltogo,  0,        cliffhgr, goaltogo, cliffhgr_state,  cliff, ROT0, "Stern Electronics", "Goal To Go", GAME_NOT_WORKING)

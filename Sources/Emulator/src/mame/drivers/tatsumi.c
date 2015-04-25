@@ -155,16 +155,6 @@
 
 /***************************************************************************/
 
-READ16_MEMBER(tatsumi_state::cyclwarr_cpu_bb_r)
-{
-	return m_cyclwarr_cpub_ram[offset];
-}
-
-WRITE16_MEMBER(tatsumi_state::cyclwarr_cpu_bb_w)
-{
-	COMBINE_DATA(&m_cyclwarr_cpub_ram[offset]);
-}
-
 READ16_MEMBER(tatsumi_state::cyclwarr_sprite_r)
 {
 	return m_spriteram[offset];
@@ -188,18 +178,6 @@ WRITE16_MEMBER(tatsumi_state::bigfight_a40000_w)
 WRITE16_MEMBER(tatsumi_state::bigfight_a60000_w)
 {
 	COMBINE_DATA(&m_bigfight_a60000[offset]);
-}
-
-READ16_MEMBER(tatsumi_state::cyclwarr_input_r)
-{
-	static const char *const port[] = { "SERVICE", "P1", "P2", "DSW3" };
-	return ioport(port[offset])->read();
-}
-
-READ16_MEMBER(tatsumi_state::cyclwarr_input2_r)
-{
-	static const char *const port2[] = { "DSW1", "DSW2", "P3", "P4" };
-	return ioport(port2[offset])->read();
 }
 
 WRITE16_MEMBER(tatsumi_state::cyclwarr_sound_w)
@@ -298,7 +276,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( cyclwarr_68000a_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_RAM AM_SHARE("cw_cpua_ram")
 	AM_RANGE(0x03e000, 0x03efff) AM_RAM
-	AM_RANGE(0x040000, 0x043fff) AM_READWRITE(cyclwarr_cpu_bb_r, cyclwarr_cpu_bb_w)
+	AM_RANGE(0x040000, 0x04ffff) AM_RAM AM_SHARE("cw_cpub_ram")
 	AM_RANGE(0x080000, 0x08ffff) AM_READWRITE(cyclwarr_videoram1_r, cyclwarr_videoram1_w) AM_SHARE("cw_videoram1")
 	AM_RANGE(0x090000, 0x09ffff) AM_READWRITE(cyclwarr_videoram0_r, cyclwarr_videoram0_w) AM_SHARE("cw_videoram0")
 
@@ -307,8 +285,14 @@ static ADDRESS_MAP_START( cyclwarr_68000a_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x0a6000, 0x0a6001) AM_WRITE(bigfight_a60000_w)
 
 	AM_RANGE(0x0b8000, 0x0b8001) AM_WRITE(cyclwarr_sound_w)
-	AM_RANGE(0x0b9002, 0x0b9009) AM_READ(cyclwarr_input_r) /* Coins, P1 input, P2 input, dip 3 */
-	AM_RANGE(0x0ba000, 0x0ba007) AM_READ(cyclwarr_input2_r) /* Dip 1, Dip 2, P3 input, P4 input */
+	AM_RANGE(0x0b9002, 0x0b9003) AM_READ_PORT("SERVICE")
+	AM_RANGE(0x0b9004, 0x0b9005) AM_READ_PORT("P1")
+	AM_RANGE(0x0b9006, 0x0b9007) AM_READ_PORT("P2")
+	AM_RANGE(0x0b9008, 0x0b9009) AM_READ_PORT("DSW3")
+	AM_RANGE(0x0ba000, 0x0ba001) AM_READ_PORT("DSW1")
+	AM_RANGE(0x0ba002, 0x0ba003) AM_READ_PORT("DSW2")
+	AM_RANGE(0x0ba004, 0x0ba005) AM_READ_PORT("P3")
+	AM_RANGE(0x0ba006, 0x0ba007) AM_READ_PORT("P4")
 	AM_RANGE(0x0ba008, 0x0ba009) AM_READWRITE(cyclwarr_control_r, cyclwarr_control_w)
 	AM_RANGE(0x0c0000, 0x0c3fff) AM_READWRITE(cyclwarr_sprite_r, cyclwarr_sprite_w) AM_SHARE("spriteram")
 	AM_RANGE(0x0ca000, 0x0ca1ff) AM_WRITE(tatsumi_sprite_control_w) AM_SHARE("sprite_ctlram")
@@ -327,10 +311,15 @@ static ADDRESS_MAP_START( cyclwarr_68000b_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x0a4000, 0x0a4001) AM_WRITE(bigfight_a40000_w)
 	AM_RANGE(0x0a6000, 0x0a6001) AM_WRITE(bigfight_a60000_w)
 
-	AM_RANGE(0x0b9002, 0x0b9009) AM_READ(cyclwarr_input_r) /* Coins, P1 input, P2 input, dip 3 */
-	AM_RANGE(0x0ba000, 0x0ba007) AM_READ(cyclwarr_input2_r) /* Dip 1, Dip 2, P3 input, P4 input */
+	AM_RANGE(0x0b9002, 0x0b9003) AM_READ_PORT("SERVICE")
+	AM_RANGE(0x0b9004, 0x0b9005) AM_READ_PORT("P1")
+	AM_RANGE(0x0b9006, 0x0b9007) AM_READ_PORT("P2")
+	AM_RANGE(0x0b9008, 0x0b9009) AM_READ_PORT("DSW3")
+	AM_RANGE(0x0ba000, 0x0ba001) AM_READ_PORT("DSW1")
+	AM_RANGE(0x0ba002, 0x0ba003) AM_READ_PORT("DSW2")
+	AM_RANGE(0x0ba004, 0x0ba005) AM_READ_PORT("P3")
+	AM_RANGE(0x0ba006, 0x0ba007) AM_READ_PORT("P4")
 	AM_RANGE(0x0ba008, 0x0ba009) AM_READ(cyclwarr_control_r)
-
 	AM_RANGE(0x0c0000, 0x0c3fff) AM_READWRITE(cyclwarr_sprite_r, cyclwarr_sprite_w)
 	AM_RANGE(0x0ca000, 0x0ca1ff) AM_WRITE(tatsumi_sprite_control_w)
 	AM_RANGE(0x0d0000, 0x0d3fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
@@ -353,7 +342,7 @@ static ADDRESS_MAP_START( bigfight_68000a_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x000000, 0x00ffff) AM_RAM AM_SHARE("cw_cpua_ram")
 
 	AM_RANGE(0x03e000, 0x03efff) AM_RAM
-	AM_RANGE(0x040000, 0x04ffff) AM_READWRITE(cyclwarr_cpu_bb_r, cyclwarr_cpu_bb_w)
+	AM_RANGE(0x040000, 0x04ffff) AM_RAM AM_SHARE("cw_cpub_ram")
 
 	AM_RANGE(0x080000, 0x08ffff) AM_READWRITE(cyclwarr_videoram1_r, cyclwarr_videoram1_w) AM_SHARE("cw_videoram1")
 	AM_RANGE(0x090000, 0x09ffff) AM_READWRITE(cyclwarr_videoram0_r, cyclwarr_videoram0_w) AM_SHARE("cw_videoram0")
@@ -363,8 +352,14 @@ static ADDRESS_MAP_START( bigfight_68000a_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x0a6000, 0x0a6001) AM_WRITE(bigfight_a60000_w)
 
 	AM_RANGE(0x0b8000, 0x0b8001) AM_WRITE(cyclwarr_sound_w)
-	AM_RANGE(0x0b9002, 0x0b9009) AM_READ(cyclwarr_input_r) /* Coins, P1 input, P2 input, dip 3 */
-	AM_RANGE(0x0ba000, 0x0ba007) AM_READ(cyclwarr_input2_r) /* Dip 1, Dip 2, P3 input, P4 input */
+	AM_RANGE(0x0b9002, 0x0b9003) AM_READ_PORT("SERVICE")
+	AM_RANGE(0x0b9004, 0x0b9005) AM_READ_PORT("P1")
+	AM_RANGE(0x0b9006, 0x0b9007) AM_READ_PORT("P2")
+	AM_RANGE(0x0b9008, 0x0b9009) AM_READ_PORT("DSW3")
+	AM_RANGE(0x0ba000, 0x0ba001) AM_READ_PORT("DSW1")
+	AM_RANGE(0x0ba002, 0x0ba003) AM_READ_PORT("DSW2")
+	AM_RANGE(0x0ba004, 0x0ba005) AM_READ_PORT("P3")
+	AM_RANGE(0x0ba006, 0x0ba007) AM_READ_PORT("P4")
 	AM_RANGE(0x0ba008, 0x0ba009) AM_READWRITE(cyclwarr_control_r, cyclwarr_control_w)
 	AM_RANGE(0x0c0000, 0x0c3fff) AM_READWRITE(cyclwarr_sprite_r, cyclwarr_sprite_w) AM_SHARE("spriteram")
 	AM_RANGE(0x0ca000, 0x0ca1ff) AM_WRITE(tatsumi_sprite_control_w) AM_SHARE("sprite_ctlram")
@@ -381,10 +376,15 @@ static ADDRESS_MAP_START( bigfight_68000b_map, AS_PROGRAM, 16, tatsumi_state )
 	AM_RANGE(0x0a4000, 0x0a4001) AM_WRITE(bigfight_a40000_w)
 	AM_RANGE(0x0a6000, 0x0a6001) AM_WRITE(bigfight_a60000_w)
 
-	AM_RANGE(0x0b9002, 0x0b9009) AM_READ(cyclwarr_input_r) /* Coins, P1 input, P2 input, dip 3 */
-	AM_RANGE(0x0ba000, 0x0ba007) AM_READ(cyclwarr_input2_r) /* Dip 1, Dip 2, P3 input, P4 input */
+	AM_RANGE(0x0b9002, 0x0b9003) AM_READ_PORT("SERVICE")
+	AM_RANGE(0x0b9004, 0x0b9005) AM_READ_PORT("P1")
+	AM_RANGE(0x0b9006, 0x0b9007) AM_READ_PORT("P2")
+	AM_RANGE(0x0b9008, 0x0b9009) AM_READ_PORT("DSW3")
+	AM_RANGE(0x0ba000, 0x0ba001) AM_READ_PORT("DSW1")
+	AM_RANGE(0x0ba002, 0x0ba003) AM_READ_PORT("DSW2")
+	AM_RANGE(0x0ba004, 0x0ba005) AM_READ_PORT("P3")
+	AM_RANGE(0x0ba006, 0x0ba007) AM_READ_PORT("P4")
 	AM_RANGE(0x0ba008, 0x0ba009) AM_READ(cyclwarr_control_r)
-
 	AM_RANGE(0x0c0000, 0x0c3fff) AM_READWRITE(cyclwarr_sprite_r, cyclwarr_sprite_w)
 	AM_RANGE(0x0ca000, 0x0ca1ff) AM_WRITE(tatsumi_sprite_control_w)
 	AM_RANGE(0x0d0000, 0x0d3fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
@@ -580,7 +580,7 @@ static INPUT_PORTS_START( cyclwarr )
 	PORT_DIPNAME( 0x0004, 0x0004, DEF_STR( Service_Mode ) ) PORT_DIPLOCATION("SW3:3")
 	PORT_DIPSETTING(      0x0004, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
-	PORT_DIPNAME( 0x0008, 0x0008, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW3:4")
+	PORT_DIPNAME( 0x0008, 0x0008, "Hardware Test Mode" ) PORT_DIPLOCATION("SW3:4")
 	PORT_DIPSETTING(      0x0008, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 
@@ -662,6 +662,15 @@ static INPUT_PORTS_START( cyclwarr )
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT  ) PORT_8WAY PORT_PLAYER(4)
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN  ) PORT_8WAY PORT_PLAYER(4)
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_JOYSTICK_UP    ) PORT_8WAY PORT_PLAYER(4)
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( cyclwarb )
+	PORT_INCLUDE(cyclwarr)
+
+	PORT_MODIFY("DSW3")
+	PORT_DIPNAME( 0x0008, 0x0008, DEF_STR( Unknown ) ) PORT_DIPLOCATION("SW3:4")
+	PORT_DIPSETTING(      0x0008, DEF_STR( Off ) )
+	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( bigfight )
@@ -792,26 +801,15 @@ INPUT_PORTS_END
 
 /******************************************************************************/
 
-static const gfx_layout roundup5_charlayout =
+static const gfx_layout spritelayout =
 {
-	8,8,    /* 16*16 sprites */
-	RGN_FRAC(1,1),  /* 4096 sprites */
-	4,  /* 4 bits per pixel */
+	8,8,
+	RGN_FRAC(1,1),
+	4,
 	{ 0, 1, 2, 3 },
 	{ 8,12,0,4, 24,28, 16,20},
 	{ 0*32, 1*32, 2*32, 3*32, 4*32, 5*32, 6*32, 7*32},
-	32*8    /* every sprite takes 32 consecutive bytes */
-};
-
-static const gfx_layout cyclwarr_charlayout =
-{
-	8,8,
-	RGN_FRAC(1,3),
-	3,
-	{ RGN_FRAC(2,3), RGN_FRAC(1,3), RGN_FRAC(0,3)},
-	{ 0, 1, 2, 3, 4, 5, 6, 7},
-	{ 0*8, 1*8, 2*8, 3*8, 4*8, 5*8, 6*8, 7*8},
-	8*8
+	32*8
 };
 
 static const gfx_layout roundup5_vramlayout =
@@ -826,18 +824,18 @@ static const gfx_layout roundup5_vramlayout =
 };
 
 static GFXDECODE_START( apache3 )
-	GFXDECODE_ENTRY( "gfx1", 0, roundup5_charlayout, 1024, 128)
-	GFXDECODE_ENTRY( "gfx4", 0, cyclwarr_charlayout, 768, 16)
+	GFXDECODE_ENTRY( "gfx1", 0, spritelayout, 1024, 128)
+	GFXDECODE_ENTRY( "gfx4", 0, gfx_8x8x3_planar, 768, 16)
 GFXDECODE_END
 
 static GFXDECODE_START( roundup5 )
-	GFXDECODE_ENTRY( "gfx1", 0, roundup5_charlayout, 1024, 256)
+	GFXDECODE_ENTRY( "gfx1", 0, spritelayout, 1024, 256)
 	GFXDECODE_ENTRY( NULL, 0, roundup5_vramlayout, 0, 16)
 GFXDECODE_END
 
 static GFXDECODE_START( cyclwarr )
-	GFXDECODE_ENTRY( "gfx1", 0, roundup5_charlayout, 8192, 512)
-	GFXDECODE_ENTRY( "gfx5", 0, cyclwarr_charlayout, 0, 512)
+	GFXDECODE_ENTRY( "gfx1", 0, spritelayout, 8192, 512)
+	GFXDECODE_ENTRY( "gfx5", 0, gfx_8x8x3_planar, 0, 512)
 GFXDECODE_END
 
 /******************************************************************************/
@@ -1345,9 +1343,9 @@ DRIVER_INIT_MEMBER(tatsumi_state,apache3)
 	UINT8 *dst = memregion("gfx1")->base();
 	UINT8 *src1 = memregion("gfx2")->base();
 	UINT8 *src2 = memregion("gfx3")->base();
-	int i;
 
-	for (i=0; i<0x100000; i+=32) {
+	for (int i=0; i<0x100000; i+=32)
+	{
 		memcpy(dst,src1,32);
 		src1+=32;
 		dst+=32;
@@ -1362,7 +1360,7 @@ DRIVER_INIT_MEMBER(tatsumi_state,apache3)
 	m_rom_clut0 = memregion("gfx2")->base()+ 0x100000 - 0x800;
 	m_rom_clut1 = memregion("gfx3")->base()+ 0x100000 - 0x800;
 
-	tatsumi_reset(machine());
+	tatsumi_reset();
 
 	// TODO: ym2151_set_port_write_handler for CT1/CT2 outputs
 }
@@ -1372,9 +1370,9 @@ DRIVER_INIT_MEMBER(tatsumi_state,roundup5)
 	UINT8 *dst = memregion("gfx1")->base();
 	UINT8 *src1 = memregion("gfx2")->base();
 	UINT8 *src2 = memregion("gfx3")->base();
-	int i;
 
-	for (i=0; i<0xc0000; i+=32) {
+	for (int i=0; i<0xc0000; i+=32)
+	{
 		memcpy(dst,src1,32);
 		src1+=32;
 		dst+=32;
@@ -1389,7 +1387,7 @@ DRIVER_INIT_MEMBER(tatsumi_state,roundup5)
 	m_rom_clut0 = memregion("gfx2")->base()+ 0xc0000 - 0x800;
 	m_rom_clut1 = memregion("gfx3")->base()+ 0xc0000 - 0x800;
 
-	tatsumi_reset(machine());
+	tatsumi_reset();
 }
 
 DRIVER_INIT_MEMBER(tatsumi_state,cyclwarr)
@@ -1399,8 +1397,9 @@ DRIVER_INIT_MEMBER(tatsumi_state,cyclwarr)
 	int len1 = memregion("gfx2")->bytes();
 	UINT8 *src2 = memregion("gfx3")->base();
 	int len2 = memregion("gfx3")->bytes();
-	int i;
-	for (i=0; i<len1; i+=32) {
+
+	for (int i=0; i<len1; i+=32)
+	{
 		memcpy(dst,src1,32);
 		src1+=32;
 		dst+=32;
@@ -1423,17 +1422,17 @@ DRIVER_INIT_MEMBER(tatsumi_state,cyclwarr)
 	m_rom_clut0 = memregion("gfx2")->base() + len1 - 0x1000;
 	m_rom_clut1 = memregion("gfx3")->base() + len2 - 0x1000;
 
-	tatsumi_reset(machine());
+	tatsumi_reset();
 }
 
 /***************************************************************************/
 
 /* http://www.tatsu-mi.co.jp/game/trace/index.html */
 
-/* 1987 Gray Out */
+/* ** 1987  grayout    - Gray Out (not dumped yet) */
 GAME( 1988, apache3,   0,        apache3,   apache3,  tatsumi_state, apache3,  ROT0, "Tatsumi", "Apache 3", GAME_IMPERFECT_GRAPHICS )
 GAME( 1988, apache3a,  apache3,  apache3,   apache3,  tatsumi_state, apache3,  ROT0, "Tatsumi (Kana Corporation license)", "Apache 3 (Kana Corporation license)", GAME_IMPERFECT_GRAPHICS )
 GAMEL(1989, roundup5,  0,        roundup5,  roundup5, tatsumi_state, roundup5, ROT0, "Tatsumi", "Round Up 5 - Super Delta Force", GAME_IMPERFECT_GRAPHICS, layout_roundup5 )
-GAME( 1991, cyclwarr,  0,        cyclwarr,  cyclwarr, tatsumi_state, cyclwarr, ROT0, "Tatsumi", "Cycle Warriors (set 1)", GAME_IMPERFECT_GRAPHICS | GAME_NOT_WORKING)
-GAME( 1991, cyclwarra, cyclwarr, cyclwarr,  cyclwarr, tatsumi_state, cyclwarr, ROT0, "Tatsumi", "Cycle Warriors (set 2)", GAME_IMPERFECT_GRAPHICS)
-GAME( 1992, bigfight,  0,        bigfight,  bigfight, tatsumi_state, cyclwarr, ROT0, "Tatsumi", "Big Fight - Big Trouble In The Atlantic Ocean", GAME_IMPERFECT_GRAPHICS)
+GAME( 1991, cyclwarr,  0,        cyclwarr,  cyclwarr, tatsumi_state, cyclwarr, ROT0, "Tatsumi", "Cycle Warriors (rev C)", GAME_IMPERFECT_GRAPHICS ) // Rev C & B CPU code
+GAME( 1991, cyclwarra, cyclwarr, cyclwarr,  cyclwarb, tatsumi_state, cyclwarr, ROT0, "Tatsumi", "Cycle Warriors (rev B)", GAME_IMPERFECT_GRAPHICS ) // Rev B & A CPU code
+GAME( 1992, bigfight,  0,        bigfight,  bigfight, tatsumi_state, cyclwarr, ROT0, "Tatsumi", "Big Fight - Big Trouble In The Atlantic Ocean", GAME_IMPERFECT_GRAPHICS )

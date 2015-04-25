@@ -1,63 +1,57 @@
 #include "audio/seibu.h"
+#include "machine/raiden2cop.h"
+#include "video/seibu_crtc.h"
 
 class raiden2_state : public driver_device
 {
 public:
 	raiden2_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			back_data(*this, "back_data"),
-			fore_data(*this, "fore_data"),
-			mid_data(*this, "mid_data"),
-			text_data(*this, "text_data"),
+		/*
+		  back_data(*this, "back_data"),
+		  fore_data(*this, "fore_data"),
+		  mid_data(*this, "mid_data"),
+		  text_data(*this, "text_data"),
+		  */
 			sprites(*this, "sprites") ,
-		m_maincpu(*this, "maincpu"),
-		m_seibu_sound(*this, "seibu_sound"),
-		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette") { }
+			m_maincpu(*this, "maincpu"),
+			m_seibu_sound(*this, "seibu_sound"),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_palette(*this, "palette"),
 
-	required_shared_ptr<UINT16> back_data,fore_data,mid_data, text_data, sprites;
+			bg_bank(0),
+			fg_bank(0),
+			mid_bank(0),
+			tx_bank(0),
+			raiden2_tilemap_enable(0),
+			prg_bank(0),
+			cop_bank(0),
+
+			sprite_prot_x(0),
+			sprite_prot_y(0),
+			dst1(0),
+			cop_spr_maxx(0),
+			cop_spr_off(0),
+
+			tile_buffer(320, 256),
+			sprite_buffer(320, 256),
+			m_raiden2cop(*this, "raiden2cop")
+	{
+		memset(scrollvals, 0, sizeof(UINT16)*6);
+		memset(sprite_prot_src_addr, 0, sizeof(UINT16)*2);
+
+	}
+
+	UINT16 *back_data, *fore_data, *mid_data, *text_data; // private buffers, allocated in init
+	required_shared_ptr<UINT16> sprites;
 	required_device<cpu_device> m_maincpu;
-	required_device<seibu_sound_device> m_seibu_sound;
+	optional_device<seibu_sound_device> m_seibu_sound;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
 
-	DECLARE_WRITE16_MEMBER( cop_itoa_low_w );
-	DECLARE_WRITE16_MEMBER( cop_itoa_high_w );
-	DECLARE_WRITE16_MEMBER( cop_itoa_digit_count_w );
-	DECLARE_WRITE16_MEMBER( cop_dma_v1_w );
-	DECLARE_WRITE16_MEMBER( cop_dma_v2_w );
-	DECLARE_WRITE16_MEMBER( cop_scale_w );
-	DECLARE_WRITE16_MEMBER( cop_dma_adr_rel_w );
-	DECLARE_WRITE16_MEMBER( cop_dma_src_w );
-	DECLARE_WRITE16_MEMBER( cop_dma_size_w );
-	DECLARE_WRITE16_MEMBER( cop_dma_dst_w );
-	DECLARE_READ16_MEMBER( cop_dma_mode_r );
-	DECLARE_WRITE16_MEMBER( cop_dma_mode_w );
-	DECLARE_WRITE16_MEMBER( cop_pal_brightness_val_w );
-	DECLARE_READ16_MEMBER ( cop_reg_high_r );
-	DECLARE_WRITE16_MEMBER( cop_reg_high_w );
-	DECLARE_READ16_MEMBER ( cop_reg_low_r );
-	DECLARE_WRITE16_MEMBER( cop_reg_low_w );
-	DECLARE_WRITE16_MEMBER( cop_pgm_data_w );
-	DECLARE_WRITE16_MEMBER( cop_pgm_addr_w );
-	DECLARE_WRITE16_MEMBER( cop_pgm_value_w );
-	DECLARE_WRITE16_MEMBER( cop_pgm_mask_w );
-	DECLARE_WRITE16_MEMBER( cop_pgm_trigger_w );
-	DECLARE_WRITE16_MEMBER( cop_cmd_w );
-	DECLARE_READ16_MEMBER ( cop_itoa_digits_r );
-	DECLARE_READ16_MEMBER ( cop_collision_status_r );
-	DECLARE_READ16_MEMBER (cop_collision_status_y_r);
-	DECLARE_READ16_MEMBER (cop_collision_status_x_r);
-	DECLARE_READ16_MEMBER (cop_collision_status_z_r);
-	DECLARE_READ16_MEMBER (cop_collision_status_unk_r);
 
-	DECLARE_READ16_MEMBER ( cop_status_r );
-	DECLARE_READ16_MEMBER ( cop_dist_r );
-	DECLARE_READ16_MEMBER ( cop_angle_r );
-	DECLARE_WRITE16_MEMBER( cop_angle_compare_w );
-	DECLARE_WRITE16_MEMBER( cop_angle_mod_val_w );
 
-	DECLARE_WRITE16_MEMBER ( cop_dma_trigger_w );
+
 	DECLARE_WRITE16_MEMBER ( raiden2_bank_w );
 	DECLARE_READ16_MEMBER ( cop_tile_bank_2_r );
 	DECLARE_WRITE16_MEMBER ( cop_tile_bank_2_w );
@@ -69,6 +63,7 @@ public:
 	DECLARE_WRITE16_MEMBER ( raiden2_foreground_w );
 	DECLARE_WRITE16_MEMBER ( raiden2_midground_w );
 	DECLARE_WRITE16_MEMBER ( raiden2_text_w );
+	DECLARE_WRITE16_MEMBER(m_videoram_private_w);
 
 	DECLARE_WRITE16_MEMBER( sprcpt_val_1_w );
 	DECLARE_WRITE16_MEMBER( sprcpt_val_2_w );
@@ -80,73 +75,52 @@ public:
 	DECLARE_WRITE16_MEMBER( sprcpt_flags_1_w );
 	DECLARE_WRITE16_MEMBER( sprcpt_flags_2_w );
 
-	DECLARE_WRITE16_MEMBER( mcu_prog_w );
-	DECLARE_WRITE16_MEMBER( mcu_prog_w2 );
-	DECLARE_WRITE16_MEMBER( mcu_prog_offs_w );
-
 	DECLARE_READ16_MEMBER( raiden2_sound_comms_r );
 	DECLARE_WRITE16_MEMBER( raiden2_sound_comms_w );
 
 	void common_reset();
 
+	static UINT16 const raiden_blended_colors[];
+	static UINT16 const xsedae_blended_colors[];
+	static UINT16 const zeroteam_blended_colors[];
+
+	bool blend_active[0x800]; // cfg
+
 	tilemap_t *background_layer,*midground_layer,*foreground_layer,*text_layer;
-	int bg_bank, fg_bank, mid_bank;
+
+
+	int bg_bank, fg_bank, mid_bank, tx_bank;
 	UINT16 raiden2_tilemap_enable;
-	UINT8 prg_bank,prot_data;
+	UINT8 prg_bank;
 	UINT16 cop_bank;
 
 	UINT16 scrollvals[6];
-	UINT32 cop_regs[8], cop_itoa;
-	UINT16 cop_status, cop_scale, cop_itoa_digit_count, cop_angle, cop_dist;
-	UINT8 cop_itoa_digits[10];
-	UINT16 cop_dma_mode, cop_dma_src[0x200], cop_dma_dst[0x200], cop_dma_size[0x200], cop_dma_v1, cop_dma_v2, cop_dma_adr_rel;
-	UINT16 sprites_cur_start;
-	UINT16 pal_brightness_val;
 
-	UINT16 cop_func_trigger[0x100/8];       /* function trigger */
-	UINT16 cop_func_value[0x100/8];         /* function value (?) */
-	UINT16 cop_func_mask[0x100/8];          /* function mask (?) */
-	UINT16 cop_program[0x100];              /* program "code" */
-	UINT16 cop_latch_addr, cop_latch_trigger, cop_latch_value, cop_latch_mask;
-	INT8 cop_angle_compare;
-	UINT8 cop_angle_mod_val;
+
+
 
 	DECLARE_WRITE16_MEMBER( sprite_prot_x_w );
 	DECLARE_WRITE16_MEMBER( sprite_prot_y_w );
 	DECLARE_WRITE16_MEMBER( sprite_prot_src_seg_w );
 	DECLARE_WRITE16_MEMBER( sprite_prot_src_w );
-	DECLARE_READ16_MEMBER ( sprite_prot_dst1_r );
-	DECLARE_READ16_MEMBER( sprite_prot_dst2_r );
+	DECLARE_READ16_MEMBER( sprite_prot_src_seg_r );
+	DECLARE_READ16_MEMBER( sprite_prot_dst1_r );
+	DECLARE_READ16_MEMBER( sprite_prot_maxx_r );
+	DECLARE_READ16_MEMBER( sprite_prot_off_r );
 	DECLARE_WRITE16_MEMBER( sprite_prot_dst1_w );
-	DECLARE_WRITE16_MEMBER( sprite_prot_dst2_w );
+	DECLARE_WRITE16_MEMBER( sprite_prot_maxx_w );
+	DECLARE_WRITE16_MEMBER( sprite_prot_off_w );
 
-	UINT16 sprite_prot_x,sprite_prot_y,dst1,dst2;
+	UINT16 sprite_prot_x,sprite_prot_y,dst1,cop_spr_maxx,cop_spr_off;
 	UINT16 sprite_prot_src_addr[2];
 
-	struct
-	{
-		int x,y;
-		int min_x,min_y,max_x,max_y;
-		UINT16 hitbox;
-		UINT16 hitbox_x,hitbox_y;
-	}cop_collision_info[2];
 
-	UINT16 cop_hit_status;
-	INT16 cop_hit_val_x,cop_hit_val_y,cop_hit_val_z,cop_hit_val_unk;
 
-	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect ,int pri_mask );
-	UINT8 cop_calculate_collsion_detection();
-	void cop_take_hit_box_params(UINT8 offs);
+	void draw_sprites(const rectangle &cliprect);
 
-	DECLARE_WRITE16_MEMBER(cop_sort_lookup_hi_w);
-	DECLARE_WRITE16_MEMBER(cop_sort_lookup_lo_w);
-	DECLARE_WRITE16_MEMBER(cop_sort_ram_addr_hi_w);
-	DECLARE_WRITE16_MEMBER(cop_sort_ram_addr_lo_w);
-	DECLARE_WRITE16_MEMBER(cop_sort_param_w);
-	DECLARE_WRITE16_MEMBER(cop_sort_dma_trig_w);
 
-	UINT32 cop_sort_ram_addr, cop_sort_lookup;
-	UINT16 cop_sort_param;
+
+	const int *cur_spri; // cfg
 
 	DECLARE_DRIVER_INIT(raidendx);
 	DECLARE_DRIVER_INIT(xsedae);
@@ -161,13 +135,23 @@ public:
 	DECLARE_MACHINE_RESET(zeroteam);
 	DECLARE_MACHINE_RESET(xsedae);
 	DECLARE_MACHINE_RESET(raidendx);
-	UINT32 screen_update_raiden2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	UINT32 screen_update_raiden2(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(raiden2_interrupt);
 	UINT16 rps();
 	UINT16 rpc();
-	const UINT8 fade_table(int v);
 	void combine32(UINT32 *val, int offset, UINT16 data, UINT16 mem_mask);
 	void sprcpt_init(void);
+
+	void blend_layer(bitmap_rgb32 &bitmap, const rectangle &cliprect, bitmap_ind16 &source, int layer);
+	void tilemap_draw_and_blend(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect, tilemap_t *tilemap);
+
+	void init_blending(const UINT16 *table);
+
+	bitmap_ind16 tile_buffer, sprite_buffer;
+	optional_device<raiden2cop_device> m_raiden2cop;
+
+protected:
+	virtual void machine_start();
 };
 
 /*----------- defined in machine/r2crypt.c -----------*/

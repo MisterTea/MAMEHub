@@ -364,7 +364,7 @@ static INPUT_PORTS_START( vsnes_dual )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNUSED )            /* bit 1 of dsw goes here */
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_COIN1 ) PORT_IMPULSE(1)
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_COIN2 ) PORT_IMPULSE(1)
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )            /* this bit masks irqs - dont change */
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )            /* this bit masks irqs - don't change */
 
 	/* Right Side Controls */
 	PORT_START("IN2")
@@ -395,7 +395,7 @@ static INPUT_PORTS_START( vsnes_dual )
 	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNUSED )            /* bit 1 of dsw goes here */
 	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_COIN3 ) PORT_IMPULSE(1)
 	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_COIN4 ) PORT_IMPULSE(1)
-	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )            /* this bit masks irqs - dont change */
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )            /* this bit masks irqs - don't change */
 
 	/* Both sides also have a DSW (#0 & #1) which are defined per game, below */
 INPUT_PORTS_END
@@ -1026,11 +1026,11 @@ static INPUT_PORTS_START( cstlevna )
 	PORT_DIPNAME( 0x08, 0x00, DEF_STR( Lives ) )        PORT_DIPLOCATION("SW1:!4")
 	PORT_DIPSETTING(    0x08, "2" )
 	PORT_DIPSETTING(    0x00, "3" )
-/* As near as I can tell, there is no adjustable bonus level where the manual states there should be (SW1:5,6).
-   The bonus lives, regardless of settings, are at 30000 and every 50000 thereafter.  Until someone can figure out
-   what these dips do - they will be kept UNKNOWN */
-	PORT_DIPUNKNOWN_DIPLOC( 0x10, 0x00, "SW1:!5" )
-	PORT_DIPUNKNOWN_DIPLOC( 0x20, 0x00, "SW1:!6" )
+	PORT_DIPNAME( 0x30, 0x00, "Bonus points" )       PORT_DIPLOCATION("SW1:!5,!6")
+	PORT_DIPSETTING(    0x00, "Timer x 4, Hearts x 40" )
+	PORT_DIPSETTING(    0x20, "Timer x 6, Hearts x 60" )
+	PORT_DIPSETTING(    0x10, "Timer x 8, Hearts x 80" )
+	PORT_DIPSETTING(    0x30, "Timer x 9, Hearts x 90" )
 	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SW1:!7")  // Damage taken
 	PORT_DIPSETTING(    0x00, DEF_STR( Easy ) )                     // Normal
 	PORT_DIPSETTING(    0x40, DEF_STR( Hard ) )                     // Double

@@ -12,6 +12,7 @@
 #include "video.h"
 #include "render.h"
 
+#include "modules/osdwindow.h"
 
 //============================================================
 //  PARAMETERS
@@ -32,70 +33,102 @@
 //  TYPE DEFINITIONS
 //============================================================
 
-struct win_window_info
+class win_window_info  : public osd_window
 {
 public:
-	win_window_info(running_machine &machine)
-		: m_machine(machine) { }
+	win_window_info(running_machine &machine);
+	virtual ~win_window_info();
 
 	running_machine &machine() const { return m_machine; }
 
-	win_window_info *   next;
-	volatile int        init_state;
+	render_target *target() { return m_target; }
+	int fullscreen() const { return m_fullscreen; }
+
+	void update();
+
+	osd_monitor_info *winwindow_video_window_monitor(const osd_rect *proposed);
+
+	bool win_has_menu()
+	{
+		return GetMenu(m_hwnd) ? true : false;
+	}
+
+	/* virtual */ osd_dim get_size()
+	{
+		RECT client;
+		GetClientRect(m_hwnd, &client);
+		return osd_dim(client.right - client.left, client.bottom - client.top);
+	}
+
+	osd_monitor_info *monitor() const { return m_monitor; }
+
+	void destroy();
+
+	// static
+
+	static void create(running_machine &machine, int index, osd_monitor_info *monitor, const osd_window_config *config);
+
+	// static callbacks
+
+	static LRESULT CALLBACK video_window_proc(HWND wnd, UINT message, WPARAM wparam, LPARAM lparam);
+	static unsigned __stdcall thread_entry(void *param);
+
+	// member variables
+
+	win_window_info *   m_next;
+	volatile int        m_init_state;
 
 	// window handle and info
-	HWND                hwnd;
-	HWND                focus_hwnd;
-	char                title[256];
-	RECT                non_fullscreen_bounds;
-	int                 startmaximized;
-	int                 isminimized;
-	int                 ismaximized;
-	int                 resize_state;
+	char                m_title[256];
+	RECT                m_non_fullscreen_bounds;
+	int                 m_startmaximized;
+	int                 m_isminimized;
+	int                 m_ismaximized;
 
 	// monitor info
-	win_monitor_info *  monitor;
-	int                 fullscreen;
-	int                 fullscreen_safe;
-	int                 maxwidth, maxheight;
-	int                 refresh;
-	float               aspect;
+	osd_monitor_info *  m_monitor;
+	int                 m_fullscreen;
+	int                 m_fullscreen_safe;
+	float               m_aspect;
 
 	// rendering info
-	osd_lock *          render_lock;
-	render_target *     target;
-	int                 targetview;
-	int                 targetorient;
-	render_layer_config targetlayerconfig;
-	render_primitive_list *primlist;
+	osd_lock *          m_render_lock;
+	render_target *     m_target;
+	int                 m_targetview;
+	int                 m_targetorient;
+	render_layer_config m_targetlayerconfig;
 
 	// input info
-	DWORD               lastclicktime;
-	int                 lastclickx;
-	int                 lastclicky;
+	DWORD               m_lastclicktime;
+	int                 m_lastclickx;
+	int                 m_lastclicky;
 
 	// drawing data
-	void *              drawdata;
+	osd_renderer *      m_renderer;
 
 private:
+	void draw_video_contents(HDC dc, int update);
+	int complete_create();
+	void set_starting_view(int index, const char *defview, const char *view);
+	int wnd_extra_width();
+	int wnd_extra_height();
+	osd_rect constrain_to_aspect_ratio(const osd_rect &rect, int adjustment);
+	osd_dim get_min_bounds(int constrain);
+	osd_dim get_max_bounds(int constrain);
+	void update_minmax_state();
+	void minimize_window();
+	void maximize_window();
+	void adjust_window_position_after_major_change();
+	void set_fullscreen(int fullscreen);
+
 	running_machine &   m_machine;
 };
 
-
-struct win_draw_callbacks
+struct osd_draw_callbacks
 {
+	osd_renderer *(*create)(osd_window *window);
 	void (*exit)(void);
-
-	int (*window_init)(win_window_info *window);
-	render_primitive_list *(*window_get_primitives)(win_window_info *window);
-	int (*window_draw)(win_window_info *window, HDC dc, int update);
-	void (*window_save)(win_window_info *window);
-	void (*window_record)(win_window_info *window);
-	void (*window_toggle_fsfx)(win_window_info *window);
-	void (*window_destroy)(win_window_info *window);
 };
-
-
 
 //============================================================
 //  GLOBAL VARIABLES
@@ -110,18 +143,9 @@ extern win_window_info *win_window_list;
 //  PROTOTYPES
 //============================================================
 
-// core initialization
-void winwindow_init(running_machine &machine);
-
-// creation/deletion of windows
-void winwindow_video_window_create(running_machine &machine, int index, win_monitor_info *monitor, const win_window_config *config);
-
 BOOL winwindow_has_focus(void);
 void winwindow_update_cursor_state(running_machine &machine);
-void winwindow_video_window_update(win_window_info *window);
-win_monitor_info *winwindow_video_window_monitor(win_window_info *window, const RECT *proposed);
 
-LRESULT CALLBACK winwindow_video_window_proc(HWND wnd, UINT message, WPARAM wparam, LPARAM lparam);
 extern LRESULT CALLBACK winwindow_video_window_proc_ui(HWND wnd, UINT message, WPARAM wparam, LPARAM lparam);
 
 void winwindow_toggle_full_screen(void);
@@ -141,16 +165,6 @@ void winwindow_dispatch_message(running_machine &machine, MSG *message);
 
 extern int win_create_menu(running_machine &machine, HMENU *menus);
 
-
-
-//============================================================
-//  win_has_menu
-//============================================================
-
-INLINE BOOL win_has_menu(win_window_info *window)
-{
-	return GetMenu(window->hwnd) ? TRUE : FALSE;
-}
 
 
 //============================================================

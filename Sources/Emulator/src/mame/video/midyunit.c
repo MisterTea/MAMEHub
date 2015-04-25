@@ -171,17 +171,15 @@ READ16_MEMBER(midyunit_state::midyunit_vram_r)
  *
  *************************************/
 
-void midyunit_to_shiftreg(address_space &space, UINT32 address, UINT16 *shiftreg)
+TMS340X0_TO_SHIFTREG_CB_MEMBER(midyunit_state::to_shiftreg)
 {
-	midyunit_state *state = space.machine().driver_data<midyunit_state>();
-	memcpy(shiftreg, &state->m_local_videoram[address >> 3], 2 * 512 * sizeof(UINT16));
+	memcpy(shiftreg, &m_local_videoram[address >> 3], 2 * 512 * sizeof(UINT16));
 }
 
 
-void midyunit_from_shiftreg(address_space &space, UINT32 address, UINT16 *shiftreg)
+TMS340X0_FROM_SHIFTREG_CB_MEMBER(midyunit_state::from_shiftreg)
 {
-	midyunit_state *state = space.machine().driver_data<midyunit_state>();
-	memcpy(&state->m_local_videoram[address >> 3], shiftreg, 2 * 512 * sizeof(UINT16));
+	memcpy(&m_local_videoram[address >> 3], shiftreg, 2 * 512 * sizeof(UINT16));
 }
 
 
@@ -246,14 +244,13 @@ WRITE16_MEMBER(midyunit_state::midyunit_paletteram_w)
  *
  *************************************/
 
-static void dma_draw(running_machine &machine, UINT16 command)
+void midyunit_state::dma_draw(UINT16 command)
 {
-	midyunit_state *state = machine.driver_data<midyunit_state>();
-	struct dma_state_t &dma_state = state->m_dma_state;
+	struct dma_state_t &dma_state = m_dma_state;
 	int dx = (command & 0x10) ? -1 : 1;
 	int height = dma_state.height;
 	int width = dma_state.width;
-	UINT8 *base = state->m_gfx_rom;
+	UINT8 *base = m_gfx_rom;
 	UINT32 offset = dma_state.offset >> 3;
 	UINT16 pal = dma_state.palette;
 	UINT16 color = pal | dma_state.color;
@@ -275,7 +272,7 @@ static void dma_draw(running_machine &machine, UINT16 command)
 		offset += dma_state.rowbytes;
 
 		/* determine destination pointer */
-		dest = &state->m_local_videoram[ty * 512];
+		dest = &m_local_videoram[ty * 512];
 
 		/* check for overruns if they are relevant */
 		if (o >= 0x06000000 && command < 0x0c)
@@ -526,7 +523,7 @@ if (LOG_DMA)
 		gfxoffset += 0x02000000;
 	{
 		dma_state.offset = gfxoffset - 0x02000000;
-		dma_draw(machine(), command);
+		dma_draw(command);
 	}
 
 	/* signal we're done */
@@ -552,23 +549,22 @@ TIMER_CALLBACK_MEMBER(midyunit_state::autoerase_line)
 }
 
 
-void midyunit_scanline_update(screen_device &screen, bitmap_ind16 &bitmap, int scanline, const tms34010_display_params *params)
+TMS340X0_SCANLINE_IND16_CB_MEMBER(midyunit_state::scanline_update)
 {
-	midyunit_state *state = screen.machine().driver_data<midyunit_state>();
-	UINT16 *src = &state->m_local_videoram[(params->rowaddr << 9) & 0x3fe00];
+	UINT16 *src = &m_local_videoram[(params->rowaddr << 9) & 0x3fe00];
 	UINT16 *dest = &bitmap.pix16(scanline);
 	int coladdr = params->coladdr << 1;
 	int x;
 
 	/* adjust the display address to account for ignored bits */
 	for (x = params->heblnk; x < params->hsblnk; x++)
-		dest[x] = state->m_pen_map[src[coladdr++ & 0x1ff]];
+		dest[x] = m_pen_map[src[coladdr++ & 0x1ff]];
 
 	/* handle autoerase on the previous line */
-	state->autoerase_line(NULL, params->rowaddr - 1);
+	autoerase_line(NULL, params->rowaddr - 1);
 
 	/* if this is the last update of the screen, set a timer to clear out the final line */
 	/* (since we update one behind) */
 	if (scanline == screen.visible_area().max_y)
-		state->timer_set(screen.time_until_pos(scanline + 1), midyunit_state::TIMER_AUTOERASE_LINE, params->rowaddr);
+		timer_set(screen.time_until_pos(scanline + 1), midyunit_state::TIMER_AUTOERASE_LINE, params->rowaddr);
 }

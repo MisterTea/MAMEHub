@@ -20,7 +20,6 @@
 const device_type SEGA8_ROM_STD = &device_creator<sega8_rom_device>;
 
 // Specific SG-1000 MkI - MkII cart types
-const device_type SEGA8_ROM_CARDCATCH = &device_creator<sega8_cardcatch_device>;
 const device_type SEGA8_ROM_OTHELLO = &device_creator<sega8_othello_device>;
 const device_type SEGA8_ROM_CASTLE = &device_creator<sega8_castle_device>;
 const device_type SEGA8_ROM_BASIC_L3 = &device_creator<sega8_basic_l3_device>;
@@ -36,6 +35,7 @@ const device_type SEGA8_ROM_4PAK = &device_creator<sega8_4pak_device>;
 const device_type SEGA8_ROM_ZEMINA = &device_creator<sega8_zemina_device>;
 const device_type SEGA8_ROM_NEMESIS = &device_creator<sega8_nemesis_device>;
 const device_type SEGA8_ROM_JANGGUN = &device_creator<sega8_janggun_device>;
+const device_type SEGA8_ROM_HICOM = &device_creator<sega8_hicom_device>;
 const device_type SEGA8_ROM_KOREAN = &device_creator<sega8_korean_device>;
 const device_type SEGA8_ROM_KOREAN_NB = &device_creator<sega8_korean_nb_device>;
 
@@ -54,13 +54,6 @@ sega8_rom_device::sega8_rom_device(const machine_config &mconfig, const char *ta
 }
 
 
-
-
-sega8_cardcatch_device::sega8_cardcatch_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-					: sega8_rom_device(mconfig, SEGA8_ROM_CARDCATCH, "SG-1000 Card Catcher Cart", tag, owner, clock, "sega8_ccatch", __FILE__),
-						m_card(*this, "cardslot")
-{
-}
 
 
 sega8_othello_device::sega8_othello_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
@@ -153,6 +146,12 @@ sega8_nemesis_device::sega8_nemesis_device(const machine_config &mconfig, const 
 sega8_janggun_device::sega8_janggun_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 					: device_t(mconfig, SEGA8_ROM_JANGGUN, "SMS Janggun Cart", tag, owner, clock, "sega8_janggun", __FILE__),
 						device_sega8_cart_interface( mconfig, *this )
+{
+}
+
+
+sega8_hicom_device::sega8_hicom_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+					: sega8_rom_device(mconfig, SEGA8_ROM_HICOM, "SMS Hi-Com Carts", tag, owner, clock, "sega8_hicom", __FILE__)
 {
 }
 
@@ -305,6 +304,11 @@ void sega8_janggun_device::late_bank_setup()
 	m_rom_bank_base[5] = 5;
 }
 
+void sega8_hicom_device::late_bank_setup()
+{
+	m_rom_bank_base = 0;
+}
+
 void sega8_korean_device::late_bank_setup()
 {
 	m_rom_bank_base[0] = 0;
@@ -374,42 +378,6 @@ WRITE8_MEMBER(sega8_rom_device::write_mapper)
 
 /*-------------------------------------------------
 
- Sega Card Catcher is a passthrough adapter for
- SG-1000 to load games in MyCard format into the
- main cartslot
-
- -------------------------------------------------*/
-
-READ8_MEMBER(sega8_cardcatch_device::read_cart)
-{
-	if (offset < 0x8000)
-		return m_card->read_cart(space, offset);
-
-	return 0xff;
-}
-
-WRITE8_MEMBER(sega8_cardcatch_device::write_cart)
-{
-	// this should never happen, because there is no RAM on cards
-	if (offset < 0x8000)
-		logerror("Attempt to write to MyCard\n");
-}
-
-static SLOT_INTERFACE_START(sg1000_card)
-	SLOT_INTERFACE_INTERNAL("rom",  SEGA8_ROM_STD)
-SLOT_INTERFACE_END
-
-static MACHINE_CONFIG_FRAGMENT( sub_slot )
-	MCFG_SG1000_CARD_ADD("cardslot", sg1000_card, NULL)
-MACHINE_CONFIG_END
-
-machine_config_constructor sega8_cardcatch_device::device_mconfig_additions() const
-{
-	return MACHINE_CONFIG_NAME( sub_slot );
-}
-
-/*-------------------------------------------------
-
  Othello is a SG-1000 game featuring 2K of
  oncart RAM, mapped at 0x8000-0x9fff.
  Is RAM mirrored? For now we assume so...
@@ -422,7 +390,7 @@ READ8_MEMBER(sega8_othello_device::read_cart)
 	if (offset >= 0x8000 && offset < 0xa000)
 		return m_ram[offset & 0x7ff];
 
-	return m_rom[offset % m_rom.count()];
+	return m_rom[offset % m_rom_size];
 }
 
 WRITE8_MEMBER(sega8_othello_device::write_cart)
@@ -446,7 +414,7 @@ READ8_MEMBER(sega8_castle_device::read_cart)
 	if (offset >= 0x8000 && offset < 0xa000)
 		return m_ram[offset & 0x1fff];
 
-	return m_rom[offset % m_rom.count()];
+	return m_rom[offset % m_rom_size];
 }
 
 WRITE8_MEMBER(sega8_castle_device::write_cart)
@@ -470,7 +438,7 @@ READ8_MEMBER(sega8_basic_l3_device::read_cart)
 	if (offset >= 0x8000)
 		return m_ram[offset & 0x3fff];
 
-	return m_rom[offset % m_rom.count()];
+	return m_rom[offset % m_rom_size];
 }
 
 WRITE8_MEMBER(sega8_basic_l3_device::write_cart)
@@ -504,7 +472,7 @@ READ8_MEMBER(sega8_music_editor_device::read_cart)
 	if (offset >= 0x8000 && offset < 0xa000)
 		return m_ram[offset & 0x1fff];
 
-	return m_rom[offset % m_rom.count()];
+	return m_rom[offset % m_rom_size];
 }
 
 WRITE8_MEMBER(sega8_music_editor_device::write_cart)
@@ -623,7 +591,7 @@ READ8_MEMBER(sega8_dahjee_typea_device::read_cart)
 	if (offset >= 0x2000 && offset < 0x4000)
 		return m_ram[offset & 0x1fff];
 
-	return m_rom[offset % m_rom.count()];
+	return m_rom[offset % m_rom_size];
 }
 
 WRITE8_MEMBER(sega8_dahjee_typea_device::write_cart)
@@ -651,7 +619,7 @@ WRITE8_MEMBER(sega8_dahjee_typea_device::write_ram)
 // TYPE B
 READ8_MEMBER(sega8_dahjee_typeb_device::read_cart)
 {
-	return m_rom[offset % m_rom.count()];
+	return m_rom[offset % m_rom_size];
 }
 
 READ8_MEMBER(sega8_dahjee_typeb_device::read_ram)
@@ -792,6 +760,14 @@ WRITE8_MEMBER(sega8_codemasters_device::write_cart)
  -------------------------------------------------*/
 
 
+READ8_MEMBER(sega8_4pak_device::read_cart)
+{
+	int bank = offset / 0x4000;
+
+	return m_rom[m_rom_bank_base[bank] * 0x4000 + (offset & 0x3fff)];
+}
+
+
 WRITE8_MEMBER(sega8_4pak_device::write_cart)
 {
 	switch (offset)
@@ -921,6 +897,27 @@ WRITE8_MEMBER(sega8_janggun_device::write_mapper)
 	}
 }
 
+
+/*-------------------------------------------------
+
+ Hi-Com X-in-1 cart, uses writes to 0xffff to
+ change program bank in 0x0000-0x7fff
+
+ -------------------------------------------------*/
+
+READ8_MEMBER(sega8_hicom_device::read_cart)
+{
+	if (offset >= 0x8000)
+		return m_rom[offset & 0x3fff];
+
+	return m_rom[(m_rom_bank_base * 0x8000) + offset];
+}
+
+WRITE8_MEMBER(sega8_hicom_device::write_mapper)
+{
+	if (offset == 0x03)
+		m_rom_bank_base = data % (m_rom_page_count << 1);
+}
 
 /*-------------------------------------------------
 

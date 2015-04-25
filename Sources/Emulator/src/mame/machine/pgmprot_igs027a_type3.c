@@ -162,6 +162,7 @@ MACHINE_RESET_MEMBER(pgm_arm_type3_state, pgm_arm_type3_reset)
 	if (!strcmp(machine().system().name, "happy6101")) base = 0x3586;
 	if (!strcmp(machine().system().name, "svgpcb")) base = 0x3a8e;
 	if (!strcmp(machine().system().name, "svg")) base = 0x3c3e;
+	if (!strcmp(machine().system().name, "svgtw")) base = 0x3a8e;
 
 	if (base != -1)
 	{
@@ -497,8 +498,8 @@ void pgm_arm_type3_state::pgm_create_dummy_internal_arm_region_theglad(int is_sv
 	temp16[(base) /2] = 0xff1e; base += 2;
 	temp16[(base) /2] = 0xe12f; base += 2;
 
-	// the non-EO area starts in the middle of a function that seems similar to those  at 000037E4 / 000037D4 in killbldp.. by setting this up we allow the intro to run
-	// it sets '0x10000038' to a value ot 1
+	// the non-EO area starts in the middle of a function that seems similar to those at 000037E4 / 000037D4 in killbldp. by setting this up we allow the intro to run
+	// it sets '0x10000038' to a value of 1
 	base = 0x184;
 	temp16[(base) /2] = 0x105c; base += 2;
 	temp16[(base) /2] = 0xE59F; base += 2;
@@ -601,6 +602,21 @@ INPUT_PORTS_START( svg )
 
 	PORT_START("RegionHack")    /* Region - actually supplied by protection device */
 	PORT_CONFNAME( 0x00ff, 0x00ff, DEF_STR( Region ) )
+	PORT_CONFSETTING(      0x0000, DEF_STR( China ) )
+	PORT_CONFSETTING(      0x0001, DEF_STR( Taiwan ) )
+	PORT_CONFSETTING(      0x0002, DEF_STR( Japan ) )
+	PORT_CONFSETTING(      0x0003, DEF_STR( Korea ) )
+	PORT_CONFSETTING(      0x0004, DEF_STR( Hong_Kong ) )
+	PORT_CONFSETTING(      0x0005, "Spanish Territories" )
+	PORT_CONFSETTING(      0x0006, DEF_STR( World ) )
+	PORT_CONFSETTING(      0x00ff, "Don't Change" ) // don't hack the region
+INPUT_PORTS_END
+
+INPUT_PORTS_START( svgtw )
+	PORT_INCLUDE ( pgm )
+
+	PORT_START("RegionHack")    /* Region - actually supplied by protection device */
+	PORT_CONFNAME( 0x00ff, 0x0001, DEF_STR( Region ) )
 	PORT_CONFSETTING(      0x0000, DEF_STR( China ) )
 	PORT_CONFSETTING(      0x0001, DEF_STR( Taiwan ) )
 	PORT_CONFSETTING(      0x0002, DEF_STR( Japan ) )

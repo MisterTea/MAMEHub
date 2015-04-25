@@ -30,40 +30,46 @@ class bestleag_state : public driver_device
 public:
 	bestleag_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+		m_maincpu(*this, "maincpu"),
+		m_oki(*this, "oki"),
+		m_gfxdecode(*this, "gfxdecode"),
+		m_palette(*this, "palette"),
 		m_bgram(*this, "bgram"),
 		m_fgram(*this, "fgram"),
 		m_txram(*this, "txram"),
 		m_vregs(*this, "vregs"),
-		m_spriteram(*this, "spriteram"),
-		m_maincpu(*this, "maincpu"),
-		m_oki(*this, "oki"),
-		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette") { }
+		m_spriteram(*this, "spriteram") { }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
 
 	required_shared_ptr<UINT16> m_bgram;
 	required_shared_ptr<UINT16> m_fgram;
 	required_shared_ptr<UINT16> m_txram;
 	required_shared_ptr<UINT16> m_vregs;
 	required_shared_ptr<UINT16> m_spriteram;
+
 	tilemap_t *m_tx_tilemap;
 	tilemap_t *m_bg_tilemap;
 	tilemap_t *m_fg_tilemap;
-	DECLARE_WRITE16_MEMBER(bestleag_txram_w);
-	DECLARE_WRITE16_MEMBER(bestleag_bgram_w);
-	DECLARE_WRITE16_MEMBER(bestleag_fgram_w);
+
+	DECLARE_WRITE16_MEMBER(txram_w);
+	DECLARE_WRITE16_MEMBER(bgram_w);
+	DECLARE_WRITE16_MEMBER(fgram_w);
 	DECLARE_WRITE16_MEMBER(oki_bank_w);
+
 	TILE_GET_INFO_MEMBER(get_tx_tile_info);
 	TILE_GET_INFO_MEMBER(get_bg_tile_info);
 	TILE_GET_INFO_MEMBER(get_fg_tile_info);
 	TILEMAP_MAPPER_MEMBER(bsb_bg_scan);
+
 	virtual void video_start();
+
 	UINT32 screen_update_bestleag(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_bestleaw(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
-	required_device<okim6295_device> m_oki;
-	required_device<gfxdecode_device> m_gfxdecode;
-	required_device<palette_device> m_palette;
 };
 
 
@@ -213,19 +219,19 @@ UINT32 bestleag_state::screen_update_bestleaw(screen_device &screen, bitmap_ind1
 	return 0;
 }
 
-WRITE16_MEMBER(bestleag_state::bestleag_txram_w)
+WRITE16_MEMBER(bestleag_state::txram_w)
 {
 	m_txram[offset] = data;
 	m_tx_tilemap->mark_tile_dirty(offset);
 }
 
-WRITE16_MEMBER(bestleag_state::bestleag_bgram_w)
+WRITE16_MEMBER(bestleag_state::bgram_w)
 {
 	m_bgram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
-WRITE16_MEMBER(bestleag_state::bestleag_fgram_w)
+WRITE16_MEMBER(bestleag_state::fgram_w)
 {
 	m_fgram[offset] = data;
 	m_fg_tilemap->mark_tile_dirty(offset);
@@ -242,9 +248,9 @@ WRITE16_MEMBER(bestleag_state::oki_bank_w)
 static ADDRESS_MAP_START( bestleag_map, AS_PROGRAM, 16, bestleag_state )
 	AM_RANGE(0x000000, 0x03ffff) AM_ROM
 	AM_RANGE(0x0d2000, 0x0d3fff) AM_NOP // left over from the original game (only read / written in memory test)
-	AM_RANGE(0x0e0000, 0x0e3fff) AM_RAM_WRITE(bestleag_bgram_w) AM_SHARE("bgram")
-	AM_RANGE(0x0e8000, 0x0ebfff) AM_RAM_WRITE(bestleag_fgram_w) AM_SHARE("fgram")
-	AM_RANGE(0x0f0000, 0x0f3fff) AM_RAM_WRITE(bestleag_txram_w) AM_SHARE("txram")
+	AM_RANGE(0x0e0000, 0x0e3fff) AM_RAM_WRITE(bgram_w) AM_SHARE("bgram")
+	AM_RANGE(0x0e8000, 0x0ebfff) AM_RAM_WRITE(fgram_w) AM_SHARE("fgram")
+	AM_RANGE(0x0f0000, 0x0f3fff) AM_RAM_WRITE(txram_w) AM_SHARE("txram")
 	AM_RANGE(0x0f8000, 0x0f800b) AM_RAM AM_SHARE("vregs")
 	AM_RANGE(0x100000, 0x100fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x200000, 0x200fff) AM_RAM AM_SHARE("spriteram")
@@ -401,18 +407,18 @@ MACHINE_CONFIG_END
 
 ROM_START( bestleag )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* 68000 Code */
-	ROM_LOAD16_BYTE( "2(__bestleag).bin", 0x00000, 0x20000, CRC(d2be3431) SHA1(37815c80b9fbc246fcdaa202d40fb40b10f55b45) )
-	ROM_LOAD16_BYTE( "3(__bestleag).bin", 0x00001, 0x20000, CRC(f29c613a) SHA1(c66fa53f38bfa77ce1b894db74f94ce573c62412) )
+	ROM_LOAD16_BYTE( "2.bin",  0x00000, 0x20000, CRC(d2be3431) SHA1(37815c80b9fbc246fcdaa202d40fb40b10f55b45) ) // sldh
+	ROM_LOAD16_BYTE( "3.bin",  0x00001, 0x20000, CRC(f29c613a) SHA1(c66fa53f38bfa77ce1b894db74f94ce573c62412) ) // sldh
 
 	ROM_REGION( 0x200000, "gfx1", 0 ) /* 16x16x4 BG and 8x8x4 FG Tiles */
-	ROM_LOAD( "4(__bestleag).bin", 0x000000, 0x80000, CRC(47f7c9bc) SHA1(f0e5ef971f3bd6972316c248175436055cb5789d) )
-	ROM_LOAD( "5(__bestleag).bin", 0x080000, 0x80000, CRC(6a6f499d) SHA1(cacdccc64d09fa7289221cdea4654e6c2d811647) )
-	ROM_LOAD( "6(__bestleag).bin", 0x100000, 0x80000, CRC(0c3d2609) SHA1(6e1f1c5b010ef0dfa3f7b4ff9a832e758fbb97d5) )
-	ROM_LOAD( "7(__bestleag).bin", 0x180000, 0x80000, CRC(dcece871) SHA1(7db919ab7f51748b77b3bd35228bbf71b951349f) )
+	ROM_LOAD( "4.bin",         0x000000, 0x80000, CRC(47f7c9bc) SHA1(f0e5ef971f3bd6972316c248175436055cb5789d) ) // sldh
+	ROM_LOAD( "5.bin",         0x080000, 0x80000, CRC(6a6f499d) SHA1(cacdccc64d09fa7289221cdea4654e6c2d811647) ) // sldh
+	ROM_LOAD( "6.bin",         0x100000, 0x80000, CRC(0c3d2609) SHA1(6e1f1c5b010ef0dfa3f7b4ff9a832e758fbb97d5) ) // sldh
+	ROM_LOAD( "7.bin",         0x180000, 0x80000, CRC(dcece871) SHA1(7db919ab7f51748b77b3bd35228bbf71b951349f) ) // sldh
 
 	ROM_REGION( 0x080000, "gfx2", 0 ) /* 16x16x4 Sprites */
-	ROM_LOAD( "27_27c010.u86",  0x000000, 0x20000, CRC(a463422a) SHA1(a3b6efd1c57b0a3b0ce4ce734a9a9b79540c4136) )
-	ROM_LOAD( "28_27c010.u85",  0x020000, 0x20000, CRC(ebec74ed) SHA1(9a1620f4ca163470f5e567f650663ae368bdd3c1) )
+	ROM_LOAD( "27_27c010.u86", 0x000000, 0x20000, CRC(a463422a) SHA1(a3b6efd1c57b0a3b0ce4ce734a9a9b79540c4136) )
+	ROM_LOAD( "28_27c010.u85", 0x020000, 0x20000, CRC(ebec74ed) SHA1(9a1620f4ca163470f5e567f650663ae368bdd3c1) )
 	ROM_LOAD( "29_27c010.u84", 0x040000, 0x20000, CRC(7ea4e22d) SHA1(3c7f05dfd1c5889bfcbc14d08026e2a484870216) )
 	ROM_LOAD( "30_27c010.u83", 0x060000, 0x20000, CRC(283d9ba6) SHA1(6054853f76907a4a0f89ad5aa02dde9d3d4ff196) )
 
@@ -466,5 +472,5 @@ ROM_END
 
 /* GAME drivers */
 
-GAME( 1993, bestleag, bigstrik, bestleag, bestleag, driver_device, 0, ROT0, "bootleg", "Best League (bootleg of Big Striker, Italian Serie A)", GAME_NO_COCKTAIL )
-GAME( 1993, bestleaw, bigstrik, bestleaw, bestleag, driver_device, 0, ROT0, "bootleg", "Best League (bootleg of Big Striker, World Cup)", GAME_NO_COCKTAIL )
+GAME( 1993, bestleag, bigstrik, bestleag, bestleag, driver_device, 0, ROT0, "bootleg", "Best League (bootleg of Big Striker, Italian Serie A)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1993, bestleaw, bigstrik, bestleaw, bestleag, driver_device, 0, ROT0, "bootleg", "Best League (bootleg of Big Striker, World Cup)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )

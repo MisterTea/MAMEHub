@@ -201,8 +201,6 @@ inline item_layer get_layer_and_blendmode(const layout_view &view, int index, in
 	return item_layer(layer);
 }
 
-
-
 //**************************************************************************
 //  RENDER PRIMITIVE
 //**************************************************************************
@@ -214,6 +212,7 @@ inline item_layer get_layer_and_blendmode(const layout_view &view, int index, in
 
 void render_primitive::reset()
 {
+	// do not clear m_next!
 	memset(&type, 0, FPTR(&texcoords + 1) - FPTR(&type));
 }
 
@@ -447,7 +446,7 @@ void render_texture::hq_scale(bitmap_argb32 &dest, bitmap_argb32 &source, const 
 //  get_scaled - get a scaled bitmap (if we can)
 //-------------------------------------------------
 
-bool render_texture::get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &texinfo, render_primitive_list &primlist)
+void render_texture::get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &texinfo, render_primitive_list &primlist)
 {
 	// source width/height come from the source bounds
 	int swidth = m_sbounds.width();
@@ -460,7 +459,6 @@ bool render_texture::get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &t
 	texinfo.osddata = m_osddata;
 
 	// are we scaler-free? if so, just return the source bitmap
-	const rgb_t *palbase = (m_format == TEXFORMAT_PALETTE16 || m_format == TEXFORMAT_PALETTEA16) ? m_bitmap->palette()->entry_list_adjusted() : NULL;
 	if (m_scaler == NULL || (m_bitmap != NULL && swidth == dwidth && sheight == dheight))
 	{
 		// add a reference and set up the source bitmap
@@ -469,63 +467,63 @@ bool render_texture::get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &t
 		texinfo.rowpixels = m_bitmap->rowpixels();
 		texinfo.width = swidth;
 		texinfo.height = sheight;
-		texinfo.palette = palbase;
+		// palette will be set later
 		texinfo.seqid = ++m_curseq;
-		return true;
 	}
-
-	// make sure we can recover the original argb32 bitmap
-	bitmap_argb32 dummy;
-	bitmap_argb32 &srcbitmap = (m_bitmap != NULL) ? downcast<bitmap_argb32 &>(*m_bitmap) : dummy;
-
-	// is it a size we already have?
-	scaled_texture *scaled = NULL;
-	int scalenum;
-	for (scalenum = 0; scalenum < ARRAY_LENGTH(m_scaled); scalenum++)
+	else
 	{
-		scaled = &m_scaled[scalenum];
+		// make sure we can recover the original argb32 bitmap
+		bitmap_argb32 dummy;
+		bitmap_argb32 &srcbitmap = (m_bitmap != NULL) ? downcast<bitmap_argb32 &>(*m_bitmap) : dummy;
 
-		// we need a non-NULL bitmap with matching dest size
-		if (scaled->bitmap != NULL && dwidth == scaled->bitmap->width() && dheight == scaled->bitmap->height())
-			break;
-	}
-
-	// did we get one?
-	if (scalenum == ARRAY_LENGTH(m_scaled))
-	{
-		int lowest = -1;
-
-		// didn't find one -- take the entry with the lowest seqnum
+		// is it a size we already have?
+		scaled_texture *scaled = NULL;
+		int scalenum;
 		for (scalenum = 0; scalenum < ARRAY_LENGTH(m_scaled); scalenum++)
-			if ((lowest == -1 || m_scaled[scalenum].seqid < m_scaled[lowest].seqid) && !primlist.has_reference(m_scaled[scalenum].bitmap))
-				lowest = scalenum;
-		assert_always(lowest != -1, "Too many live texture instances!");
-
-		// throw out any existing entries
-		scaled = &m_scaled[lowest];
-		if (scaled->bitmap != NULL)
 		{
-			m_manager->invalidate_all(scaled->bitmap);
-			global_free(scaled->bitmap);
+			scaled = &m_scaled[scalenum];
+
+			// we need a non-NULL bitmap with matching dest size
+			if (scaled->bitmap != NULL && dwidth == scaled->bitmap->width() && dheight == scaled->bitmap->height())
+				break;
 		}
 
-		// allocate a new bitmap
-		scaled->bitmap = global_alloc(bitmap_argb32(dwidth, dheight));
-		scaled->seqid = ++m_curseq;
+		// did we get one?
+		if (scalenum == ARRAY_LENGTH(m_scaled))
+		{
+			int lowest = -1;
 
-		// let the scaler do the work
-		(*m_scaler)(*scaled->bitmap, srcbitmap, m_sbounds, m_param);
+			// didn't find one -- take the entry with the lowest seqnum
+			for (scalenum = 0; scalenum < ARRAY_LENGTH(m_scaled); scalenum++)
+				if ((lowest == -1 || m_scaled[scalenum].seqid < m_scaled[lowest].seqid) && !primlist.has_reference(m_scaled[scalenum].bitmap))
+					lowest = scalenum;
+			assert_always(lowest != -1, "Too many live texture instances!");
+
+			// throw out any existing entries
+			scaled = &m_scaled[lowest];
+			if (scaled->bitmap != NULL)
+			{
+				m_manager->invalidate_all(scaled->bitmap);
+				global_free(scaled->bitmap);
+			}
+
+			// allocate a new bitmap
+			scaled->bitmap = global_alloc(bitmap_argb32(dwidth, dheight));
+			scaled->seqid = ++m_curseq;
+
+			// let the scaler do the work
+			(*m_scaler)(*scaled->bitmap, srcbitmap, m_sbounds, m_param);
+		}
+
+		// finally fill out the new info
+		primlist.add_reference(scaled->bitmap);
+		texinfo.base = &scaled->bitmap->pix32(0);
+		texinfo.rowpixels = scaled->bitmap->rowpixels();
+		texinfo.width = dwidth;
+		texinfo.height = dheight;
+		// palette will be set later
+		texinfo.seqid = scaled->seqid;
 	}
-
-	// finally fill out the new info
-	primlist.add_reference(scaled->bitmap);
-	texinfo.base = &scaled->bitmap->pix32(0);
-	texinfo.rowpixels = scaled->bitmap->rowpixels();
-	texinfo.width = dwidth;
-	texinfo.height = dheight;
-	texinfo.palette = palbase;
-	texinfo.seqid = scaled->seqid;
-	return true;
 }
 
 
@@ -544,11 +542,7 @@ const rgb_t *render_texture::get_adjusted_palette(render_container &container)
 
 			assert(m_bitmap->palette() != NULL);
 
-			// if no adjustment necessary, return the raw palette
-			if (!container.has_brightness_contrast_gamma_changes())
-				return m_bitmap->palette()->entry_list_adjusted();
-
-			// otherwise, return our adjusted palette
+			// return our adjusted palette
 			return container.bcg_lookup_table(m_format, m_bitmap->palette());
 
 		case TEXFORMAT_RGB32:
@@ -595,7 +589,7 @@ render_container::render_container(render_manager &manager, screen_device *scree
 		m_user.m_brightness = manager.machine().options().brightness();
 		m_user.m_contrast = manager.machine().options().contrast();
 		m_user.m_gamma = manager.machine().options().gamma();
-		// can't allocate palette client yet since palette and screen devices aren't started yet
+		// palette client will be allocated later
 	}
 
 	recompute_lookups();
@@ -730,7 +724,6 @@ const rgb_t *render_container::bcg_lookup_table(int texformat, palette_t *palett
 		case TEXFORMAT_PALETTEA16:
 			if (m_palclient == NULL) // if adjusted palette hasn't been created yet, create it
 			{
-				assert(palette == m_screen->palette()->palette());
 				m_palclient.reset(global_alloc(palette_client(*palette)));
 				m_bcglookup.resize(palette->max_index());
 				recompute_lookups();
@@ -826,14 +819,19 @@ void render_container::recompute_lookups()
 		const rgb_t *adjusted_palette = palette.entry_list_adjusted();
 		int colors = palette.max_index();
 
-		for (int i = 0; i < colors; i++)
+		if (has_brightness_contrast_gamma_changes())
 		{
-			rgb_t newval = adjusted_palette[i];
-			m_bcglookup[i] = (newval & 0xff000000) |
+			for (int i = 0; i < colors; i++)
+			{
+				rgb_t newval = adjusted_palette[i];
+				m_bcglookup[i] = (newval & 0xff000000) |
 										m_bcglookup256[0x200 + newval.r()] |
 										m_bcglookup256[0x100 + newval.g()] |
 										m_bcglookup256[0x000 + newval.b()];
+			}
 		}
+		else
+			memcpy(&m_bcglookup[0], adjusted_palette, colors * sizeof(rgb_t));
 	}
 }
 
@@ -859,24 +857,29 @@ void render_container::update_palette()
 		palette_t &palette = m_palclient->palette();
 		const rgb_t *adjusted_palette = palette.entry_list_adjusted();
 
-		// loop over chunks of 32 entries, since we can quickly examine 32 at a time
-		for (UINT32 entry32 = mindirty / 32; entry32 <= maxdirty / 32; entry32++)
+		if (has_brightness_contrast_gamma_changes())
 		{
-			UINT32 dirtybits = dirty[entry32];
-			if (dirtybits != 0)
+			// loop over chunks of 32 entries, since we can quickly examine 32 at a time
+			for (UINT32 entry32 = mindirty / 32; entry32 <= maxdirty / 32; entry32++)
+			{
+				UINT32 dirtybits = dirty[entry32];
+				if (dirtybits != 0)
 
-				// this chunk of 32 has dirty entries; fix them up
-				for (UINT32 entry = 0; entry < 32; entry++)
-					if (dirtybits & (1 << entry))
-					{
-						UINT32 finalentry = entry32 * 32 + entry;
-						rgb_t newval = adjusted_palette[finalentry];
-						m_bcglookup[finalentry] = (newval & 0xff000000) |
+					// this chunk of 32 has dirty entries; fix them up
+					for (UINT32 entry = 0; entry < 32; entry++)
+						if (dirtybits & (1 << entry))
+						{
+							UINT32 finalentry = entry32 * 32 + entry;
+							rgb_t newval = adjusted_palette[finalentry];
+							m_bcglookup[finalentry] = (newval & 0xff000000) |
 														m_bcglookup256[0x200 + newval.r()] |
 														m_bcglookup256[0x100 + newval.g()] |
 														m_bcglookup256[0x000 + newval.b()];
-					}
+						}
+			}
 		}
+		else
+			memcpy(&m_bcglookup[mindirty], &adjusted_palette[mindirty], (maxdirty - mindirty + 1) * sizeof(rgb_t));
 	}
 }
 
@@ -1072,13 +1075,13 @@ int render_target::configured_view(const char *viewname, int targetindex, int nu
 			for (view = view_by_index(viewindex = 0); view != NULL; view = view_by_index(++viewindex))
 			{
 				const render_screen_list &viewscreens = view->screens();
-				if (viewscreens.count() == 1 && viewscreens.contains(*screen))
-					break;
 				if (viewscreens.count() == 0)
 				{
 					view = NULL;
 					break;
 				}
+				else if (viewscreens.count() == viewscreens.contains(*screen))
+					break;
 			}
 		}
 
@@ -1665,6 +1668,9 @@ void render_target::add_container_primitives(render_primitive_list &list, const 
 
 		// allocate the primitive and set the transformed bounds/color data
 		render_primitive *prim = list.alloc(render_primitive::INVALID);
+
+		prim->container = &container; /* pass the container along for access to user_settings */
+
 		prim->bounds.x0 = render_round_nearest(container_xform.xoffs + bounds.x0 * container_xform.xscale);
 		prim->bounds.y0 = render_round_nearest(container_xform.yoffs + bounds.y0 * container_xform.yscale);
 		if (curitem->internal() & INTERNAL_FLAG_CHAR)
@@ -1726,24 +1732,24 @@ void render_target::add_container_primitives(render_primitive_list &list, const 
 					int height = (finalorient & ORIENTATION_SWAP_XY) ? (prim->bounds.x1 - prim->bounds.x0) : (prim->bounds.y1 - prim->bounds.y0);
 					width = MIN(width, m_maxtexwidth);
 					height = MIN(height, m_maxtexheight);
-					if (curitem->texture()->get_scaled(width, height, prim->texture, list))
-					{
-						// set the palette
-						prim->texture.palette = curitem->texture()->get_adjusted_palette(container);
 
-						// determine UV coordinates and apply clipping
-						prim->texcoords = oriented_texcoords[finalorient];
-						clipped = render_clip_quad(&prim->bounds, &cliprect, &prim->texcoords);
+					curitem->texture()->get_scaled(width, height, prim->texture, list);
 
-						// apply the final orientation from the quad flags and then build up the final flags
-						prim->flags = (curitem->flags() & ~(PRIMFLAG_TEXORIENT_MASK | PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK)) |
-										PRIMFLAG_TEXORIENT(finalorient) |
-										PRIMFLAG_TEXFORMAT(curitem->texture()->format());
-						if (blendmode != -1)
-							prim->flags |= PRIMFLAG_BLENDMODE(blendmode);
-						else
-							prim->flags |= PRIMFLAG_BLENDMODE(PRIMFLAG_GET_BLENDMODE(curitem->flags()));
-					}
+					// set the palette
+					prim->texture.palette = curitem->texture()->get_adjusted_palette(container);
+
+					// determine UV coordinates and apply clipping
+					prim->texcoords = oriented_texcoords[finalorient];
+					clipped = render_clip_quad(&prim->bounds, &cliprect, &prim->texcoords);
+
+					// apply the final orientation from the quad flags and then build up the final flags
+					prim->flags = (curitem->flags() & ~(PRIMFLAG_TEXORIENT_MASK | PRIMFLAG_BLENDMODE_MASK | PRIMFLAG_TEXFORMAT_MASK)) |
+									PRIMFLAG_TEXORIENT(finalorient) |
+									PRIMFLAG_TEXFORMAT(curitem->texture()->format());
+					if (blendmode != -1)
+						prim->flags |= PRIMFLAG_BLENDMODE(blendmode);
+					else
+						prim->flags |= PRIMFLAG_BLENDMODE(PRIMFLAG_GET_BLENDMODE(curitem->flags()));
 				}
 				else
 				{
@@ -1778,21 +1784,20 @@ void render_target::add_container_primitives(render_primitive_list &list, const 
 		width = render_round_nearest(prim->bounds.x1) - render_round_nearest(prim->bounds.x0);
 		height = render_round_nearest(prim->bounds.y1) - render_round_nearest(prim->bounds.y0);
 
-		bool got_scaled = container.overlay()->get_scaled(
+		container.overlay()->get_scaled(
 				(container_xform.orientation & ORIENTATION_SWAP_XY) ? height : width,
 				(container_xform.orientation & ORIENTATION_SWAP_XY) ? width : height, prim->texture, list);
-		if (got_scaled)
-		{
-			// determine UV coordinates
-			prim->texcoords = oriented_texcoords[container_xform.orientation];
 
-			// set the flags and add it to the list
-			prim->flags = PRIMFLAG_TEXORIENT(container_xform.orientation) |
-							PRIMFLAG_BLENDMODE(BLENDMODE_RGB_MULTIPLY) |
-							PRIMFLAG_TEXFORMAT(container.overlay()->format()) |
-							PRIMFLAG_TEXSHADE(1);
-		}
-		list.append_or_return(*prim, !got_scaled);
+		// determine UV coordinates
+		prim->texcoords = oriented_texcoords[container_xform.orientation];
+
+		// set the flags and add it to the list
+		prim->flags = PRIMFLAG_TEXORIENT(container_xform.orientation) |
+						PRIMFLAG_BLENDMODE(BLENDMODE_RGB_MULTIPLY) |
+						PRIMFLAG_TEXFORMAT(container.overlay()->format()) |
+						PRIMFLAG_TEXSHADE(1);
+
+		list.append_or_return(*prim, false);
 	}
 }
 
@@ -1830,21 +1835,20 @@ void render_target::add_element_primitives(render_primitive_list &list, const ob
 		height = MIN(height, m_maxtexheight);
 
 		// get the scaled texture and append it
-		bool clipped = true;
-		if (texture->get_scaled(width, height, prim->texture, list))
-		{
-			// compute the clip rect
-			render_bounds cliprect;
-			cliprect.x0 = render_round_nearest(xform.xoffs);
-			cliprect.y0 = render_round_nearest(xform.yoffs);
-			cliprect.x1 = render_round_nearest(xform.xoffs + xform.xscale);
-			cliprect.y1 = render_round_nearest(xform.yoffs + xform.yscale);
-			sect_render_bounds(&cliprect, &m_bounds);
 
-			// determine UV coordinates and apply clipping
-			prim->texcoords = oriented_texcoords[xform.orientation];
-			clipped = render_clip_quad(&prim->bounds, &cliprect, &prim->texcoords);
-		}
+		texture->get_scaled(width, height, prim->texture, list);
+
+		// compute the clip rect
+		render_bounds cliprect;
+		cliprect.x0 = render_round_nearest(xform.xoffs);
+		cliprect.y0 = render_round_nearest(xform.yoffs);
+		cliprect.x1 = render_round_nearest(xform.xoffs + xform.xscale);
+		cliprect.y1 = render_round_nearest(xform.yoffs + xform.yscale);
+		sect_render_bounds(&cliprect, &m_bounds);
+
+		// determine UV coordinates and apply clipping
+		prim->texcoords = oriented_texcoords[xform.orientation];
+		bool clipped = render_clip_quad(&prim->bounds, &cliprect, &prim->texcoords);
 
 		// add to the list or free if we're clipped out
 		list.append_or_return(*prim, clipped);
@@ -2479,26 +2483,41 @@ render_target *render_manager::target_by_index(int index) const
 //  fonts
 //-------------------------------------------------
 
-float render_manager::ui_aspect()
+float render_manager::ui_aspect(render_container *rc)
 {
-	int orient = orientation_add(m_ui_target->orientation(), m_ui_container->orientation());
+	int orient = 0;
+	float aspect = 1.0f;
 
-	// based on the orientation of the target, compute height/width or width/height
-	float aspect;
-	if (!(orient & ORIENTATION_SWAP_XY))
-		aspect = (float)m_ui_target->height() / (float)m_ui_target->width();
-	else
-		aspect = (float)m_ui_target->width() / (float)m_ui_target->height();
+	if (rc == m_ui_container || rc == NULL) {
+		// ui container, aggregated multi-screen target
 
-	// if we have a valid pixel aspect, apply that and return
-	if (m_ui_target->pixel_aspect() != 0.0f)
-		return aspect / m_ui_target->pixel_aspect();
+		orient = orientation_add(m_ui_target->orientation(), m_ui_container->orientation());
+		// based on the orientation of the target, compute height/width or width/height
+		if (!(orient & ORIENTATION_SWAP_XY))
+				aspect = (float)m_ui_target->height() / (float)m_ui_target->width();
+		else
+				aspect = (float)m_ui_target->width() / (float)m_ui_target->height();
 
-	// if not, clamp for extreme proportions
+		// if we have a valid pixel aspect, apply that and return
+		if (m_ui_target->pixel_aspect() != 0.0f)
+				return (aspect / m_ui_target->pixel_aspect());
+	} else {
+		// single screen container
+
+		orient = rc->orientation();
+		// based on the orientation of the target, compute height/width or width/height
+		if (!(orient & ORIENTATION_SWAP_XY))
+			aspect = (float)rc->screen()->visible_area().height() / (float)rc->screen()->visible_area().width();
+		else
+			aspect = (float)rc->screen()->visible_area().width() / (float)rc->screen()->visible_area().height();
+	}
+
+	// clamp for extreme proportions
 	if (aspect < 0.66f)
 		aspect = 0.66f;
 	if (aspect > 1.5f)
 		aspect = 1.5f;
+
 	return aspect;
 }
 

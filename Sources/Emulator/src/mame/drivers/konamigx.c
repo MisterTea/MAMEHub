@@ -104,17 +104,7 @@
 #include "includes/konamigx.h"
 #include "rendlay.h"
 
-#define GX_DEBUG     0
 
-
-
-
-static int konamigx_cfgport;
-
-static int gx_rdport1_3, gx_syncen;
-
-static emu_timer *dmadelay_timer;
-static emu_timer *boothack_timer;
 
 /**********************************************************************************/
 /*
@@ -181,13 +171,10 @@ static struct sprite_entry {
 
 static void generate_sprites(address_space &space, UINT32 src, UINT32 spr, int count)
 {
-	int i;
-	int scount;
-	int ecount;
-	scount = 0;
-	ecount = 0;
+	int scount = 0;
+	int ecount = 0;
 
-	for(i=0; i<count; i++) {
+	for(int i=0; i<count; i++) {
 		UINT32 adr = src + 0x100*i;
 		int pri;
 		if(!space.read_word(adr+2))
@@ -202,7 +189,7 @@ static void generate_sprites(address_space &space, UINT32 src, UINT32 spr, int c
 	}
 	//qsort(sprites, ecount, sizeof(struct sprite_entry), pri_comp);
 
-	for(i=0; i<ecount; i++) {
+	for(int i=0; i<ecount; i++) {
 		UINT32 adr = sprites[i].adr;
 		if(adr) {
 			UINT32 set =(space.read_word(adr) << 16)|space.read_word(adr+2);
@@ -317,42 +304,36 @@ static void generate_sprites(address_space &space, UINT32 src, UINT32 spr, int c
 	}
 }
 
-static void tkmmpzdm_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
+void konamigx_state::tkmmpzdm_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
-	konamigx_state* state = space.machine().driver_data<konamigx_state>();
-	state->konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x0142, 0x100, 0);
+	konamigx_esc_alert(m_workram, 0x0142, 0x100, 0);
 }
 
-static void dragoonj_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
+void konamigx_state::dragoonj_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
-	konamigx_state* state = space.machine().driver_data<konamigx_state>();
-	state->konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x5c00, 0x100, 0);
+	konamigx_esc_alert(m_workram, 0x5c00, 0x100, 0);
 }
 
-static void sal2_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
+void konamigx_state::sal2_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
-	konamigx_state* state = space.machine().driver_data<konamigx_state>();
-	state->konamigx_esc_alert(space.machine().driver_data<konamigx_state>()->m_workram, 0x1c8c, 0x172, 1);
+	konamigx_esc_alert(m_workram, 0x1c8c, 0x172, 1);
 }
 
-static void sexyparo_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
+void konamigx_state::sexyparo_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
 	// The d20000 should probably be p3
 	generate_sprites(space, 0xc00604, 0xd20000, 0xfc);
 }
 
-static void tbyahhoo_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
+void konamigx_state::tbyahhoo_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
 	generate_sprites(space, 0xc00000, 0xd20000, 0x100);
 }
 
-static void daiskiss_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
+void konamigx_state::daiskiss_esc(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4)
 {
 	generate_sprites(space, 0xc00000, 0xd20000, 0x100);
 }
-
-static UINT8 esc_program[4096];
-static void (*esc_cb)(address_space &space, UINT32 p1, UINT32 p2, UINT32 p3, UINT32 p4);
 
 WRITE32_MEMBER(konamigx_state::esc_w)
 {
@@ -388,7 +369,7 @@ WRITE32_MEMBER(konamigx_state::esc_w)
 			break;
 		case 2: // Load program
 			for(i=0; i<4096; i++)
-				esc_program[i] = space.read_byte(params+i);
+				m_esc_program[i] = space.read_byte(params+i);
 /*
             {
                 FILE *f;
@@ -402,12 +383,12 @@ WRITE32_MEMBER(konamigx_state::esc_w)
 */
 			break;
 		case 1: // Run program
-			if(esc_cb) {
+			if(m_esc_cb) {
 				UINT32 p1 = (space.read_word(params+0)<<16) | space.read_word(params+2);
 				UINT32 p2 = (space.read_word(params+4)<<16) | space.read_word(params+6);
 				UINT32 p3 = (space.read_word(params+8)<<16) | space.read_word(params+10);
 				UINT32 p4 = (space.read_word(params+12)<<16) | space.read_word(params+14);
-				esc_cb(space, p1, p2, p3, p4);
+				(this->*m_esc_cb)(space, p1, p2, p3, p4);
 			}
 			break;
 		default:
@@ -416,9 +397,9 @@ WRITE32_MEMBER(konamigx_state::esc_w)
 		}
 		space.write_byte(data+9, ESTATE_END);
 
-		if (konamigx_wrport1_1 & 0x10)
+		if (m_gx_wrport1_1 & 0x10)
 		{
-			gx_rdport1_3 &= ~8;
+			m_gx_rdport1_3 &= ~8;
 			m_maincpu->set_input_line(4, HOLD_LINE);
 		}
 	}
@@ -441,7 +422,7 @@ WRITE32_MEMBER(konamigx_state::esc_w)
 
 CUSTOM_INPUT_MEMBER(konamigx_state::gx_rdport1_3_r)
 {
-	return (gx_rdport1_3 >> 1);
+	return (m_gx_rdport1_3 >> 1);
 }
 
 WRITE32_MEMBER(konamigx_state::eeprom_w)
@@ -464,7 +445,7 @@ WRITE32_MEMBER(konamigx_state::eeprom_w)
 
 		m_eepromout->write(odata, 0xff);
 
-		konamigx_wrport1_0 = odata;
+		m_gx_wrport1_0 = odata;
 	}
 
 	if (ACCESSING_BITS_16_23)
@@ -480,12 +461,12 @@ WRITE32_MEMBER(konamigx_state::eeprom_w)
 		  bit 0 = CCU1-INT1 enable
 		*/
 
-		konamigx_wrport1_1 = (data>>16)&0xff;
-//      logerror("write %x to IRQ register (PC=%x)\n", konamigx_wrport1_1, space.device().safe_pc());
+		m_gx_wrport1_1 = (data>>16)&0xff;
+//      logerror("write %x to IRQ register (PC=%x)\n", m_gx_wrport1_1, space.device().safe_pc());
 
-		// gx_syncen is to ensure each IRQ is trigger at least once after being enabled
-		if (konamigx_wrport1_1 & 0x80)
-			gx_syncen |= konamigx_wrport1_1 & 0x1f;
+		// m_gx_syncen is to ensure each IRQ is triggered at least once after being enabled
+		if (m_gx_wrport1_1 & 0x80)
+			m_gx_syncen |= m_gx_wrport1_1 & 0x1f;
 	}
 }
 
@@ -528,15 +509,13 @@ WRITE32_MEMBER(konamigx_state::control_w)
 
 		m_k055673->k053246_set_objcha_line((data&0x100000) ? ASSERT_LINE : CLEAR_LINE);
 
-		konamigx_wrport2 = (data>>16)&0xff;
+		m_gx_wrport2 = (data>>16)&0xff;
 	}
 }
 
 
 /**********************************************************************************/
 /* IRQ controllers */
-
-static int suspension_active, resume_trigger;
 
 READ32_MEMBER(konamigx_state::ccu_r)
 {
@@ -561,14 +540,14 @@ WRITE32_MEMBER(konamigx_state::ccu_w)
 		if (ACCESSING_BITS_24_31)
 		{
 			m_maincpu->set_input_line(1, CLEAR_LINE);
-			gx_syncen |= 0x20;
+			m_gx_syncen |= 0x20;
 		}
 
 		// hblank interrupt ACK
 		if (ACCESSING_BITS_8_15)
 		{
 			m_maincpu->set_input_line(2, CLEAR_LINE);
-			gx_syncen |= 0x40;
+			m_gx_syncen |= 0x40;
 		}
 	}
 }
@@ -590,22 +569,22 @@ TIMER_CALLBACK_MEMBER(konamigx_state::boothack_callback)
 TIMER_CALLBACK_MEMBER(konamigx_state::dmaend_callback)
 {
 	// foul-proof (CPU0 could be deactivated while we wait)
-	if (resume_trigger && suspension_active)
+	if (m_resume_trigger && m_suspension_active)
 	{
-		suspension_active = 0;
-		machine().scheduler().trigger(resume_trigger);
+		m_suspension_active = 0;
+		machine().scheduler().trigger(m_resume_trigger);
 	}
 
 	// DMA busy flag must be cleared before triggering IRQ 3
-	gx_rdport1_3 &= ~2;
+	m_gx_rdport1_3 &= ~2;
 
 	// IRQ 3 is the "object DMA end" IRQ also happens during vblank
-	if ((konamigx_wrport1_1 & 0x84) == 0x84 || (gx_syncen & 4))
+	if ((m_gx_wrport1_1 & 0x84) == 0x84 || (m_gx_syncen & 4))
 	{
-		gx_syncen &= ~4;
+		m_gx_syncen &= ~4;
 
 		// lower OBJINT-REQ flag and trigger interrupt
-		gx_rdport1_3 &= ~0x80;
+		m_gx_rdport1_3 &= ~0x80;
 		m_maincpu->set_input_line(3, HOLD_LINE);
 	}
 }
@@ -613,7 +592,7 @@ TIMER_CALLBACK_MEMBER(konamigx_state::dmaend_callback)
 void konamigx_state::dmastart_callback(int data)
 {
 	// raise the DMA busy flag
-	gx_rdport1_3 |= 2;
+	m_gx_rdport1_3 |= 2;
 
 	// begin transfer if DMAEN(bit4 of OBJSET1) is set (see p.48)
 	if (m_k055673->k053246_read_register(5) & 0x10)
@@ -623,27 +602,27 @@ void konamigx_state::dmastart_callback(int data)
 	}
 
 	// simulate DMA delay
-	dmadelay_timer->adjust(attotime::from_usec(120));
+	m_dmadelay_timer->adjust(attotime::from_usec(120));
 }
 
 
 INTERRUPT_GEN_MEMBER(konamigx_state::konamigx_vbinterrupt)
 {
 	// lift idle suspension
-	if (resume_trigger && suspension_active)
+	if (m_resume_trigger && m_suspension_active)
 	{
-		suspension_active = 0;
-		machine().scheduler().trigger(resume_trigger);
+		m_suspension_active = 0;
+		machine().scheduler().trigger(m_resume_trigger);
 	}
 
 	// IRQ 1 is the main 60hz vblank interrupt
-	if (gx_syncen & 0x20)
+	if (m_gx_syncen & 0x20)
 	{
-		gx_syncen &= ~0x20;
+		m_gx_syncen &= ~0x20;
 
-		if ((konamigx_wrport1_1 & 0x81) == 0x81 || (gx_syncen & 1))
+		if ((m_gx_wrport1_1 & 0x81) == 0x81 || (m_gx_syncen & 1))
 		{
-			gx_syncen &= ~1;
+			m_gx_syncen &= ~1;
 			device.execute().set_input_line(1, HOLD_LINE);
 		}
 	}
@@ -658,26 +637,26 @@ TIMER_DEVICE_CALLBACK_MEMBER(konamigx_state::konamigx_hbinterrupt)
 	if (scanline == 240)
 	{
 		// lift idle suspension
-		if (resume_trigger && suspension_active)
+		if (m_resume_trigger && m_suspension_active)
 		{
-			suspension_active = 0;
-			machine().scheduler().trigger(resume_trigger);
+			m_suspension_active = 0;
+			machine().scheduler().trigger(m_resume_trigger);
 		}
 
 		// IRQ 1 is the main 60hz vblank interrupt
-		// the gx_syncen & 0x20 test doesn't work on type 3 or 4 ROM boards, likely because the ROM board
+		// the m_gx_syncen & 0x20 test doesn't work on type 3 or 4 ROM boards, likely because the ROM board
 		// generates the timing in those cases.  With this change, rushing heroes and rng2 boot :)
 
 		// maybe this interrupt should only be every 30fps, or maybe there are flags to prevent the game running too fast
 		// the real hardware should output the display for each screen on alternate frames
 		//  if(device->m_screen->frame_number() & 1)
-		if (1) // gx_syncen & 0x20)
+		if (1) // m_gx_syncen & 0x20)
 		{
-			gx_syncen &= ~0x20;
+			m_gx_syncen &= ~0x20;
 
-			if ((konamigx_wrport1_1 & 0x81) == 0x81 || (gx_syncen & 1))
+			if ((m_gx_wrport1_1 & 0x81) == 0x81 || (m_gx_syncen & 1))
 			{
-				gx_syncen &= ~1;
+				m_gx_syncen &= ~1;
 				m_maincpu->set_input_line(1, HOLD_LINE);
 
 			}
@@ -688,13 +667,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(konamigx_state::konamigx_hbinterrupt)
 	else if(scanline < 240) // hblank
 	{
 		// IRQ 2 is a programmable interrupt with scanline resolution
-		if (gx_syncen & 0x40)
+		if (m_gx_syncen & 0x40)
 		{
-			gx_syncen &= ~0x40;
+			m_gx_syncen &= ~0x40;
 
-			if ((konamigx_wrport1_1 & 0x82) == 0x82 || (gx_syncen & 2))
+			if ((m_gx_wrport1_1 & 0x82) == 0x82 || (m_gx_syncen & 2))
 			{
-				gx_syncen &= ~2;
+				m_gx_syncen &= ~2;
 				m_maincpu->set_input_line(2, HOLD_LINE);
 			}
 		}
@@ -745,16 +724,6 @@ READ32_MEMBER(konamigx_state::le2_gun_V_r)
 /**********************************************************************************/
 /* system or game dependent handlers */
 
-READ32_MEMBER(konamigx_state::gx5bppspr_r)
-{
-	return (m_k055673->k055673_rom_word_r(space, offset*2+1, 0xffff) | m_k055673->k055673_rom_word_r(space, offset*2, 0xffff)<<16);
-}
-
-READ32_MEMBER(konamigx_state::gx6bppspr_r)
-{
-	return (m_k055673->k055673_GX6bpp_rom_word_r(space, offset*2+1, 0xffff) | m_k055673->k055673_GX6bpp_rom_word_r(space, offset*2, 0xffff)<<16);
-}
-
 READ32_MEMBER(konamigx_state::type1_roz_r1)
 {
 	UINT32 *ROM = (UINT32 *)memregion("gfx3")->base();
@@ -771,8 +740,6 @@ READ32_MEMBER(konamigx_state::type1_roz_r2)
 	return ROM[offset];
 }
 
-//static int sync_frame = 0;
-
 READ32_MEMBER(konamigx_state::type3_sync_r)
 {
 	if(m_konamigx_current_frame==0)
@@ -780,7 +747,7 @@ READ32_MEMBER(konamigx_state::type3_sync_r)
 	else
 		return 0;// return 0xfffffffe | 0;
 }
-static int last_prot_op, last_prot_clk;
+
 
 /*
     Run and Gun 2, Rushing Heroes, Winning Spike, and Vs. Net Soccer contain a XILINX FPGA that serves as security.
@@ -856,8 +823,6 @@ static int last_prot_op, last_prot_clk;
     move.l  #$C10400,($C102EC).l       move.l  #$C10400,($C102EC).l
 */
 
-//static int cc=0;
-
 WRITE32_MEMBER(konamigx_state::type4_prot_w)
 {
 	int clk;
@@ -865,18 +830,18 @@ WRITE32_MEMBER(konamigx_state::type4_prot_w)
 
 	if (offset == 1)
 	{
-		last_prot_op = data>>16;
+		m_last_prot_op = data>>16;
 	}
 	else
 	{
 		data >>= 16;
 
 		clk = data & 0x200;
-		if ((clk == 0) && (last_prot_clk != 0))
+		if ((clk == 0) && (m_last_prot_clk != 0))
 		{
-			if (last_prot_op != -1)
+			if (m_last_prot_op != -1)
 			{
-//              osd_printf_debug("type 4 prot command: %x\n", last_prot_op);
+//              osd_printf_debug("type 4 prot command: %x\n", m_last_prot_op);
 				/*
 				    known commands:
 				    rng2   rushhero  vsnet  winspike   what
@@ -886,7 +851,7 @@ WRITE32_MEMBER(konamigx_state::type4_prot_w)
 				           0d97  0515              parse big DMA list at c10200
 				                 57a       copy 4 bytes from c00f10 to c10f00 and 4 bytes from c00f30 to c0fe00
 				*/
-				if ((last_prot_op == 0xa56) || (last_prot_op == 0xd96) || (last_prot_op == 0xd14) || (last_prot_op == 0xd1c))
+				if ((m_last_prot_op == 0xa56) || (m_last_prot_op == 0xd96) || (m_last_prot_op == 0xd14) || (m_last_prot_op == 0xd1c))
 				{
 					// memcpy from c01000 to c01400 for 0x400 bytes (startup check for type 4 games)
 					for (i = 0; i < 0x400; i += 2)
@@ -894,7 +859,7 @@ WRITE32_MEMBER(konamigx_state::type4_prot_w)
 						space.write_word(0xc01400+i, space.read_word(0xc01000+i));
 					}
 				}
-				else if(last_prot_op == 0x57a)  // winspike
+				else if(m_last_prot_op == 0x57a)  // winspike
 				{
 					/* player 1 input buffer protection */
 					space.write_dword(0xc10f00, space.read_dword(0xc00f10));
@@ -906,7 +871,7 @@ WRITE32_MEMBER(konamigx_state::type4_prot_w)
 					space.write_dword(0xc0fe00, space.read_dword(0xc00f30));
 					space.write_dword(0xc0fe04, space.read_dword(0xc00f34));
 				}
-				else if(last_prot_op == 0xd97)  // rushhero
+				else if(m_last_prot_op == 0xd97)  // rushhero
 				{
 					int src = 0xc09ff0;
 					int dst = 0xd20000;
@@ -929,7 +894,7 @@ WRITE32_MEMBER(konamigx_state::type4_prot_w)
 					space.write_byte(0xc01cc4, ~space.read_byte(0xc00547));
 					space.write_byte(0xc01cc5, ~space.read_byte(0xc00567));
 				}
-				else if(last_prot_op == 0xb16) // slamdnk2
+				else if(m_last_prot_op == 0xb16) // slamdnk2
 				{
 					int src = 0xc01000;
 					int dst = 0xd20000;
@@ -944,36 +909,36 @@ WRITE32_MEMBER(konamigx_state::type4_prot_w)
 
 					//maybe here there's a [$d8001f] <- 0x31 write too?
 				}
-				else if(last_prot_op == 0x515) // vsnetscr screen 1
+				else if(m_last_prot_op == 0x515) // vsnetscr screen 1
 				{
 					int adr;
-					//printf("GXT4: command %x %d (PC=%x)\n", last_prot_op, cc++, space.device().safe_pc());
+					//printf("GXT4: command %x %d (PC=%x)\n", m_last_prot_op, cc++, space.device().safe_pc());
 					for (adr = 0; adr < 0x400; adr += 2)
 						space.write_word(0xc01c00+adr, space.read_word(0xc01800+adr));
 				}
-				else if(last_prot_op == 0x115d) // vsnetscr screen 2
+				else if(m_last_prot_op == 0x115d) // vsnetscr screen 2
 				{
 					int adr;
-					//printf("GXT4: command %x %d (PC=%x)\n", last_prot_op, cc++, space.device().safe_pc());
+					//printf("GXT4: command %x %d (PC=%x)\n", m_last_prot_op, cc++, space.device().safe_pc());
 					for (adr = 0; adr < 0x400; adr += 2)
 						space.write_word(0xc18c00+adr, space.read_word(0xc18800+adr));
 				}
 				else
 				{
-					printf("GXT4: unknown protection command %x (PC=%x)\n", last_prot_op, space.device().safe_pc());
+					printf("GXT4: unknown protection command %x (PC=%x)\n", m_last_prot_op, space.device().safe_pc());
 				}
 
-				if (konamigx_wrport1_1 & 0x10)
+				if (m_gx_wrport1_1 & 0x10)
 				{
-					gx_rdport1_3 &= ~8;
+					m_gx_rdport1_3 &= ~8;
 					m_maincpu->set_input_line(4, HOLD_LINE);
 				}
 
 				// don't accidentally do a phony command
-				last_prot_op = -1;
+				m_last_prot_op = -1;
 			}
 		}
-		last_prot_clk = clk;
+		m_last_prot_clk = clk;
 	}
 }
 
@@ -993,12 +958,13 @@ static ADDRESS_MAP_START( gx_base_memmap, AS_PROGRAM, 32, konamigx_state )
 	AM_RANGE(0x400000, 0x7fffff) AM_ROM // data ROM
 	AM_RANGE(0xc00000, 0xc1ffff) AM_RAM AM_SHARE("workram")
 	AM_RANGE(0xd00000, 0xd01fff) AM_DEVREAD("k056832", k056832_device, k_5bpp_rom_long_r)
-	AM_RANGE(0xd20000, 0xd20fff) AM_DEVREADWRITE("k055673", k055673_device, k053247_long_r, k053247_long_w)
+	AM_RANGE(0xd20000, 0xd20fff) AM_DEVREADWRITE16("k055673", k055673_device, k053247_word_r, k053247_word_w, 0xffffffff)
 	AM_RANGE(0xd21000, 0xd23fff) AM_RAM
 	AM_RANGE(0xd40000, 0xd4003f) AM_DEVWRITE("k056832", k056832_device, long_w)
 	AM_RANGE(0xd44000, 0xd4400f) AM_WRITE(konamigx_tilebank_w)
-	AM_RANGE(0xd48000, 0xd48007) AM_DEVWRITE("k055673", k055673_device, k053246_long_w)
-	AM_RANGE(0xd4a010, 0xd4a01f) AM_DEVWRITE("k055673", k055673_device, k053247_reg_long_w)
+	AM_RANGE(0xd48000, 0xd48007) AM_DEVWRITE16("k055673", k055673_device, k053246_word_w, 0xffffffff)
+	AM_RANGE(0xd4a000, 0xd4a00f) AM_DEVREAD16("k055673", k055673_device, k055673_rom_word_r, 0xffffffff)
+	AM_RANGE(0xd4a010, 0xd4a01f) AM_DEVWRITE16("k055673", k055673_device, k055673_reg_word_w, 0xffffffff)
 	AM_RANGE(0xd4c000, 0xd4c01f) AM_READWRITE(ccu_r, ccu_w)
 	AM_RANGE(0xd4e000, 0xd4e01f) AM_WRITENOP
 	AM_RANGE(0xd50000, 0xd500ff) AM_DEVWRITE("k055555", k055555_device, K055555_long_w)
@@ -1011,14 +977,9 @@ static ADDRESS_MAP_START( gx_base_memmap, AS_PROGRAM, 32, konamigx_state )
 	AM_RANGE(0xd80000, 0xd8001f) AM_DEVWRITE("k054338", k054338_device, long_w)
 	AM_RANGE(0xda0000, 0xda1fff) AM_DEVREADWRITE("k056832", k056832_device, ram_long_r, ram_long_w)
 	AM_RANGE(0xda2000, 0xda3fff) AM_DEVREADWRITE("k056832", k056832_device, ram_long_r, ram_long_w)
-#if GX_DEBUG
-	AM_RANGE(0xd40000, 0xd4003f) AM_DEVREAD("k056832", k056832_device, long_r)
-	AM_RANGE(0xd4a010, 0xd4a01f) AM_DEVREAD("k055673", k055673_device, k053247_reg_long_r)
-#endif
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( gx_type1_map, AS_PROGRAM, 32, konamigx_state )
-	AM_RANGE(0xd4a000, 0xd4a01f) AM_READ(gx6bppspr_r)   // sprite ROM readback
 	AM_RANGE(0xd90000, 0xd97fff) AM_RAM_WRITE(konamigx_palette_w) AM_SHARE("paletteram")
 	AM_RANGE(0xdc0000, 0xdc1fff) AM_RAM         // LAN RAM? (Racin' Force has, Open Golf doesn't)
 	AM_RANGE(0xdd0000, 0xdd00ff) AM_READNOP AM_WRITENOP // LAN board
@@ -1196,7 +1157,7 @@ static INPUT_PORTS_START( common )
 
 	// note: racin' force expects bit 1 of the eeprom port to toggle
 	PORT_BIT( 0x00000001, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_READ_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, do_read)
-	PORT_BIT( 0x000000fe, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, konamigx_state,gx_rdport1_3_r, NULL)
+	PORT_BIT( 0x000000fe, IP_ACTIVE_HIGH, IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, konamigx_state, gx_rdport1_3_r, NULL)
 	PORT_BIT( 0x00000100, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x00000200, IP_ACTIVE_LOW, IPT_COIN2 )
 	PORT_BIT( 0x00000400, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -1920,7 +1881,6 @@ ROM_END
 #define T1_PSAC8_ROM_LOAD(name,offset,length,crc) ROMX_LOAD(name, offset, length, crc, ROM_GROUPBYTE | ROM_SKIP(3))
 
 #define _48_WORD_ROM_LOAD(name,offset,length,crc)   ROMX_LOAD(name, offset, length, crc, ROM_GROUPWORD | ROM_SKIP(4))
-#define _64_WORD_ROM_LOAD(name,offset,length,crc)   ROMX_LOAD(name, offset, length, crc, ROM_GROUPWORD | ROM_SKIP(6))
 
 
 /* Gokujou Parodius version JAD (Japan) */
@@ -2444,10 +2404,10 @@ ROM_START( winspike )
 
 	/* sprites */
 	ROM_REGION( 0x1000000, "gfx2", ROMREGION_ERASE00 )
-	_64_WORD_ROM_LOAD( "705a10.33g",   0x000000, 0x400000, CRC(fc4dc78b) SHA1(520cdcf9ca20ec1c84be734e06e183e7a871090b) )
-	_64_WORD_ROM_LOAD( "705a11.30g",   0x000002, 0x400000, CRC(68542ce9) SHA1(a4294da1d1026e3a9d070575e5855935389a705f) )
-	_64_WORD_ROM_LOAD( "705a13.28g",   0x000004, 0x400000, CRC(3b62584b) SHA1(69718f47ff1e8d65a11972af1ed5068db175f625) )
-	_64_WORD_ROM_LOAD( "705a17.25g",   0x000006, 0x400000, CRC(971d2812) SHA1(ee0819faf6f6c8420d5d3742cb39dfb76b9ce7a4) )
+	ROM_LOAD64_WORD( "705a17.25g",   0x000000, 0x400000, CRC(971d2812) SHA1(ee0819faf6f6c8420d5d3742cb39dfb76b9ce7a4) )
+	ROM_LOAD64_WORD( "705a13.28g",   0x000002, 0x400000, CRC(3b62584b) SHA1(69718f47ff1e8d65a11972af1ed5068db175f625) )
+	ROM_LOAD64_WORD( "705a11.30g",   0x000004, 0x400000, CRC(68542ce9) SHA1(a4294da1d1026e3a9d070575e5855935389a705f) )
+	ROM_LOAD64_WORD( "705a10.33g",   0x000006, 0x400000, CRC(fc4dc78b) SHA1(520cdcf9ca20ec1c84be734e06e183e7a871090b) )
 
 	/* sound data */
 	ROM_REGION( 0x400000, "shared", 0 )
@@ -2503,10 +2463,10 @@ ROM_START( winspikej )
 
 	/* sprites */
 	ROM_REGION( 0x1000000, "gfx2", ROMREGION_ERASE00 )
-	_64_WORD_ROM_LOAD( "705a10.33g",   0x000000, 0x400000, CRC(fc4dc78b) SHA1(520cdcf9ca20ec1c84be734e06e183e7a871090b) )
-	_64_WORD_ROM_LOAD( "705a11.30g",   0x000002, 0x400000, CRC(68542ce9) SHA1(a4294da1d1026e3a9d070575e5855935389a705f) )
-	_64_WORD_ROM_LOAD( "705a13.28g",   0x000004, 0x400000, CRC(3b62584b) SHA1(69718f47ff1e8d65a11972af1ed5068db175f625) )
-	_64_WORD_ROM_LOAD( "705a17.25g",   0x000006, 0x400000, CRC(971d2812) SHA1(ee0819faf6f6c8420d5d3742cb39dfb76b9ce7a4) )
+	ROM_LOAD64_WORD( "705a17.25g",   0x000000, 0x400000, CRC(971d2812) SHA1(ee0819faf6f6c8420d5d3742cb39dfb76b9ce7a4) )
+	ROM_LOAD64_WORD( "705a13.28g",   0x000002, 0x400000, CRC(3b62584b) SHA1(69718f47ff1e8d65a11972af1ed5068db175f625) )
+	ROM_LOAD64_WORD( "705a11.30g",   0x000004, 0x400000, CRC(68542ce9) SHA1(a4294da1d1026e3a9d070575e5855935389a705f) )
+	ROM_LOAD64_WORD( "705a10.33g",   0x000006, 0x400000, CRC(fc4dc78b) SHA1(520cdcf9ca20ec1c84be734e06e183e7a871090b) )
 
 	/* sound data */
 	ROM_REGION( 0x400000, "shared", 0 )
@@ -3201,10 +3161,10 @@ ROM_START( le2 )
 
 	/* sprites */
 	ROM_REGION( 0x800000, "gfx2", ROMREGION_ERASE00 )
-	_64_WORD_ROM_LOAD( "312a08.33g", 0x000000, 2*1024*1024, CRC(29015d56) SHA1(7273270804ecefd8f59469c2c2a8a89fb045a12b) )
-	_64_WORD_ROM_LOAD( "312a09.30g", 0x000002, 2*1024*1024, CRC(b2c5d6d5) SHA1(8248612275ca862c6688de5c6f24f37aeb3f9fe5) )
-	_64_WORD_ROM_LOAD( "312a10.28g", 0x000004, 2*1024*1024, CRC(3c570d04) SHA1(ebbf7d28726e98c8895c9bf901f8b2dd38018c77) )
-	_64_WORD_ROM_LOAD( "312a11.25g", 0x000006, 2*1024*1024, CRC(5f474357) SHA1(1f6d99f1ea69e07a65731ea4eae5917452cfcab6) )
+	ROM_LOAD64_WORD( "312a11.25g", 0x000000, 2*1024*1024, CRC(5f474357) SHA1(1f6d99f1ea69e07a65731ea4eae5917452cfcab6) )
+	ROM_LOAD64_WORD( "312a10.28g", 0x000002, 2*1024*1024, CRC(3c570d04) SHA1(ebbf7d28726e98c8895c9bf901f8b2dd38018c77) )
+	ROM_LOAD64_WORD( "312a09.30g", 0x000004, 2*1024*1024, CRC(b2c5d6d5) SHA1(8248612275ca862c6688de5c6f24f37aeb3f9fe5) )
+	ROM_LOAD64_WORD( "312a08.33g", 0x000006, 2*1024*1024, CRC(29015d56) SHA1(7273270804ecefd8f59469c2c2a8a89fb045a12b) )
 
 	/* sound data */
 	ROM_REGION( 0x400000, "shared", 0 )
@@ -3239,10 +3199,10 @@ ROM_START( le2u )
 
 	/* sprites */
 	ROM_REGION( 0x800000, "gfx2", ROMREGION_ERASE00 )
-	_64_WORD_ROM_LOAD( "312a08.33g", 0x000000, 2*1024*1024, CRC(29015d56) SHA1(7273270804ecefd8f59469c2c2a8a89fb045a12b) )
-	_64_WORD_ROM_LOAD( "312a09.30g", 0x000002, 2*1024*1024, CRC(b2c5d6d5) SHA1(8248612275ca862c6688de5c6f24f37aeb3f9fe5) )
-	_64_WORD_ROM_LOAD( "312a10.28g", 0x000004, 2*1024*1024, CRC(3c570d04) SHA1(ebbf7d28726e98c8895c9bf901f8b2dd38018c77) )
-	_64_WORD_ROM_LOAD( "312a11.25g", 0x000006, 2*1024*1024, CRC(5f474357) SHA1(1f6d99f1ea69e07a65731ea4eae5917452cfcab6) )
+	ROM_LOAD64_WORD( "312a11.25g", 0x000000, 2*1024*1024, CRC(5f474357) SHA1(1f6d99f1ea69e07a65731ea4eae5917452cfcab6) )
+	ROM_LOAD64_WORD( "312a10.28g", 0x000002, 2*1024*1024, CRC(3c570d04) SHA1(ebbf7d28726e98c8895c9bf901f8b2dd38018c77) )
+	ROM_LOAD64_WORD( "312a09.30g", 0x000004, 2*1024*1024, CRC(b2c5d6d5) SHA1(8248612275ca862c6688de5c6f24f37aeb3f9fe5) )
+	ROM_LOAD64_WORD( "312a08.33g", 0x000006, 2*1024*1024, CRC(29015d56) SHA1(7273270804ecefd8f59469c2c2a8a89fb045a12b) )
 
 	/* sound data */
 	ROM_REGION( 0x400000, "shared", 0 )
@@ -3278,10 +3238,10 @@ ROM_START( le2j )
 
 	/* sprites */
 	ROM_REGION( 0x800000, "gfx2", ROMREGION_ERASE00 )
-	_64_WORD_ROM_LOAD( "312a08.33g", 0x000000, 2*1024*1024, CRC(29015d56) SHA1(7273270804ecefd8f59469c2c2a8a89fb045a12b) )
-	_64_WORD_ROM_LOAD( "312a09.30g", 0x000002, 2*1024*1024, CRC(b2c5d6d5) SHA1(8248612275ca862c6688de5c6f24f37aeb3f9fe5) )
-	_64_WORD_ROM_LOAD( "312a10.28g", 0x000004, 2*1024*1024, CRC(3c570d04) SHA1(ebbf7d28726e98c8895c9bf901f8b2dd38018c77) )
-	_64_WORD_ROM_LOAD( "312a11.25g", 0x000006, 2*1024*1024, CRC(5f474357) SHA1(1f6d99f1ea69e07a65731ea4eae5917452cfcab6) )
+	ROM_LOAD64_WORD( "312a11.25g", 0x000000, 2*1024*1024, CRC(5f474357) SHA1(1f6d99f1ea69e07a65731ea4eae5917452cfcab6) )
+	ROM_LOAD64_WORD( "312a10.28g", 0x000002, 2*1024*1024, CRC(3c570d04) SHA1(ebbf7d28726e98c8895c9bf901f8b2dd38018c77) )
+	ROM_LOAD64_WORD( "312a09.30g", 0x000004, 2*1024*1024, CRC(b2c5d6d5) SHA1(8248612275ca862c6688de5c6f24f37aeb3f9fe5) )
+	ROM_LOAD64_WORD( "312a08.33g", 0x000006, 2*1024*1024, CRC(29015d56) SHA1(7273270804ecefd8f59469c2c2a8a89fb045a12b) )
 
 	/* sound data */
 	ROM_REGION( 0x400000, "shared", 0 )
@@ -3595,22 +3555,22 @@ ROM_END
 
 MACHINE_START_MEMBER(konamigx_state,konamigx)
 {
-	save_item(NAME(konamigx_wrport1_1));
+	save_item(NAME(m_gx_wrport1_1));
 }
 
 MACHINE_RESET_MEMBER(konamigx_state,konamigx)
 {
-	konamigx_wrport1_0 = konamigx_wrport1_1 = 0;
-	konamigx_wrport2 = 0;
+	m_gx_wrport1_0 = m_gx_wrport1_1 = 0;
+	m_gx_wrport2 = 0;
 
 /*
     bit0  : EEPROM data(don't care)
     bit1  : DMA busy   (cleared)
     bit2-7: IRQ ready  (all set)
 */
-	gx_rdport1_3 = 0xfc;
-	gx_syncen    = 0;
-	suspension_active = 0;
+	m_gx_rdport1_3 = 0xfc;
+	m_gx_syncen    = 0;
+	m_suspension_active = 0;
 
 	// Hold sound CPUs in reset
 	m_soundcpu->set_input_line(INPUT_LINE_HALT, ASSERT_LINE);
@@ -3650,7 +3610,7 @@ MACHINE_RESET_MEMBER(konamigx_state,konamigx)
 
 		// To hack around this, we underclock the 68020 for 10 seconds during POST
 		m_maincpu->set_clock_scale(0.66f);
-		boothack_timer->adjust(attotime::from_seconds(10));
+		m_boothack_timer->adjust(attotime::from_seconds(10));
 	}
 
 	if (!strcmp(setname, "le2") ||
@@ -3725,15 +3685,15 @@ DRIVER_INIT_MEMBER(konamigx_state,konamigx)
 	int i, match;
 	int readback = 0;
 
-	konamigx_cfgport = -1;
-	last_prot_op = -1;
-	last_prot_clk = 0;
+	m_gx_cfgport = -1;
+	m_last_prot_op = -1;
+	m_last_prot_clk = 0;
 
-	esc_cb = 0;
-	resume_trigger = 0;
+	m_esc_cb = NULL;
+	m_resume_trigger = 0;
 
-	dmadelay_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(konamigx_state::dmaend_callback),this));
-	boothack_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(konamigx_state::boothack_callback),this));
+	m_dmadelay_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(konamigx_state::dmaend_callback),this));
+	m_boothack_timer = machine().scheduler().timer_alloc(timer_expired_delegate(FUNC(konamigx_state::boothack_callback),this));
 
 	i = match = 0;
 	while ((gameDefs[i].cfgport != -1) && (!match))
@@ -3741,7 +3701,7 @@ DRIVER_INIT_MEMBER(konamigx_state,konamigx)
 		if (!strcmp(machine().system().name, gameDefs[i].romname))
 		{
 			match = 1;
-			konamigx_cfgport = gameDefs[i].cfgport;
+			m_gx_cfgport = gameDefs[i].cfgport;
 			readback = gameDefs[i].readback;
 
 			switch (gameDefs[i].special)
@@ -3762,24 +3722,24 @@ DRIVER_INIT_MEMBER(konamigx_state,konamigx)
 					rom[0x810f1] &= ~1;      // fix checksum
 					rom[0x872ea] |= 0xe0000; // enable plane B,C,D
 
-					esc_cb = tkmmpzdm_esc;
+					m_esc_cb = &konamigx_state::tkmmpzdm_esc;
 					break;
 				}
 
 				case 3: // dragoon might
-					esc_cb = dragoonj_esc;
+					m_esc_cb = &konamigx_state::dragoonj_esc;
 					break;
 
 				case 4: // sexyparo
-					esc_cb = sexyparo_esc;
+					m_esc_cb = &konamigx_state::sexyparo_esc;
 					break;
 
 				case 5: // daiskiss
-					esc_cb = daiskiss_esc;
+					m_esc_cb = &konamigx_state::daiskiss_esc;
 					break;
 
 				case 6: // salamander 2
-					esc_cb = sal2_esc;
+					m_esc_cb = &konamigx_state::sal2_esc;
 					break;
 
 				case 7: // install type 4 Xilinx protection for non-type 3/4 games
@@ -3787,7 +3747,7 @@ DRIVER_INIT_MEMBER(konamigx_state,konamigx)
 					break;
 
 				case 8: // tbyahhoo
-					esc_cb = tbyahhoo_esc;
+					m_esc_cb = &konamigx_state::tbyahhoo_esc;
 					break;
 
 				case 9: // fantjour
@@ -3799,19 +3759,9 @@ DRIVER_INIT_MEMBER(konamigx_state,konamigx)
 		i++;
 	}
 
-	switch (readback)
-	{
-		case BPP5:
-			m_maincpu->space(AS_PROGRAM).install_read_handler(0xd4a000, 0xd4a00f, read32_delegate(FUNC(konamigx_state::gx5bppspr_r),this));
-		break;
+	if (readback == BPP66)
+		m_maincpu->space(AS_PROGRAM).install_read_handler(0xd00000, 0xd01fff, read32_delegate(FUNC(konamigx_state::k_6bpp_rom_long_r), this));
 
-		case BPP66:
-			m_maincpu->space(AS_PROGRAM).install_read_handler(0xd00000, 0xd01fff, read32_delegate(FUNC(konamigx_state::k_6bpp_rom_long_r), this));
-
-		case BPP6:
-			m_maincpu->space(AS_PROGRAM).install_read_handler(0xd4a000, 0xd4a00f, read32_delegate(FUNC(konamigx_state::gx6bppspr_r),this));
-		break;
-	}
 
 #undef BPP5
 #undef BPP6

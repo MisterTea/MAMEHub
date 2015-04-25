@@ -198,18 +198,11 @@ public:
 };
 
 
-/*----------- defined in machine/leland.c -----------*/
-
 #define SERIAL_TYPE_NONE        0
 #define SERIAL_TYPE_ADD         1
 #define SERIAL_TYPE_ADD_XOR     2
 #define SERIAL_TYPE_ENCRYPT     3
 #define SERIAL_TYPE_ENCRYPT_XOR 4
-
-void leland_init_eeprom(running_machine &machine, UINT8 default_val, const UINT16 *data, UINT8 serial_offset, UINT8 serial_type);
-void ataxx_init_eeprom(running_machine &machine, const UINT16 *data);
-
-void leland_rotate_memory(running_machine &machine, const char *cpuname);
 
 
 /*----------- defined in audio/leland.c -----------*/
@@ -259,7 +252,8 @@ protected:
 private:
 	void command_lo_sync(void *ptr, int param);
 	void delayed_response_r(void *ptr, int param);
-	void set_clock_line(int which, bool state) { m_clock_active = state ? (m_clock_active | (1<<which)) : (m_clock_active & ~(1<<which)); }
+	void set_clock_line(int which, int state) { m_clock_active = state ? (m_clock_active | (1<<which)) : (m_clock_active & ~(1<<which)); }
+
 	// internal state
 	i80186_cpu_device *m_audiocpu;
 	UINT16 m_peripheral;

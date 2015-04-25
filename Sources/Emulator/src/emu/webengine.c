@@ -8,13 +8,15 @@
 
 ***************************************************************************/
 
-#include "web/mongoose.h"
-#include "web/json/json.h"
+#include "mongoose/mongoose.h"
+#include "jsoncpp/include/json/json.h"
 #include "emu.h"
 #include "emuopts.h"
 #include "ui/ui.h"
 #include "webengine.h"
+#include "lua.hpp"
 
+#include "osdepend.h"
 
 //**************************************************************************
 //  WEB ENGINE
@@ -130,10 +132,156 @@ int web_engine::json_slider_handler(struct mg_connection *conn)
 	return MG_TRUE;
 }
 
+void reg_string(struct lua_State *L, const char *name, const char *val) {
+	lua_pushstring(L, name);
+	lua_pushstring(L, val);
+	lua_rawset(L, -3);
+}
+
+void reg_int(struct lua_State *L, const char *name, int val) {
+	lua_pushstring(L, name);
+	lua_pushinteger(L, val);
+	lua_rawset(L, -3);
+}
+
+void reg_function(struct lua_State *L, const char *name,
+							lua_CFunction func, struct mg_connection *conn) {
+	lua_pushstring(L, name);
+	lua_pushlightuserdata(L, conn);
+	lua_pushcclosure(L, func, 1);
+	lua_rawset(L, -3);
+}
+
+static int lua_write(lua_State *L) {
+	int i, num_args;
+	const char *str;
+	size_t size;
+	struct mg_connection *conn = (struct mg_connection *)
+	lua_touserdata(L, lua_upvalueindex(1));
+
+	num_args = lua_gettop(L);
+	for (i = 1; i <= num_args; i++) {
+	if (lua_isstring(L, i)) {
+		str = lua_tolstring(L, i, &size);
+		mg_send_data(conn, str, size);
+	}
+	}
+
+	return 0;
+}
+
+static int lua_header(lua_State *L) {
+	struct mg_connection *conn = (struct mg_connection *)
+	lua_touserdata(L, lua_upvalueindex(1));
+
+	const char *header = luaL_checkstring(L,1);
+	const char *value  = luaL_checkstring(L,2);
+
+	mg_send_header(conn, header, value);
+
+	return 0;
+}
+
+
+static void prepare_lua_environment(struct mg_connection *ri, lua_State *L) {
+	extern void luaL_openlibs(lua_State *);
+	int i;
+
+	luaL_openlibs(L);
+
+	if (ri == NULL) return;
+
+	// Register mg module
+	lua_newtable(L);
+	reg_function(L, "write", lua_write, ri);
+	reg_function(L, "header", lua_header, ri);
+
+	// Export request_info
+	lua_pushstring(L, "request_info");
+	lua_newtable(L);
+	reg_string(L, "request_method", ri->request_method);
+	reg_string(L, "uri", ri->uri);
+	reg_string(L, "http_version", ri->http_version);
+	reg_string(L, "query_string", ri->query_string);
+	reg_string(L, "remote_ip", ri->remote_ip);
+	reg_int(L, "remote_port", ri->remote_port);
+	reg_string(L, "local_ip", ri->local_ip);
+	reg_int(L, "local_port", ri->local_port);
+	lua_pushstring(L, "content");
+	lua_pushlstring(L, ri->content == NULL ? "" : ri->content, ri->content_len);
+	lua_rawset(L, -3);
+	reg_int(L, "num_headers", ri->num_headers);
+	lua_pushstring(L, "http_headers");
+	lua_newtable(L);
+	for (i = 0; i < ri->num_headers; i++) {
+	reg_string(L, ri->http_headers[i].name, ri->http_headers[i].value);
+	}
+	lua_rawset(L, -3);
+	lua_rawset(L, -3);
+
+	lua_setglobal(L, "mg");
+
+}
+
+
+static void lsp(struct mg_connection *conn, const char *p, int len, lua_State *L) {
+	int i, j, pos = 0;
+	for (i = 0; i < len; i++) {
+	if (p[i] == '<' && p[i + 1] == '?') {
+		for (j = i + 1; j < len ; j++) {
+		if (p[j] == '?' && p[j + 1] == '>') {
+			if (i-pos!=0) mg_send_data(conn, p + pos, i - pos);
+			if (luaL_loadbuffer(L, p + (i + 2), j - (i + 2), "") == 0) {
+			lua_pcall(L, 0, LUA_MULTRET, 0);
+			}
+			pos = j + 2;
+			i = pos - 1;
+			break;
+		}
+		}
+	}
+	}
+	if (i > pos) {
+	mg_send_data(conn, p + pos, i - pos);
+	}
+}
+
+static int filename_endswith(const char *str, const char *suffix)
+{
+	if (!str || !suffix)
+		return 0;
+	size_t lenstr = strlen(str);
+	size_t lensuffix = strlen(suffix);
+	if (lensuffix >  lenstr)
+		return 0;
+	return strncmp(str + lenstr - lensuffix, suffix, lensuffix) == 0;
+}
+
 // This function will be called by mongoose on every new request.
 int web_engine::begin_request_handler(struct mg_connection *conn)
 {
-	if (!strncmp(conn->uri, "/json/",6))
+	astring file_path(mg_get_option(m_server, "document_root"), PATH_SEPARATOR, conn->uri);
+	if (filename_endswith(file_path,".lp"))
+	{
+		FILE *fp = NULL;
+		if ((fp = fopen(file_path, "rb")) != NULL) {
+		fseek (fp, 0, SEEK_END);
+		size_t size = ftell(fp);
+		fseek (fp, 0, SEEK_SET);
+		char *data = (char*)mg_mmap(fp,size);
+
+		lua_State *L = luaL_newstate();
+		prepare_lua_environment(conn, L);
+		lsp(conn, data, (int) size, L);
+		if (L != NULL) lua_close(L);
+		mg_munmap(data,size);
+		fclose(fp);
+		return MG_TRUE;
+		} else {
+		return MG_FALSE;
+		}
+	}
+	else if (!strncmp(conn->uri, "/json/",6))
 	{
 		if (!strcmp(conn->uri, "/json/game"))
 		{
@@ -143,6 +291,54 @@ int web_engine::begin_request_handler(struct mg_connection *conn)
 		{
 			return json_slider_handler(conn);
 		}
+	}
+	else if (!strncmp(conn->uri, "/keypost",8))
+	{
+		// Is there any sane way to determine the length of the buffer before getting it?
+		// A request for a way was previously filed with the mongoose devs,
+		// but it looks like it was never implemented.
+
+		// For now, we'll allow a paste buffer of 32k.
+		// To-do: Send an error if the paste is too big?
+		char cmd_val[32768];
+
+		int pastelength = mg_get_var(conn, "val", cmd_val, sizeof(cmd_val));
+		if (pastelength > 0) {
+			machine().ioport().natkeyboard().post_utf8(cmd_val);
+		}
+		// Send HTTP reply to the client
+		mg_printf(conn,
+			"HTTP/1.1 200 OK\r\n"
+			"Content-Type: text/plain\r\n"
+			"Content-Length: 2\r\n"        // Always set Content-Length
+			"\r\n"
+			"OK");
+
+		// Returning non-zero tells mongoose that our function has replied to
+		// the client, and mongoose should not send client any more data.
+		return MG_TRUE;
+	}
+	else if (!strncmp(conn->uri, "/keyupload",8))
+	{
+		char *upload_data;
+		int data_length, ofs = 0;
+		char var_name[100], file_name[255];
+		while ((ofs = mg_parse_multipart(conn->content + ofs, conn->content_len - ofs, var_name, sizeof(var_name), file_name, sizeof(file_name), (const char **)&upload_data, &data_length)) > 0) {
+				mg_printf_data(conn, "File: %s, size: %d bytes", file_name, data_length);
+		}
+
+		// That upload_data contains more than we need. It also has the headers.
+		// We'll need to strip it down to just what we want.
+
+		if ((&data_length > 0) && (sizeof(file_name) > 0))
+		{
+			// MSVC doesn't yet support variable-length arrays, so chop the string the old-fashioned way
+			upload_data[data_length] = '\0';
+
+			// Now paste the stripped down paste_data..
+			machine().ioport().natkeyboard().post_utf8(upload_data);
+		}
+		return MG_TRUE;
 	}
 	else if (!strncmp(conn->uri, "/cmd",4))
 	{
@@ -259,7 +455,7 @@ int web_engine::begin_request_handler(struct mg_connection *conn)
 		mg_send_header(conn, "Cache-Control", "no-cache, no-store, must-revalidate");
 		mg_send_header(conn, "Pragma", "no-cache");
 		mg_send_header(conn, "Expires", "0");
-		mg_send_file(conn, fullpath.cstr());
+		mg_send_file(conn, fullpath.cstr(), NULL);
 		return MG_MORE; // It is important to return MG_MORE after mg_send_file!
 	}
 	return 0;
@@ -287,27 +483,6 @@ static int ev_handler(struct mg_connection *conn, enum mg_event ev) {
 	}
 }
 
-static int iterate_callback(struct mg_connection *c, enum mg_event ev) {
-	if (ev == MG_POLL && c->is_websocket) {
-	char buf[20];
-	int len = snprintf(buf, sizeof(buf), "%lu",
-		(unsigned long) * (time_t *) c->callback_param);
-	mg_websocket_write(c, 1, buf, len);
-	}
-	return MG_TRUE;
-}
-
-static void *serve(void *server) {
-	time_t current_timer = 0, last_timer = time(NULL);
-	for (;;) mg_poll_server((struct mg_server *) server, 1000);
-	current_timer = time(NULL);
-	if (current_timer - last_timer > 0) {
-		last_timer = current_timer;
-		mg_iterate_over_connections((struct mg_server *)server, iterate_callback, &current_timer);
-	}
-	return NULL;
-}
-
 //-------------------------------------------------
 //  web_engine - constructor
 //-------------------------------------------------
@@ -317,16 +492,15 @@ web_engine::web_engine(emu_options &options)
 		m_machine(NULL),
 		m_server(NULL),
 		//m_lastupdatetime(0),
-		m_exiting_core(false)
+		m_exiting_core(false),
+		m_http(m_options.http())
 
 {
-	if (m_options.http()) {
+	if (m_http) {
 		m_server = mg_create_server(this, ev_handler);
 
 		mg_set_option(m_server, "listening_port", options.http_port());
 		mg_set_option(m_server, "document_root",  options.http_path());
-
-		mg_start_thread(serve, m_server);
 	}
 
 }
@@ -337,7 +511,7 @@ web_engine::web_engine(emu_options &options)
 
 web_engine::~web_engine()
 {
-	if (m_options.http())
+	if (m_http)
 		close();
 }
 
@@ -352,16 +526,20 @@ void web_engine::close()
 	mg_destroy_server(&m_server);
 }
 
-static int websocket_callback(struct mg_connection *c, enum mg_event ev) {
-	if (c->is_websocket) {
-	const char *message = (const char *)c->callback_param;
-	mg_websocket_write(c, 1, message, strlen(message));
-	}
-	return MG_TRUE;
+void web_engine::serve()
+{
+	if (m_http) mg_poll_server(m_server, 0);
 }
 
 void web_engine::push_message(const char *message)
 {
-	if (m_server!=NULL)
-		mg_iterate_over_connections(m_server, websocket_callback, (void*)message);
+	struct mg_connection *c;
+	if (m_server!=NULL) {
+		// Iterate over all connections, and push current time message to websocket ones.
+		for (c = mg_next(m_server, NULL); c != NULL; c = mg_next(m_server, c)) {
+			if (c->is_websocket) {
+				mg_websocket_write(c, 1, message, strlen(message));
+			}
+		}
+	}
 }

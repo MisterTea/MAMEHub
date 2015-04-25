@@ -27,10 +27,9 @@ void super6_state::bankswitch()
 {
 	address_space &program = m_maincpu->space(AS_PROGRAM);
 	UINT8 *ram = m_ram->pointer();
-	UINT8 *rom = m_rom->base();
 
 	// power on jump
-	if (!BIT(m_bank0, 6)) { program.install_rom(0x0000, 0x07ff, 0, 0xf800, rom); return; }
+	if (!BIT(m_bank0, 6)) { program.install_rom(0x0000, 0x07ff, 0, 0xf800, m_rom); return; }
 
 	// first 64KB of memory
 	program.install_ram(0x0000, 0xffff, ram);
@@ -83,7 +82,7 @@ void super6_state::bankswitch()
 	if (BIT(m_bank0, 3)) program.install_ram(0xc000, 0xffff, ram + 0xc000);
 
 	// PROM enabled
-	if (!BIT(m_bank0, 5)) program.install_rom(0xf000, 0xf7ff, 0, 0x800, rom);
+	if (!BIT(m_bank0, 5)) program.install_rom(0xf000, 0xf7ff, 0, 0x800, m_rom);
 }
 
 
@@ -368,7 +367,7 @@ READ8_MEMBER(super6_state::memory_read_byte)
 WRITE8_MEMBER(super6_state::memory_write_byte)
 {
 	address_space& prog_space = m_maincpu->space(AS_PROGRAM);
-	return prog_space.write_byte(offset, data);
+	prog_space.write_byte(offset, data);
 }
 
 READ8_MEMBER(super6_state::io_read_byte)
@@ -380,7 +379,7 @@ READ8_MEMBER(super6_state::io_read_byte)
 WRITE8_MEMBER(super6_state::io_write_byte)
 {
 	address_space& prog_space = m_maincpu->space(AS_IO);
-	return prog_space.write_byte(offset, data);
+	prog_space.write_byte(offset, data);
 }
 
 //-------------------------------------------------
@@ -401,7 +400,7 @@ WRITE_LINE_MEMBER( super6_state::fr_w )
 //-------------------------------------------------
 
 static SLOT_INTERFACE_START( super6_floppies )
-	SLOT_INTERFACE( "525dd", FLOPPY_525_DD )
+	SLOT_INTERFACE( "525dd", FLOPPY_525_QD )
 SLOT_INTERFACE_END
 
 WRITE_LINE_MEMBER( super6_state::fdc_intrq_w )

@@ -60,7 +60,6 @@ Notes/ToDo:
 #include "emu.h"
 #include "video/ppu2c0x.h"
 #include "cpu/m6502/n2a03.h"
-#include "imagedev/cartslot.h"
 #include "sound/nes_apu.h"
 #include "sound/dac.h"
 #include "debugger.h"
@@ -120,7 +119,7 @@ public:
 	UINT32 screen_update_famibox(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_CALLBACK_MEMBER(famicombox_attract_timer_callback);
 	TIMER_CALLBACK_MEMBER(famicombox_gameplay_timer_callback);
-	void set_mirroring(famibox_state *state, int mirroring);
+	void set_mirroring(int mirroring);
 	void famicombox_bankswitch(UINT8 bank);
 	void famicombox_reset();
 	void ppu_irq(int *ppu_regs);
@@ -133,7 +132,7 @@ public:
 *******************************************************/
 
 #if 0
-void famibox_state::set_mirroring(famibox_state *state, int mirroring)
+void famibox_state::set_mirroring(int mirroring)
 {
 	switch(mirroring)
 	{

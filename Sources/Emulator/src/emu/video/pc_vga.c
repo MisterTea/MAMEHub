@@ -46,6 +46,7 @@
 
 #include "emu.h"
 #include "pc_vga.h"
+#include "bus/isa/trident.h"
 #include "machine/eepromser.h"
 #include "debugger.h"
 
@@ -118,7 +119,6 @@ enum
 // device type definition
 const device_type VGA = &device_creator<vga_device>;
 const device_type TSENG_VGA = &device_creator<tseng_vga_device>;
-const device_type TRIDENT_VGA = &device_creator<trident_vga_device>;
 const device_type S3_VGA = &device_creator<s3_vga_device>;
 const device_type GAMTOR_VGA = &device_creator<gamtor_vga_device>;
 const device_type ATI_VGA = &device_creator<ati_vga_device>;
@@ -145,11 +145,6 @@ svga_device::svga_device(const machine_config &mconfig, device_type type, const 
 
 tseng_vga_device::tseng_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: svga_device(mconfig, TSENG_VGA, "TSENG LABS VGA", tag, owner, clock, "tseng_vga", __FILE__)
-{
-}
-
-trident_vga_device::trident_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: svga_device(mconfig, TRIDENT_VGA, "Trident VGA", tag, owner, clock, "trident_vga", __FILE__)
 {
 }
 
@@ -203,6 +198,27 @@ mach8_device::mach8_device(const machine_config &mconfig, const char *tag, devic
 {
 }
 
+// zero everything, keep vtbls
+void vga_device::zero()
+{
+	memset(&vga.svga_intf, 0, sizeof(vga.svga_intf));
+	vga.memory.resize(0);
+	memset(vga.pens, 0, sizeof(vga.pens));
+	vga.miscellaneous_output = 0;
+	vga.feature_control = 0;
+	memset(&vga.sequencer, 0, sizeof(vga.sequencer));
+	memset(&vga.crtc, 0, sizeof(vga.crtc));
+	memset(&vga.gc, 0, sizeof(vga.gc));
+	memset(&vga.attribute, 0, sizeof(vga.attribute));
+	memset(&vga.dac, 0, sizeof(vga.dac));
+	memset(&vga.oak, 0, sizeof(vga.oak));
+}
+
+void svga_device::zero()
+{
+	vga_device::zero();
+	memset(&svga, 0, sizeof(svga));
+}
 
 /* VBLANK callback, start address definitely updates AT vblank, not before. */
 TIMER_CALLBACK_MEMBER(vga_device::vblank_timer_cb)
@@ -213,7 +229,7 @@ TIMER_CALLBACK_MEMBER(vga_device::vblank_timer_cb)
 
 void vga_device::device_start()
 {
-	memset(&vga, 0, sizeof(vga));
+	zero();
 
 	int i;
 	for (i = 0; i < 0x100; i++)
@@ -246,8 +262,7 @@ void svga_device::device_start()
 
 void cirrus_vga_device::device_start()
 {
-	memset(&vga, 0, sizeof(vga));
-	memset(&svga, 0, sizeof(svga));
+	zero();
 
 	int i;
 	for (i = 0; i < 0x100; i++)
@@ -1677,8 +1692,9 @@ READ8_MEMBER(vga_device::port_03c0_r)
 			data = vga.attribute.index;
 			break;
 		case 1:
-			if(vga.attribute.index&0x20)
-				data = vga.attribute.index; // TODO: open bus
+			if((vga.attribute.index&0x20)
+			&& ((vga.attribute.index&0x1f)<0x10))
+				data = 0; // palette access is disabled in this mode
 			else if ((vga.attribute.index&0x1f)<sizeof(vga.attribute.data))
 				data=vga.attribute.data[vga.attribute.index&0x1f];
 			break;
@@ -2004,6 +2020,8 @@ void s3_vga_device::device_reset()
 	// Power-on strapping bits.  Sampled at reset, but can be modified later.
 	// These are just assumed defaults.
 	s3.strapping = 0x000f0b1e;
+	s3.sr10 = 0x42;
+	s3.sr11 = 0x41;
 }
 
 READ8_MEMBER(vga_device::mem_r)
@@ -2069,7 +2087,8 @@ READ8_MEMBER(vga_device::mem_r)
 		return data;
 	}
 
-	return 0;
+	// never executed
+	//return 0;
 }
 
 WRITE8_MEMBER(vga_device::mem_w)
@@ -2581,153 +2600,6 @@ WRITE8_MEMBER(tseng_vga_device::mem_w)
 
 /******************************************
 
-Trident implementation
-
-******************************************/
-UINT8 trident_vga_device::trident_seq_reg_read(UINT8 index)
-{
-	UINT8 res;
-
-	res = 0xff;
-
-	if(index <= 0x04)
-		res = vga.sequencer.data[index];
-	else
-	{
-		switch(index)
-		{
-			case 0x0b:
-				res = svga.id;
-				// TODO: new mode registers selected
-				break;
-			case 0x0d:
-				res = svga.rgb15_en;
-				break;
-		}
-	}
-
-	return res;
-}
-
-void trident_vga_device::trident_seq_reg_write(UINT8 index, UINT8 data)
-{
-	if(index <= 0x04)
-	{
-		vga.sequencer.data[vga.sequencer.index] = data;
-		seq_reg_write(vga.sequencer.index,data);
-		recompute_params();
-	}
-	else
-	{
-		switch(index)
-		{
-			case 0x0b:
-				// TODO: old mode registers selected
-				break;
-			case 0x0d:
-				svga.rgb15_en = data & 0x30; // TODO: doesn't match documentation
-				break;
-		}
-	}
-}
-
-
-READ8_MEMBER(trident_vga_device::port_03c0_r)
-{
-	UINT8 res;
-
-	switch(offset)
-	{
-		case 0x05:
-			res = trident_seq_reg_read(vga.sequencer.index);
-			break;
-		default:
-			res = vga_device::port_03c0_r(space,offset,mem_mask);
-			break;
-	}
-
-	return res;
-}
-
-WRITE8_MEMBER(trident_vga_device::port_03c0_w)
-{
-	switch(offset)
-	{
-		case 0x05:
-			trident_seq_reg_write(vga.sequencer.index,data);
-			break;
-		default:
-			vga_device::port_03c0_w(space,offset,data,mem_mask);
-			break;
-	}
-}
-
-
-READ8_MEMBER(trident_vga_device::port_03d0_r)
-{
-	UINT8 res = 0xff;
-
-	if (CRTC_PORT_ADDR == 0x3d0)
-	{
-		switch(offset)
-		{
-			case 8:
-				res = svga.bank_w & 0x1f; // TODO: a lot more complex than this
-				break;
-			default:
-				res = vga_device::port_03d0_r(space,offset,mem_mask);
-				break;
-		}
-	}
-
-	return res;
-}
-
-WRITE8_MEMBER(trident_vga_device::port_03d0_w)
-{
-	if (CRTC_PORT_ADDR == 0x3d0)
-	{
-		switch(offset)
-		{
-			case 8:
-				svga.bank_w = data & 0x1f; // TODO: a lot more complex than this
-				break;
-			default:
-				vga_device::port_03d0_w(space,offset,data,mem_mask);
-				break;
-		}
-	}
-}
-
-READ8_MEMBER(trident_vga_device::mem_r )
-{
-	if (svga.rgb15_en & 0x30)
-	{
-		int data;
-		if(offset & 0x10000)  // TODO: old reg mode actually CAN read to the upper bank
-			return 0;
-		data=vga.memory[offset + (svga.bank_w*0x10000)];
-		return data;
-	}
-
-	return vga_device::mem_r(space,offset,mem_mask);
-}
-
-WRITE8_MEMBER(trident_vga_device::mem_w)
-{
-	if (svga.rgb15_en & 0x30)
-	{
-		if(offset & 0x10000) // TODO: old reg mode actually CAN write to the upper bank
-			return;
-		vga.memory[offset + (svga.bank_w*0x10000)]= data;
-		return;
-	}
-
-	vga_device::mem_w(space,offset,data,mem_mask);
-}
-
-/******************************************
-
 S3 implementation
 
 ******************************************/
@@ -2897,7 +2769,7 @@ void s3_vga_device::s3_define_video_mode()
 			case 0x03: svga.rgb15_en = 1; divisor = 2; break;
 			case 0x05: svga.rgb16_en = 1; divisor = 2; break;
 			case 0x0d: svga.rgb32_en = 1; divisor = 1; break;
-			default: fatalerror("TODO: S3 colour mode not implemented %02x\n",((s3.ext_misc_ctrl_2) >> 4)); break;
+			default: fatalerror("TODO: S3 colour mode not implemented %02x\n",((s3.ext_misc_ctrl_2) >> 4));
 		}
 	}
 	else
@@ -3239,6 +3111,10 @@ UINT8 s3_vga_device::s3_seq_reg_read(UINT8 index)
 			break;
 		case 0x15:
 			res = s3.sr15;
+			break;
+		case 0x17:
+			res = s3.sr17;  // CLKSYN test register
+			s3.sr17--;  // who knows what it should return, docs only say it defaults to 0, and is reserved for testing of the clock synthesiser
 			break;
 		}
 	}
@@ -5308,12 +5184,12 @@ READ8_MEMBER(ati_vga_device::mem_r)
 		if(ati.ext_reg[0x3d] & 0x04)
 		{
 			offset &= 0x1ffff;
-			return vga.memory[(offset+svga.bank_r*0x20000)];
+			return vga.memory[(offset+svga.bank_r*0x20000) % vga.svga_intf.vram_size];
 		}
 		else
 		{
 			offset &= 0xffff;
-			return vga.memory[(offset+svga.bank_r*0x10000)];
+			return vga.memory[(offset+svga.bank_r*0x10000) % vga.svga_intf.vram_size];
 		}
 	}
 
@@ -5327,12 +5203,12 @@ WRITE8_MEMBER(ati_vga_device::mem_w)
 		if(ati.ext_reg[0x3d] & 0x04)
 		{
 			offset &= 0x1ffff;
-			vga.memory[(offset+svga.bank_w*0x20000)] = data;
+			vga.memory[(offset+svga.bank_w*0x20000) % vga.svga_intf.vram_size] = data;
 		}
 		else
 		{
 			offset &= 0xffff;
-			vga.memory[(offset+svga.bank_w*0x10000)] = data;
+			vga.memory[(offset+svga.bank_w*0x10000) % vga.svga_intf.vram_size] = data;
 		}
 	}
 	else

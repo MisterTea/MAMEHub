@@ -12,6 +12,7 @@
 #include "softlist.h"
 #include "clifront.h"
 #include "validity.h"
+#include "expat.h"
 
 #include <ctype.h>
 
@@ -196,7 +197,10 @@ software_info::software_info(software_list_device &list, const char *name, const
 		m_list(list),
 		m_supported(SOFTWARE_SUPPORTED_YES),
 		m_shortname(name),
-		m_parentname(parent)
+		m_longname(NULL),
+		m_parentname(parent),
+		m_year(NULL),
+		m_publisher(NULL)
 {
 	// ensure strings we are passed are in the string pool
 	assert(list.string_pool_contains(name));
@@ -261,98 +265,6 @@ bool software_info::has_multiple_parts(const char *interface) const
 
 
 //**************************************************************************
-//  CONST STRING POOL
-//**************************************************************************
-
-//-------------------------------------------------
-//  const_string_pool - constructor
-//-------------------------------------------------
-
-const_string_pool::const_string_pool()
-{
-}
-
-
-//-------------------------------------------------
-//  add - add a string to the string pool
-//-------------------------------------------------
-
-const char *const_string_pool::add(const char *string)
-{
-	// if NULL or a small number (for some hash strings), just return as-is
-	if (FPTR(string) < 0x100)
-		return string;
-
-	// scan to find space
-	for (pool_chunk *chunk = m_chunklist.first(); chunk != NULL; chunk = chunk->next())
-	{
-		const char *result = chunk->add(string);
-		if (result != NULL)
-			return result;
-	}
-
-	// no space anywhere, create a new pool and prepend it (so it gets used first)
-	const char *result = m_chunklist.prepend(*global_alloc(pool_chunk)).add(string);
-	assert(result != NULL);
-	return result;
-}
-
-
-//-------------------------------------------------
-//  contains - determine if the given string
-//  pointer lives in the pool
-//-------------------------------------------------
-
-bool const_string_pool::contains(const char *string)
-{
-	// if NULL or a small number (for some hash strings), then yes, effectively
-	if (FPTR(string) < 0x100)
-		return true;
-
-	// scan to find it
-	for (pool_chunk *chunk = m_chunklist.first(); chunk != NULL; chunk = chunk->next())
-		if (chunk->contains(string))
-			return true;
-
-	return false;
-}
-
-
-//-------------------------------------------------
-//  pool_chunk - constructor
-//-------------------------------------------------
-
-const_string_pool::pool_chunk::pool_chunk()
-	: m_next(NULL),
-		m_used(0)
-{
-}
-
-
-//-------------------------------------------------
-//  add - add a string to this pool
-//-------------------------------------------------
-
-const char *const_string_pool::pool_chunk::add(const char *string)
-{
-	// get the length of the string (no string can be longer than a full pool)
-	int bytes = strlen(string) + 1;
-	assert(bytes < POOL_SIZE);
-
-	// if too big, return NULL
-	if (m_used + bytes > POOL_SIZE)
-		return NULL;
-
-	// allocate, copy, and return the memory
-	char *dest = &m_buffer[m_used];
-	m_used += bytes;
-	memcpy(dest, string, bytes);
-	return dest;
-}
-
-
-
-//**************************************************************************
 //  SOFTWARE LIST DEVICE
 //**************************************************************************
 
@@ -371,11 +283,11 @@ software_list_device::software_list_device(const machine_config &mconfig, const 
 
 
 //-------------------------------------------------
-//  static_set_interface - configuration helper
-//  to set the interface
+//  static_set_type - configuration helper
+//  to set the list type
 //-------------------------------------------------
 
-void software_list_device::static_set_config(device_t &device, const char *list, softlist_type list_type)
+void software_list_device::static_set_type(device_t &device, const char *list, softlist_type list_type)
 {
 	software_list_device &swlistdev = downcast<software_list_device &>(device);
 	swlistdev.m_list_name.cpy(list);
@@ -609,19 +521,18 @@ void software_list_device::internal_validity_check(validity_checker &valid)
 {
 	enum { NAME_LEN_PARENT = 8, NAME_LEN_CLONE = 16 };
 
-	// first parse and output core errors if any
-	if (m_errors.len() > 0)
-	{
-		osd_printf_error("%s: Errors parsing software list:\n%s", filename(), errors_string());
-		release();
-		return;
-	}
-
 	softlist_map names;
 	softlist_map descriptions;
 	for (software_info *swinfo = first_software_info(); swinfo != NULL; swinfo = swinfo->next())
 	{
-		// First, check if the xml got corrupted:
+		// first parse and output core errors if any
+		if (m_errors.len() > 0)
+		{
+			osd_printf_error("%s: Errors parsing software list:\n%s", filename(), errors_string());
+			break;
+		}
+
+		// Now check if the xml data is valid:
 
 		// Did we lost any description?
 		if (swinfo->longname() == NULL)

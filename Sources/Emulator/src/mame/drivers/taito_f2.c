@@ -2792,17 +2792,27 @@ static const gfx_layout footchmpbl_tilelayout =
 	RGN_FRAC(1,4),
 	4,  /* 4 bits per pixel */
 	{ RGN_FRAC(0,4), RGN_FRAC(1,4),RGN_FRAC(2,4),RGN_FRAC(3,4) },
-	{ 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15 },
-	{ 0*16, 1*16, 2*16, 3*16, 4*16, 5*16, 6*16, 7*16, 8*16, 9*16, 10*16, 11*16, 12*16, 13*16, 14*16, 15*16 },
+	{ STEP16(0,1) },
+	{ STEP16(0,16) },
 	16*16   /* every sprite takes 128 consecutive bytes */
 };
 
+static const gfx_layout footchmpbl_charlayout =
+{
+	8,8,  /* 16*16 sprites */
+	256,  /* the ROMs are mostly empty */
+	4,  /* 4 bits per pixel */
+	{ RGN_FRAC(0,4), RGN_FRAC(1,4),RGN_FRAC(2,4),RGN_FRAC(3,4) },
+	{ STEP8(0,1) },
+	{ STEP8(0,8) },
+	8*8   /* every sprite takes 128 consecutive bytes */
+};
 
 static GFXDECODE_START( footchmpbl )
 	GFXDECODE_ENTRY( "gfx2", 0, footchmpbl_tilelayout,  0, 256 )    /* sprites & playfield */
 	GFXDECODE_ENTRY( "gfx1", 0, footchmpbl_tilelayout,  0, 256 )    /* sprites & playfield */
-	GFXDECODE_ENTRY( "gfx3", 0, footchmpbl_tilelayout,  0, 256 )    // gets wiped out by the dynamic decode atm
-	GFXDECODE_ENTRY( "gfx3", 0, footchmpbl_tilelayout,  0, 256 )    // bootleg should clearly use this instead of the uploaded tiles
+	GFXDECODE_ENTRY( "gfx3", 0, footchmpbl_charlayout,  0, 256 )    // gets wiped out by the dynamic decode atm
+	GFXDECODE_ENTRY( "gfx3", 0, footchmpbl_charlayout,  0, 256 )    // bootleg should clearly use this instead of the uploaded tiles
 GFXDECODE_END
 
 
@@ -3417,7 +3427,7 @@ static MACHINE_CONFIG_DERIVED( metalb, taito_f2_tc0510nio )
 	MCFG_TC0480SCP_OFFSETS(0x32 + 3, -0x04)
 	MCFG_TC0480SCP_OFFSETS_TX(1, 0)
 	MCFG_TC0480SCP_OFFSETS_FLIP(-1, 0)
-	MCFG_TC0480SCP_COL_BASE(256)
+	MCFG_TC0480SCP_COL_BASE(4096)
 	MCFG_TC0480SCP_GFXDECODE("gfxdecode")
 	MCFG_TC0480SCP_PALETTE("palette")
 
@@ -4556,6 +4566,33 @@ ROM_END
 
 ROM_START( growl )
 	ROM_REGION( 0x100000, "maincpu", 0 )     /* 1024k for 68000 code */
+	ROM_LOAD16_BYTE( "c74-10-1.ic59", 0x00000, 0x40000, CRC(8bf17a85) SHA1(e4aa1f6a107f7602ec25f1f3177c2541008bf1d5) ) // Rev 1 PRG ROM kit, to be applied to World, US, or JP sets
+	ROM_LOAD16_BYTE( "c74-08-1.ic61", 0x00001, 0x40000, CRC(bc70396f) SHA1(04022962352e5e0d9a356bc39794b2813997e704) ) // "
+	ROM_LOAD16_BYTE( "c74-11.ic58",   0x80000, 0x40000, CRC(ee3bd6d5) SHA1(71f961b4e3b3156bc52e489eb0a408a1fe537a61) )
+	ROM_LOAD16_BYTE( "c74-14.ic60",   0x80001, 0x40000, CRC(b6c24ec7) SHA1(da8ac05d12c12a58bf5185d723358a0d1a0fe71e) )
+
+	ROM_REGION( 0x100000, "gfx1", 0 )   /* SCR */
+	ROM_LOAD( "c74-01.ic34",   0x000000, 0x100000, CRC(3434ce80) SHA1(ef363107fba6f5088ef9c85dd692b5c98be67f75) )
+
+	ROM_REGION( 0x200000, "gfx2", 0 )   /* OBJ */
+	ROM_LOAD( "c74-03.ic12",   0x000000, 0x100000, CRC(1a0d8951) SHA1(62af40f7ca651273d93fed5d55af24cf91331ec7) )
+	ROM_LOAD( "c74-02.ic11",   0x100000, 0x100000, CRC(15a21506) SHA1(3d8f066e1226e030ce549959d5a8dd4506a0e0a2) )
+
+	ROM_REGION( 0x1c000, "audiocpu", 0 )      /* sound cpu */
+	ROM_LOAD( "c74-12.ic62", 0x00000, 0x04000, CRC(bb6ed668) SHA1(e8c3a15ccbc788ac57d42bd2cabcdb2db6305489) )
+	ROM_CONTINUE(            0x10000, 0x0c000 ) /* banked stuff */
+
+	ROM_REGION( 0x100000, "ymsnd", 0 )  /* ADPCM samples */
+	ROM_LOAD( "c74-04.ic28",   0x000000, 0x100000, CRC(2d97edf2) SHA1(d3a995303facdad4f8e1fdda04eaaec4440ff371) )
+
+	ROM_REGION( 0x080000, "ymsnd.deltat", 0 )   /* Delta-T samples */
+	ROM_LOAD( "c74-05.ic29",   0x000000, 0x080000, CRC(e29c0828) SHA1(f541d724f118130bb7a8f9e790582c68779cc6b6) )
+
+//Pals c74-06.48  c74-07.47
+ROM_END
+
+ROM_START( growla )
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* 1024k for 68000 code */
 	ROM_LOAD16_BYTE( "c74-10.ic59",  0x00000, 0x40000, CRC(ca81a20b) SHA1(75d665f3e3cf1ab389f5390d4a4d2c9e49543c56) )
 	ROM_LOAD16_BYTE( "c74-08.ic61",  0x00001, 0x40000, CRC(aa35dd9e) SHA1(97229746f70c486bcf172ec09f7f9c9eede16006) )
 	ROM_LOAD16_BYTE( "c74-11.ic58",  0x80000, 0x40000, CRC(ee3bd6d5) SHA1(71f961b4e3b3156bc52e489eb0a408a1fe537a61) )
@@ -4569,7 +4606,7 @@ ROM_START( growl )
 	ROM_LOAD( "c74-02.ic11",   0x100000, 0x100000, CRC(15a21506) SHA1(3d8f066e1226e030ce549959d5a8dd4506a0e0a2) )
 
 	ROM_REGION( 0x1c000, "audiocpu", 0 )      /* sound cpu */
-	ROM_LOAD( "c74-12.ic62",   0x00000, 0x04000, CRC(bb6ed668) SHA1(e8c3a15ccbc788ac57d42bd2cabcdb2db6305489) )
+	ROM_LOAD( "c74-12.ic62", 0x00000, 0x04000, CRC(bb6ed668) SHA1(e8c3a15ccbc788ac57d42bd2cabcdb2db6305489) )
 	ROM_CONTINUE(            0x10000, 0x0c000 ) /* banked stuff */
 
 	ROM_REGION( 0x100000, "ymsnd", 0 )  /* ADPCM samples */
@@ -4577,8 +4614,6 @@ ROM_START( growl )
 
 	ROM_REGION( 0x080000, "ymsnd.deltat", 0 )   /* Delta-T samples */
 	ROM_LOAD( "c74-05.ic29",   0x000000, 0x080000, CRC(e29c0828) SHA1(f541d724f118130bb7a8f9e790582c68779cc6b6) )
-
-//Pals c74-06.48  c74-07.47
 ROM_END
 
 ROM_START( growlu )
@@ -4596,7 +4631,7 @@ ROM_START( growlu )
 	ROM_LOAD( "c74-02.ic11",   0x100000, 0x100000, CRC(15a21506) SHA1(3d8f066e1226e030ce549959d5a8dd4506a0e0a2) )
 
 	ROM_REGION( 0x1c000, "audiocpu", 0 )      /* sound cpu */
-	ROM_LOAD( "c74-12.ic62",   0x00000, 0x04000, CRC(bb6ed668) SHA1(e8c3a15ccbc788ac57d42bd2cabcdb2db6305489) )
+	ROM_LOAD( "c74-12.ic62", 0x00000, 0x04000, CRC(bb6ed668) SHA1(e8c3a15ccbc788ac57d42bd2cabcdb2db6305489) )
 	ROM_CONTINUE(            0x10000, 0x0c000 ) /* banked stuff */
 
 	ROM_REGION( 0x100000, "ymsnd", 0 )  /* ADPCM samples */
@@ -4621,7 +4656,7 @@ ROM_START( runark )
 	ROM_LOAD( "c74-02.ic11",   0x100000, 0x100000, CRC(15a21506) SHA1(3d8f066e1226e030ce549959d5a8dd4506a0e0a2) )
 
 	ROM_REGION( 0x1c000, "audiocpu", 0 )      /* sound cpu */
-	ROM_LOAD( "c74-12.ic62",   0x00000, 0x04000, CRC(bb6ed668) SHA1(e8c3a15ccbc788ac57d42bd2cabcdb2db6305489) )
+	ROM_LOAD( "c74-12.ic62", 0x00000, 0x04000, CRC(bb6ed668) SHA1(e8c3a15ccbc788ac57d42bd2cabcdb2db6305489) )
 	ROM_CONTINUE(            0x10000, 0x0c000 ) /* banked stuff */
 
 	ROM_REGION( 0x100000, "ymsnd", 0 )  /* ADPCM samples */
@@ -4634,40 +4669,40 @@ ROM_END
 
 ROM_START( growlp )
 	ROM_REGION( 0x100000, "maincpu", 0 )     /* 1024k for 68000 code */
-	ROM_LOAD16_BYTE( "growl_ic15_japan_0h_fb09.bin",  0x00000, 0x40000, CRC(3A9141DC) SHA1(5B0F6CD39A8964BA9A3FCCA587565B37E45B24AC) )
-	ROM_LOAD16_BYTE( "growl_ic13_japan_0l_a80a.bin",  0x00001, 0x40000, CRC(A8547FD6) SHA1(2C5CD70B23E03AF80C6F72600DD5EEF2C7B3724D) )
-	ROM_LOAD16_BYTE( "growl_ic16_japan_1h_41bb.bin",  0x80000, 0x40000, CRC(64AA6F4B) SHA1(FD3F838CEDEE99D86A2EE5FF87F0381D164A2F90) )
-	ROM_LOAD16_BYTE( "growl_ic14_europe_1l_726b.bin",  0x80001, 0x40000, CRC(C38BBB05) SHA1(A168F18CE903D9AF295F475760F7209F6E0F8C82) )
+	ROM_LOAD16_BYTE( "growl_ic15_japan_0h_fb09.bin",  0x00000, 0x40000, CRC(3a9141dc) SHA1(5b0f6cd39a8964ba9a3fcca587565b37e45b24ac) )
+	ROM_LOAD16_BYTE( "growl_ic13_japan_0l_a80a.bin",  0x00001, 0x40000, CRC(a8547fd6) SHA1(2c5cd70b23e03af80c6f72600dd5eef2c7b3724d) )
+	ROM_LOAD16_BYTE( "growl_ic16_japan_1h_41bb.bin",  0x80000, 0x40000, CRC(64aa6f4b) SHA1(fd3f838cedee99d86a2ee5ff87f0381d164a2f90) )
+	ROM_LOAD16_BYTE( "growl_ic14_europe_1l_726b.bin",  0x80001, 0x40000, CRC(c38bbb05) SHA1(a168f18ce903d9af295f475760f7209f6e0f8c82) )
 
 	ROM_REGION( 0x100000, "gfx1", 0 )   /* SCR */
-	ROM_LOAD16_BYTE( "growl_ic11_scro-0-l_a971.bin",  0x00000, 0x40000, CRC(769DDAAB) SHA1(AB45547438998CCDF8CDB8123F6F9102008DD291) )
-	ROM_LOAD16_BYTE( "growl_ic13_scro-0-0-h_2e7a.bin",  0x00001, 0x40000, CRC(4E220E34) SHA1(C0D69B178B3E2DD004295EEE92311B387733228B) )
-	ROM_LOAD16_BYTE( "growl_ic12_scro-1-l_026e.bin",  0x80000, 0x40000, CRC(486925B4) SHA1(7D804E45AB58A4B1A121438D354A4A294DAA5177) )
-	ROM_LOAD16_BYTE( "growl_ic14_scro-0-1-h_f0fa.bin",  0x80001, 0x40000, CRC(42C2A2D0) SHA1(638D563A3928B7B2E6DAE7F8C607669116284899) )
+	ROM_LOAD16_BYTE( "growl_ic11_scro-0-l_a971.bin",  0x00000, 0x40000, CRC(769ddaab) SHA1(ab45547438998ccdf8cdb8123f6f9102008dd291) )
+	ROM_LOAD16_BYTE( "growl_ic13_scro-0-0-h_2e7a.bin",  0x00001, 0x40000, CRC(4e220e34) SHA1(c0d69b178b3e2dd004295eee92311b387733228b) )
+	ROM_LOAD16_BYTE( "growl_ic12_scro-1-l_026e.bin",  0x80000, 0x40000, CRC(486925b4) SHA1(7d804e45ab58a4b1a121438d354a4a294daa5177) )
+	ROM_LOAD16_BYTE( "growl_ic14_scro-0-1-h_f0fa.bin",  0x80001, 0x40000, CRC(42c2a2d0) SHA1(638d563a3928b7b2e6dae7f8c607669116284899) )
 
 	ROM_REGION( 0x200000, "gfx2", 0 )   /* OBJ */
-	ROM_LOAD16_BYTE( "growl_ic17_obj0-0-l_90b9.bin",  0x000000, 0x40000, CRC(CD94025A) SHA1(0DA7A0F213F9A9D7A420A9DCDD6D3DB2E4B6A9EF) )
-	ROM_LOAD16_BYTE( "growl_ic19_obj0-0-h_b652.bin",  0x000001, 0x40000, CRC(6838C1B0) SHA1(0355BFF010AB94F9D566E6BD404BD3559C407A37) )
-	ROM_LOAD16_BYTE( "growl_ic18_obj0-1-l_a299.bin",  0x080000, 0x40000, CRC(0DDF592E) SHA1(2B630143DD52DA6068AACE2C3A02C89432D45044) )
-	ROM_LOAD16_BYTE( "growl_ic20_obj0-1-h_9f1a.bin",  0x080001, 0x40000, CRC(0F0407F1) SHA1(05E897445D501D93A0ABA6BC9DAE1598E651DF8D) )
+	ROM_LOAD16_BYTE( "growl_ic17_obj0-0-l_90b9.bin",  0x000000, 0x40000, CRC(cd94025a) SHA1(0da7a0f213f9a9d7a420a9dcdd6d3db2e4b6a9ef) )
+	ROM_LOAD16_BYTE( "growl_ic19_obj0-0-h_b652.bin",  0x000001, 0x40000, CRC(6838c1b0) SHA1(0355bff010ab94f9d566e6bd404bd3559c407a37) )
+	ROM_LOAD16_BYTE( "growl_ic18_obj0-1-l_a299.bin",  0x080000, 0x40000, CRC(0ddf592e) SHA1(2b630143dd52da6068aace2c3a02c89432d45044) )
+	ROM_LOAD16_BYTE( "growl_ic20_obj0-1-h_9f1a.bin",  0x080001, 0x40000, CRC(0f0407f1) SHA1(05e897445d501d93a0aba6bc9dae1598e651df8d) )
 	ROM_LOAD16_BYTE( "growl_ic4_obj1-l_7d96.bin",    0x100000, 0x40000, CRC(bed51bd6) SHA1(1a35b5a511261b70b5a4aece665d0a0e6386af78) )
 	ROM_LOAD16_BYTE( "growl_ic6_obj1-0-h_3a22.bin",  0x100001, 0x40000, CRC(5b696d20) SHA1(e01e2d150ad61cf1cdddfcfcec9dac0980a8f0d6) )
 	ROM_LOAD16_BYTE( "growl_ic5_obj1-1-l_d34f.bin",  0x180000, 0x40000, CRC(f34d83ec) SHA1(7b032d2c004735aa4658143fe399b0a05ab85ec8) )
 	ROM_LOAD16_BYTE( "growl_ic7_obj1-1-h_b5af.bin",  0x180001, 0x40000, CRC(e9fda1fa) SHA1(37d48d26c45aca6364d74656d597c2b1f8a5c685) )
 
 	ROM_REGION( 0x1c000, "audiocpu", 0 )      /* sound cpu */
-	ROM_LOAD( "growl_ic3_snd.bin",   0x00000, 0x04000, CRC(F75929E0) SHA1(2DC278F4253D76853BBC3AF099784545CFAC65CE) )
+	ROM_LOAD( "growl_ic3_snd.bin",   0x00000, 0x04000, CRC(f75929e0) SHA1(2dc278f4253d76853bbc3af099784545cfac65ce) )
 	ROM_CONTINUE(            0x10000, 0x0c000 ) /* banked stuff */
 
 	ROM_REGION( 0x100000, "ymsnd", 0 )  /* ADPCM samples */
-	ROM_LOAD( "growl_ic23_ch-a-0_b5d9.bin",   0x00000, 0x40000, CRC(CC9FFBF8) SHA1(834892CE0D40D1B016D202144E683FE98EF374AC) )
-	ROM_LOAD( "growl_ic24_ch-a-1_3c70.bin",   0x40000, 0x40000, CRC(7177B4AD) SHA1(4603893588ABA0261B9D50BF70F46C7DAD8592A2) )
-	ROM_LOAD( "growl_ic25_ch-a-2_9614.bin",   0x80000, 0x40000, CRC(7C9B1423) SHA1(A8D0D7340BF54D9792E21BD0E4BE5EDD1BCFBBD4) )
-	ROM_LOAD( "growl_ic26_ch-a-3_fca6.bin",   0xc0000, 0x40000, CRC(DB1ECEFE) SHA1(7F7C40A9C9ACEB41BA799249E57DF5F38715D571) )
+	ROM_LOAD( "growl_ic23_ch-a-0_b5d9.bin",   0x00000, 0x40000, CRC(cc9ffbf8) SHA1(834892ce0d40d1b016d202144e683fe98ef374ac) )
+	ROM_LOAD( "growl_ic24_ch-a-1_3c70.bin",   0x40000, 0x40000, CRC(7177b4ad) SHA1(4603893588aba0261b9d50bf70f46c7dad8592a2) )
+	ROM_LOAD( "growl_ic25_ch-a-2_9614.bin",   0x80000, 0x40000, CRC(7c9b1423) SHA1(a8d0d7340bf54d9792e21bd0e4be5edd1bcfbbd4) )
+	ROM_LOAD( "growl_ic26_ch-a-3_fca6.bin",   0xc0000, 0x40000, CRC(db1ecefe) SHA1(7f7c40a9c9aceb41ba799249e57df5f38715d571) )
 
 	ROM_REGION( 0x080000, "ymsnd.deltat", 0 )   /* Delta-T samples */
-	ROM_LOAD( "growl_ic21_ch-b-0_d743.bin",   0x00000, 0x40000, CRC(7A7EAB62) SHA1(268D900F84162BA655CB652A1C1865DFC25DA4DE) )
-	ROM_LOAD( "growl_ic22_ch-b-1_a5f1.bin",   0x40000, 0x40000, CRC(567DF833) SHA1(1AD019A9F938EBE2F09BC68B57B6C2623ECD9F46) )
+	ROM_LOAD( "growl_ic21_ch-b-0_d743.bin",   0x00000, 0x40000, CRC(7a7eab62) SHA1(268d900f84162ba655cb652a1c1865dfc25da4de) )
+	ROM_LOAD( "growl_ic22_ch-b-1_a5f1.bin",   0x40000, 0x40000, CRC(567df833) SHA1(1ad019a9f938ebe2f09bc68b57b6c2623ecd9f46) )
 
 ROM_END
 
@@ -5548,7 +5583,8 @@ GAME( 1990, majest12,   ssi,      ssi,       majest12, driver_device,  0,       
 GAME( 1990, gunfront,   0,        gunfront,  gunfront, driver_device,  0,        ROT270, "Taito Corporation Japan",   "Gun & Frontier (World)", GAME_SUPPORTS_SAVE )
 GAME( 1990, gunfrontj,  gunfront, gunfront,  gunfrontj, driver_device, 0,        ROT270, "Taito Corporation",         "Gun Frontier (Japan)", GAME_SUPPORTS_SAVE )
 
-GAME( 1990, growl,      0,        growl,     growl, driver_device,     0,        ROT0,   "Taito Corporation Japan",   "Growl (World)", GAME_SUPPORTS_SAVE )
+GAME( 1990, growl,      0,        growl,     growl, driver_device,     0,        ROT0,   "Taito Corporation Japan",   "Growl (World, Rev 1)", GAME_SUPPORTS_SAVE )
+GAME( 1990, growla,     growl,    growl,     growl, driver_device,     0,        ROT0,   "Taito Corporation Japan",   "Growl (World)", GAME_SUPPORTS_SAVE )
 GAME( 1990, growlu,     growl,    growl,     growlu, driver_device,    0,        ROT0,   "Taito America Corporation", "Growl (US)", GAME_SUPPORTS_SAVE )
 GAME( 1990, runark,     growl,    growl,     runark, driver_device,    0,        ROT0,   "Taito Corporation",         "Runark (Japan)", GAME_SUPPORTS_SAVE )
 GAME( 1990, growlp,     growl,    growl,     growl, driver_device,     0,        ROT0,   "Taito Corporation Japan",   "Growl (World, prototype)", GAME_SUPPORTS_SAVE )

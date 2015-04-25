@@ -11,7 +11,6 @@
 #include "cpu/z80/z80.h"
 #include "includes/cgenie.h"
 #include "machine/wd17xx.h"
-#include "imagedev/cartslot.h"
 #include "imagedev/cassette.h"
 #include "sound/dac.h"
 #include "imagedev/flopdrv.h"
@@ -101,18 +100,15 @@ void cgenie_state::machine_reset()
 	}
 
 	/* copy EXT ROM, if enabled or wipe out that memory area */
-	if( ioport("DSW0")->read() & 0x20 )
+	if (ioport("DSW0")->read() & 0x20 && m_cart->exists())
 	{
-		space.install_rom(0xe000, 0xefff, 0); // mess 0135u3 need to check
+		m_maincpu->space(AS_PROGRAM).install_read_handler(0xe000, 0xefff, read8_delegate(FUNC(generic_slot_device::read_rom),(generic_slot_device*)m_cart));
 		logerror("cgenie EXT enabled\n");
-		memcpy(&memregion("maincpu")->base()[0x0e000],
-				&memregion("maincpu")->base()[0x12000], 0x1000);
 	}
 	else
 	{
 		space.nop_readwrite(0xe000, 0xefff);
 		logerror("cgenie EXT disabled\n");
-		memset(&memregion("maincpu")->base()[0x0e000], 0x00, 0x1000);
 	}
 
 	m_cass_level = 0;

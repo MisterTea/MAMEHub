@@ -34,26 +34,6 @@ protected:
 
 
 
-// ======================> sega8_cardcatch_device
-
-class sega8_cardcatch_device : public sega8_rom_device
-{
-public:
-	// construction/destruction
-	sega8_cardcatch_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-
-	// reading and writing
-	virtual DECLARE_READ8_MEMBER(read_cart);
-	virtual DECLARE_WRITE8_MEMBER(write_cart);
-	virtual DECLARE_WRITE8_MEMBER(write_mapper) {}
-
-	virtual machine_config_constructor device_mconfig_additions() const;
-
-protected:
-	required_device<sega8_card_slot_device> m_card;
-};
-
-
 // ======================> sega8_othello_device
 
 class sega8_othello_device : public sega8_rom_device
@@ -259,6 +239,7 @@ public:
 	virtual void device_reset();
 
 	// reading and writing
+	virtual DECLARE_READ8_MEMBER(read_cart);
 	virtual DECLARE_WRITE8_MEMBER(write_cart);
 
 private:
@@ -330,6 +311,29 @@ protected:
 };
 
 
+// ======================> sega8_hicom_device
+
+class sega8_hicom_device : public sega8_rom_device
+{
+public:
+	// construction/destruction
+	sega8_hicom_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	// device-level overrides
+	virtual void device_start() { save_item(NAME(m_rom_bank_base)); }
+
+	virtual void late_bank_setup();
+
+	// reading and writing
+	virtual DECLARE_READ8_MEMBER(read_cart);
+	virtual DECLARE_WRITE8_MEMBER(write_cart) {}
+	virtual DECLARE_WRITE8_MEMBER(write_mapper);
+
+protected:
+	UINT8 m_rom_bank_base;
+};
+
+
 // ======================> sega8_korean_device
 
 class sega8_korean_device : public sega8_rom_device
@@ -362,7 +366,6 @@ public:
 
 // device type definition
 extern const device_type SEGA8_ROM_STD;
-extern const device_type SEGA8_ROM_CARDCATCH;
 extern const device_type SEGA8_ROM_OTHELLO;
 extern const device_type SEGA8_ROM_CASTLE;
 extern const device_type SEGA8_ROM_BASIC_L3;
@@ -376,6 +379,7 @@ extern const device_type SEGA8_ROM_4PAK;
 extern const device_type SEGA8_ROM_ZEMINA;
 extern const device_type SEGA8_ROM_NEMESIS;
 extern const device_type SEGA8_ROM_JANGGUN;
+extern const device_type SEGA8_ROM_HICOM;
 extern const device_type SEGA8_ROM_KOREAN;
 extern const device_type SEGA8_ROM_KOREAN_NB;
 

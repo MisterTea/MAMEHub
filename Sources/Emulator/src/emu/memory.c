@@ -204,7 +204,7 @@ enum
 {
 	STATIC_INVALID = 0,                                 // invalid - should never be used
 	STATIC_BANK1 = 1,                                   // first memory bank
-	STATIC_BANKMAX = 124,                               // last memory bank
+	STATIC_BANKMAX = 0xfb,                              // last memory bank
 	STATIC_NOP,                                         // NOP - reads = unmapped value; writes = no-op
 	STATIC_UNMAP,                                       // unmapped - same as NOP except we log errors
 	STATIC_WATCHPOINT,                                  // watchpoint - used internally
@@ -1811,7 +1811,7 @@ void address_space::prepare_map()
 	m_map.reset(global_alloc(address_map(m_device, m_spacenum)));
 
 	// merge in the submaps
-	m_map->uplift_submaps(machine(), m_device, *m_device.owner(), endianness());
+	m_map->uplift_submaps(machine(), m_device, m_device.owner() ? *m_device.owner() : m_device, endianness());
 
 	// extract global parameters specified by the map
 	m_unmap = (m_map->m_unmapval == 0) ? 0 : ~0;
@@ -1832,11 +1832,11 @@ void address_space::prepare_map()
 		adjust_addresses(entry->m_bytestart, entry->m_byteend, entry->m_bytemask, entry->m_bytemirror);
 
 		// if we have a share entry, add it to our map
-		if (entry->m_sharetag != NULL)
+		if (entry->m_share != NULL)
 		{
 			// if we can't find it, add it to our map
 			astring fulltag;
-			if (manager().m_sharelist.find(entry->m_sharebase->subtag(fulltag, entry->m_sharetag).cstr()) == NULL)
+			if (manager().m_sharelist.find(entry->m_devbase.subtag(fulltag, entry->m_share).cstr()) == NULL)
 			{
 				VPRINTF(("Creating share '%s' of length 0x%X\n", fulltag.cstr(), entry->m_byteend + 1 - entry->m_bytestart));
 				memory_share *share = global_alloc(memory_share(m_map->m_databits, entry->m_byteend + 1 - entry->m_bytestart, endianness()));
@@ -1856,11 +1856,11 @@ void address_space::prepare_map()
 		}
 
 		// validate adjusted addresses against implicit regions
-		if (entry->m_region != NULL && entry->m_sharetag == NULL)
+		if (entry->m_region != NULL && entry->m_share == NULL)
 		{
 			// determine full tag
 			astring fulltag;
-			device().siblingtag(fulltag, entry->m_region);
+			entry->m_devbase.subtag(fulltag, entry->m_region);
 
 			// find the region
 			memory_region *region = machine().root_device().memregion(fulltag);
@@ -1877,7 +1877,7 @@ void address_space::prepare_map()
 		{
 			// determine full tag
 			astring fulltag;
-			device().siblingtag(fulltag, entry->m_region);
+			entry->m_devbase.subtag(fulltag, entry->m_region);
 
 			// set the memory address
 			entry->m_memory = machine().root_device().memregion(fulltag.cstr())->base() + entry->m_rgnoffs;
@@ -1962,18 +1962,18 @@ void address_space::populate_map_entry(const address_map_entry &entry, read_or_w
 			if (readorwrite == ROW_READ)
 				switch (data.m_bits)
 				{
-					case 8:     install_read_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, read8_delegate(entry.m_rproto8, *entry.m_read.m_devbase), data.m_mask); break;
-					case 16:    install_read_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, read16_delegate(entry.m_rproto16, *entry.m_read.m_devbase), data.m_mask); break;
-					case 32:    install_read_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, read32_delegate(entry.m_rproto32, *entry.m_read.m_devbase), data.m_mask); break;
-					case 64:    install_read_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, read64_delegate(entry.m_rproto64, *entry.m_read.m_devbase), data.m_mask); break;
+					case 8:     install_read_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, read8_delegate(entry.m_rproto8, entry.m_devbase), data.m_mask); break;
+					case 16:    install_read_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, read16_delegate(entry.m_rproto16, entry.m_devbase), data.m_mask); break;
+					case 32:    install_read_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, read32_delegate(entry.m_rproto32, entry.m_devbase), data.m_mask); break;
+					case 64:    install_read_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, read64_delegate(entry.m_rproto64, entry.m_devbase), data.m_mask); break;
 				}
 			else
 				switch (data.m_bits)
 				{
-					case 8:     install_write_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, write8_delegate(entry.m_wproto8, *entry.m_write.m_devbase), data.m_mask); break;
-					case 16:    install_write_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, write16_delegate(entry.m_wproto16, *entry.m_write.m_devbase), data.m_mask); break;
-					case 32:    install_write_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, write32_delegate(entry.m_wproto32, *entry.m_write.m_devbase), data.m_mask); break;
-					case 64:    install_write_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, write64_delegate(entry.m_wproto64, *entry.m_write.m_devbase), data.m_mask); break;
+					case 8:     install_write_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, write8_delegate(entry.m_wproto8, entry.m_devbase), data.m_mask); break;
+					case 16:    install_write_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, write16_delegate(entry.m_wproto16, entry.m_devbase), data.m_mask); break;
+					case 32:    install_write_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, write32_delegate(entry.m_wproto32, entry.m_devbase), data.m_mask); break;
+					case 64:    install_write_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask, entry.m_addrmirror, write64_delegate(entry.m_wproto64, entry.m_devbase), data.m_mask); break;
 				}
 			break;
 
@@ -2001,7 +2001,7 @@ void address_space::populate_map_entry(const address_map_entry &entry, read_or_w
 void address_space::populate_map_entry_setoffset(const address_map_entry &entry)
 {
 	install_setoffset_handler(entry.m_addrstart, entry.m_addrend, entry.m_addrmask,
-		entry.m_addrmirror, setoffset_delegate(entry.m_soproto, *entry.m_setoffsethd.m_devbase), entry.m_setoffsethd.m_mask);
+		entry.m_addrmirror, setoffset_delegate(entry.m_soproto, entry.m_devbase), entry.m_setoffsethd.m_mask);
 }
 
 //-------------------------------------------------
@@ -2151,18 +2151,18 @@ address_map_entry *address_space::block_assign_intersecting(offs_t bytestart, of
 	for (address_map_entry *entry = m_map->m_entrylist.first(); entry != NULL; entry = entry->next())
 	{
 		// if we haven't assigned this block yet, see if we have a mapped shared pointer for it
-		if (entry->m_memory == NULL && entry->m_sharetag != NULL)
+		if (entry->m_memory == NULL && entry->m_share != NULL)
 		{
 			astring fulltag;
-			memory_share *share = manager().m_sharelist.find(entry->m_sharebase->subtag(fulltag, entry->m_sharetag).cstr());
+			memory_share *share = manager().m_sharelist.find(entry->m_devbase.subtag(fulltag, entry->m_share).cstr());
 			if (share != NULL && share->ptr() != NULL)
 			{
 				entry->m_memory = share->ptr();
-				VPRINTF(("memory range %08X-%08X -> shared_ptr '%s' [%p]\n", entry->m_addrstart, entry->m_addrend, entry->m_sharetag, entry->m_memory));
+				VPRINTF(("memory range %08X-%08X -> shared_ptr '%s' [%p]\n", entry->m_addrstart, entry->m_addrend, entry->m_share, entry->m_memory));
 			}
 			else
 			{
-				VPRINTF(("memory range %08X-%08X -> shared_ptr '%s' but not found\n", entry->m_addrstart, entry->m_addrend, entry->m_sharetag));
+				VPRINTF(("memory range %08X-%08X -> shared_ptr '%s' but not found\n", entry->m_addrstart, entry->m_addrend, entry->m_share));
 			}
 		}
 
@@ -2174,14 +2174,14 @@ address_map_entry *address_space::block_assign_intersecting(offs_t bytestart, of
 		}
 
 		// if we're the first match on a shared pointer, assign it now
-		if (entry->m_memory != NULL && entry->m_sharetag != NULL)
+		if (entry->m_memory != NULL && entry->m_share != NULL)
 		{
 			astring fulltag;
-			memory_share *share = manager().m_sharelist.find(entry->m_sharebase->subtag(fulltag, entry->m_sharetag).cstr());
+			memory_share *share = manager().m_sharelist.find(entry->m_devbase.subtag(fulltag, entry->m_share).cstr());
 			if (share != NULL && share->ptr() == NULL)
 			{
 				share->set_ptr(entry->m_memory);
-				VPRINTF(("setting shared_ptr '%s' = %p\n", entry->m_sharetag, entry->m_memory));
+				VPRINTF(("setting shared_ptr '%s' = %p\n", entry->m_share, entry->m_memory));
 			}
 		}
 
@@ -2610,10 +2610,10 @@ void *address_space::find_backing_memory(offs_t addrstart, offs_t addrend)
 bool address_space::needs_backing_store(const address_map_entry *entry)
 {
 	// if we are sharing, and we don't have a pointer yet, create one
-	if (entry->m_sharetag != NULL)
+	if (entry->m_share != NULL)
 	{
 		astring fulltag;
-		memory_share *share = manager().m_sharelist.find(entry->m_sharebase->subtag(fulltag, entry->m_sharetag).cstr());
+		memory_share *share = manager().m_sharelist.find(entry->m_devbase.subtag(fulltag, entry->m_share).cstr());
 		if (share != NULL && share->ptr() == NULL)
 			return true;
 	}
@@ -2868,7 +2868,7 @@ void address_table::setup_range_masked(offs_t addrstart, offs_t addrend, offs_t 
 		}
 		while (base_address != end_address + 1);
 
-		// Efficient method to go the the next range start given a mirroring mask
+		// Efficient method to go to the next range start given a mirroring mask
 		base_mirror = (base_mirror + 1 + ~bytemirror) & bytemirror;
 	}
 	while (base_mirror);
@@ -3435,7 +3435,8 @@ UINT16 *address_table::subtable_open(offs_t l1index)
 		for (int i=0; i<size; i++)
 			subptr[i] = subentry;
 		m_table[l1index] = newentry;
-		m_subtable[newentry - SUBTABLE_BASE].m_checksum = (subentry + (subentry << 8) + (subentry << 16) + (subentry << 24)) * ((1 << level2_bits())/4);
+		UINT32 subkey = subentry + (subentry << 8) + (subentry << 16) + (subentry << 24);
+		m_subtable[newentry - SUBTABLE_BASE].m_checksum = subkey * (((1 << level2_bits())/4));
 		subentry = newentry;
 	}
 
@@ -3487,59 +3488,23 @@ void address_table::subtable_close(offs_t l1index)
 
 const char *address_table::handler_name(UINT16 entry) const
 {
-	static const char *const strings[] =
-	{
-		"invalid",      "bank 1",       "bank 2",       "bank 3",
-		"bank 4",       "bank 5",       "bank 6",       "bank 7",
-		"bank 8",       "bank 9",       "bank 10",      "bank 11",
-		"bank 12",      "bank 13",      "bank 14",      "bank 15",
-		"bank 16",      "bank 17",      "bank 18",      "bank 19",
-		"bank 20",      "bank 21",      "bank 22",      "bank 23",
-		"bank 24",      "bank 25",      "bank 26",      "bank 27",
-		"bank 28",      "bank 29",      "bank 30",      "bank 31",
-		"bank 32",      "bank 33",      "bank 34",      "bank 35",
-		"bank 36",      "bank 37",      "bank 38",      "bank 39",
-		"bank 40",      "bank 41",      "bank 42",      "bank 43",
-		"bank 44",      "bank 45",      "bank 46",      "bank 47",
-		"bank 48",      "bank 49",      "bank 50",      "bank 51",
-		"bank 52",      "bank 53",      "bank 54",      "bank 55",
-		"bank 56",      "bank 57",      "bank 58",      "bank 59",
-		"bank 60",      "bank 61",      "bank 62",      "bank 63",
-		"bank 64",      "bank 65",      "bank 66",      "bank 67",
-		"bank 68",      "bank 69",      "bank 70",      "bank 71",
-		"bank 72",      "bank 73",      "bank 74",      "bank 75",
-		"bank 76",      "bank 77",      "bank 78",      "bank 79",
-		"bank 80",      "bank 81",      "bank 82",      "bank 83",
-		"bank 84",      "bank 85",      "bank 86",      "bank 87",
-		"bank 88",      "bank 89",      "bank 90",      "bank 91",
-		"bank 92",      "bank 93",      "bank 94",      "bank 95",
-		"bank 96",      "bank 97",      "bank 98",      "bank 99",
-		"bank 100",     "bank 101",     "bank 102",     "bank 103",
-		"bank 104",     "bank 105",     "bank 106",     "bank 107",
-		"bank 108",     "bank 109",     "bank 110",     "bank 111",
-		"bank 112",     "bank 113",     "bank 114",     "bank 115",
-		"bank 116",     "bank 117",     "bank 118",     "bank 119",
-		"bank 120",     "bank 121",     "bank 122",     "ram",
-		"rom",          "nop",          "unmapped",     "watchpoint"
-	};
-
 	// banks have names
 	if (entry >= STATIC_BANK1 && entry <= STATIC_BANKMAX)
 		for (memory_bank *info = m_space.manager().first_bank(); info != NULL; info = info->next())
 			if (info->index() == entry)
 				return info->name();
 
-	// constant strings for lower entries
-	if (entry < ARRAY_LENGTH(strings))
-		return strings[entry];
-	else
-	{
-		static char desc[4096];
-		handler(entry).description(desc);
-		if (desc[0])
-			return desc;
-		return "???";
-	}
+	// constant strings for static entries
+	if (entry == STATIC_INVALID) return "invalid";
+	if (entry == STATIC_NOP) return "nop";
+	if (entry == STATIC_UNMAP) return "unmapped";
+	if (entry == STATIC_WATCHPOINT) return "watchpoint";
+
+	static char desc[4096];
+	handler(entry).description(desc);
+	if (desc[0])
+		return desc;
+	return "???";
 }
 
 
@@ -3909,7 +3874,7 @@ memory_block::memory_block(address_space &space, offs_t bytestart, offs_t byteen
 		int bytes_per_element = space.data_width() / 8;
 		astring name;
 		name.printf("%08x-%08x", bytestart, byteend);
-		space.machine().save().save_memory("memory", space.device().tag(), space.spacenum(), name, m_data, bytes_per_element, (UINT32)(byteend + 1 - bytestart) / bytes_per_element);
+		space.machine().save().save_memory(NULL, "memory", space.device().tag(), space.spacenum(), name, m_data, bytes_per_element, (UINT32)(byteend + 1 - bytestart) / bytes_per_element);
 	}
 }
 
@@ -3956,7 +3921,7 @@ memory_bank::memory_bank(address_space &space, int index, offs_t bytestart, offs
 	}
 
 	if (!m_anonymous && space.machine().save().registration_allowed())
-		space.machine().save().save_item("memory", m_tag, 0, NAME(m_curentry));
+		space.machine().save().save_item(NULL, "memory", m_tag, 0, NAME(m_curentry));
 }
 
 
@@ -4166,8 +4131,9 @@ memory_region::memory_region(running_machine &machine, const char *name, UINT32 
 		m_next(NULL),
 		m_name(name),
 		m_buffer(length),
-		m_width(width),
-		m_endianness(endian)
+		m_endianness(endian),
+		m_bitwidth(width * 8),
+		m_bytewidth(width)
 {
 	assert(width == 1 || width == 2 || width == 4 || width == 8);
 }

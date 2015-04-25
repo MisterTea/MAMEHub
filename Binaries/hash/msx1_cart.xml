@@ -13654,7 +13654,7 @@ kept for now until finding out what those bytes affect...
 	<software name="cheese" supported="partial">
 		<description>Cheese (Jpn)</description>
 		<year>1984</year>
-		<publisher>Nihon ELectronics</publisher>
+		<publisher>Nihon Electronics</publisher>
 		<part name="cart" interface="msx_cart">
 			<feature name="mapper" value="NOMAPPER" />
 			<dataarea name="rom" size="16384">
@@ -14535,10 +14535,20 @@ kept for now until finding out what those bytes affect...
 			<feature name="slot" value="msxaud_fsca1" />
 			<feature name="mapper" value="NOMAPPER" />
 			<dataarea name="rom" size="131072">
-				<rom name="msx audio (japan) (fs-ca1) (program).rom" size="131072" crc="90e893ba" sha1="930eae7057af1652abae794072b296a59decd61b" offset="0" />
+				<!--
+				    20140725:
+				    There are 3 versions of this rom floating around:
+				    930eae7057af1652abae794072b296a59decd61b - a "dirty" dump; it seems to be a direct memory copy made on an MSX and contains RAM contents at 3000-3FFF and 7000-7FFF
+				    a45692849acf29ddb653707a62747985439f6d4f - RAM areas are set to FFs
+				    36d47cf70618fdb460f97a8ceb75013ec4529063 - A dump made using an eeprom reader. This dump differs one bit with the dump above (offset 8a49, bit 3)
+				    By looking the code it is not yet possible to say which one is 100% correct, so marking it as baddump for the moment.
+				-->
+				<rom name="msx audio (japan) (fs-ca1) (program).rom" size="131072" crc="78584d2e" sha1="a45692849acf29ddb653707a62747985439f6d4f" status="baddump" offset="0" />
 			</dataarea>
+			<!-- uPD4364C - is actually an 8KB SRAM chip, but only 4KB is used -->
 			<dataarea name="sram" size="4096">
 			</dataarea>
+			<!-- uPD41256 (or compatible) 256kbit chip for sample ram -->
 		</part>
 	</software>
 
@@ -17085,18 +17095,77 @@ legacy FM implementations cannot find it.
 
 	<!-- Devices -->
 
-	<!-- mounting this should add the floppy drive, rather than it always being there? -->
-	<software name="diskbas" supported="no">
-		<description>Disk BASIC v1.0 for FS-FD1 (Japan)</description>
-		<year>1987</year>
-		<publisher>Matsushita</publisher>
+	<software name="vy0010">
+		<description>VY-0010 (Floppy controller + 3.5" SSDD floppy drive)</description>
+		<year>198?</year>
+		<publisher>Philips</publisher>
 		<part name="cart" interface="msx_cart">
-			<feature name="slot" value="disk_rom" />
-			<feature name="mapper" value="DISK_ROM" />
+			<feature name="slot" value="disk_vy0010" />
 			<dataarea name="rom" size="0x4000">
-				<rom name="disk basic v1.0 for fs-fd1 (1987)(matsushita electric industrial)(jp).rom" size="0x4000" crc="4c9b8214" sha1="8e3f6f08309f082a82be8298a66c9b90f2d34ad4" offset="0" />
+				<!-- Dump contains contents of the memory mapped FDC registers -->
+				<!-- ROM label taken from schematic, possibly incorrect -->
+				<rom name="27128q25-8.ic2" size="0x4000" crc="164f5a6d" sha1="8924e3e11eb1c8c1edcb7efa63c26d2bdc142473" status="baddump" offset="0" />
 			</dataarea>
 		</part>
+		<!-- The package came with a copy of MSX-DOS -->
+<!--
+        <part name="flop1" interface="floppy_3_5">
+        </part>
+-->
+	</software>
+
+	<software name="fsfd1">
+		<description>FS-FD1 (Floppy controller + 3.5" DSDD floppy drive)</description>
+		<year>198?</year>
+		<publisher>Panasonic</publisher>
+		<part name="cart" interface="msx_cart">
+			<feature name="slot" value="disk_fsfd1" />
+			<dataarea name="rom" size="0x4000">
+				<!-- hashes not verified -->
+				<rom name="fs_fd1.rom" size="0x4000" crc="4c9b8214" sha1="8e3f6f08309f082a82be8298a66c9b90f2d34ad4" offset="0" />
+			</dataarea>
+		</part>
+<!--
+        The floppy drive was most likely bundled with a copy of MSX-DOS, but we are not 100% sure yet
+        <part name="flop1" interface="floppy_3_5">
+        </part>
+-->
+	</software>
+
+	<software name="fsfd1a">
+		<description>FS-FD1A (3.5" DSDD floppy drive with integrated controller)</description>
+		<year>198?</year>
+		<publisher>Panasonic</publisher>
+		<part name="cart" interface="msx_cart">
+			<feature name="slot" value="disk_fsfd1a" />
+			<dataarea name="rom" size="0x4000">
+				<!-- hashes not verified -->
+				<rom name="fs_fd1a.rom" size="0x4000" crc="4b673b29" sha1="74ead27eec8d876144c2a015c0260d6db2117d72" offset="0" />
+			</dataarea>
+		</part>
+<!--
+        The floppy drive was most likely bundled with a copy of MSX-DOS, but we are not 10% sure yet
+        <part name="flop1" interface="floppy_3_5">
+        </part>
+-->
+	</software>
+
+	<software name="fscf351">
+		<description>FS-CF351 Controller + FS-FD351 DSDD 3.5" Floppy drive</description>
+		<year>198?</year>
+		<publisher>National</publisher>
+		<part name="cart" interface="msx_cart">
+			<feature name="slot" value="disk_fscf351" />
+			<dataarea name="rom" size="0x4000">
+				<!-- hashes not verified -->
+				<rom name="fs_cf351.rom" size="0x4000" crc="006fba38" sha1="c1fb0fa01fadf82d86ed02daff46e7bd4ad7a59d" offset="0" />
+			</dataarea>
+		</part>
+<!--
+        The floppy drive was most likely bundled with a copy of MSX-DOS, but we are not 10% sure yet
+        <part name="flop1" interface="floppy_3_5">
+        </part>
+-->
 	</software>
 
 	<!-- SORT -->

@@ -8,11 +8,10 @@
 #include "emu.h"
 #include "bus/cbmiec/cbmiec.h"
 #include "bus/pet/cass.h"
-#include "bus/vcs/ctrl.h"
+#include "bus/vcs_ctrl/ctrl.h"
 #include "bus/vic20/exp.h"
 #include "bus/vic20/user.h"
 #include "cpu/m6502/m6510.h"
-#include "imagedev/cartslot.h"
 #include "machine/6522via.h"
 #include "machine/cbm_snqk.h"
 #include "machine/ram.h"
@@ -70,9 +69,9 @@ public:
 	required_device<pet_user_port_device> m_user;
 	required_device<pet_datassette_port_device> m_cassette;
 	required_device<ram_device> m_ram;
-	required_memory_region m_basic;
-	required_memory_region m_kernal;
-	required_memory_region m_charom;
+	required_region_ptr<UINT8> m_basic;
+	required_region_ptr<UINT8> m_kernal;
+	required_region_ptr<UINT8> m_charom;
 	required_shared_ptr<UINT8> m_color_ram;
 	required_ioport m_row0;
 	required_ioport m_row1;

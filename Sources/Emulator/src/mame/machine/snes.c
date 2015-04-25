@@ -32,7 +32,7 @@ UINT32 snes_state::screen_update(screen_device &screen, bitmap_rgb32 &bitmap, co
 {
 	/* NTSC SNES draw range is 1-225. */
 	for (int y = cliprect.min_y; y <= cliprect.max_y; y++)
-		m_ppu->refresh_scanline(machine(), bitmap, y + 1);
+		m_ppu->refresh_scanline(bitmap, y + 1);
 
 	return 0;
 }
@@ -87,7 +87,7 @@ void snes_state::hirq_tick()
 {
 	// latch the counters and pull IRQ
 	// (don't need to switch to the 65816 context, we don't do anything dependant on it)
-	m_ppu->latch_counters(machine());
+	m_ppu->set_latch_hv(m_ppu->current_x(), m_ppu->current_y());
 	SNES_CPU_REG(TIMEUP) = 0x80;    /* Indicate that irq occurred */
 	m_maincpu->set_input_line(G65816_LINE_IRQ, ASSERT_LINE);
 
@@ -142,7 +142,7 @@ TIMER_CALLBACK_MEMBER(snes_state::snes_scanline_tick)
 		{
 			SNES_CPU_REG(TIMEUP) = 0x80;    /* Indicate that irq occurred */
 			// IRQ latches the counters, do it now
-			m_ppu->latch_counters(machine());
+			m_ppu->set_latch_hv(m_ppu->current_x(), m_ppu->current_y());
 			m_maincpu->set_input_line(G65816_LINE_IRQ, ASSERT_LINE );
 		}
 	}
@@ -536,11 +536,7 @@ WRITE8_MEMBER( snes_state::snes_w_io )
 			SNES_CPU_REG(NMITIMEN) = data;
 			return;
 		case WRIO:      /* Programmable I/O port - latches H/V counters on a 0->1 transition */
-			if (!(SNES_CPU_REG(WRIO) & 0x80) && (data & 0x80))
-			{
-				// external latch
-				m_ppu->latch_counters(space.machine());
-			}
+			wrio_write(data);
 			SNES_CPU_REG(WRIO) = data;
 			return;
 		case HTIMEL:    /* H-Count timer settings (low)  */
@@ -610,6 +606,15 @@ void snes_state::write_joy_latch(UINT8 data)
 	m_read_idx[3] = 0;
 }
 
+
+void snes_state::wrio_write(UINT8 data)
+{
+	if (!(SNES_CPU_REG(WRIO) & 0x80) && (data & 0x80))
+	{
+		// external latch
+		m_ppu->set_latch_hv(m_ppu->current_x(), m_ppu->current_y());
+	}
+}
 
 WRITE_LINE_MEMBER(snes_state::snes_extern_irq_w)
 {
@@ -1075,7 +1080,7 @@ void snes_state::machine_start()
 
 	snes_init_timers();
 
-	for (int i = 0; i < 6; i++)
+	for (int i = 0; i < 8; i++)
 	{
 		save_item(NAME(m_dma_channel[i].dmap), i);
 		save_item(NAME(m_dma_channel[i].dest_addr), i);
@@ -1084,6 +1089,7 @@ void snes_state::machine_start()
 		save_item(NAME(m_dma_channel[i].trans_size), i);
 		save_item(NAME(m_dma_channel[i].ibank), i);
 		save_item(NAME(m_dma_channel[i].hdma_addr), i);
+		save_item(NAME(m_dma_channel[i].hdma_iaddr), i);
 		save_item(NAME(m_dma_channel[i].hdma_line_counter), i);
 		save_item(NAME(m_dma_channel[i].unk), i);
 		save_item(NAME(m_dma_channel[i].do_transfer), i);
@@ -1101,9 +1107,15 @@ void snes_state::machine_start()
 	save_item(NAME(m_dma_regs));
 	save_item(NAME(m_cpu_regs));
 	save_item(NAME(m_oldjoy1_latch));
+	save_item(NAME(m_input_disabled));
+	save_item(NAME(m_game_over_flag));
+	save_item(NAME(m_joy_flag));
 
 	m_is_nss = 0;
 	m_is_sfcbox = 0;
+	m_input_disabled = 0;
+	m_game_over_flag = 0;
+	m_joy_flag = 1;
 }
 
 void snes_state::machine_reset()

@@ -62,10 +62,15 @@ class naomi_state : public dc_state
 	DECLARE_READ64_MEMBER( aw_modem_r );
 	DECLARE_WRITE64_MEMBER( aw_modem_w );
 
+	UINT8 m_mp_mux;
+	DECLARE_CUSTOM_INPUT_MEMBER(naomi_mp_r);
+	DECLARE_INPUT_CHANGED_MEMBER(naomi_mp_w);
+
 	inline int decode_reg32_64(UINT32 offset, UINT64 mem_mask, UINT64 *shift);
 
-	int jvsboard_type;
 	UINT16 actel_id;
+
+	UINT8 aw_ctrl_type;
 
 	UINT8 asciihex_to_dec(UINT8 in);
 	void create_pic_from_retdat();

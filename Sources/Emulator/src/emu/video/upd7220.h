@@ -126,6 +126,8 @@ private:
 
 	inline UINT8 readbyte(offs_t address);
 	inline void writebyte(offs_t address, UINT8 data);
+	inline UINT16 readword(offs_t address);
+	inline void writeword(offs_t address, UINT16 data);
 	inline void fifo_clear();
 	inline int fifo_param_count();
 	inline void fifo_set_direction(int dir);
@@ -136,21 +138,21 @@ private:
 	inline void update_blank_timer(int state);
 	inline void recompute_parameters();
 	inline void reset_figs_param();
-	inline void advance_ead();
 	inline void read_vram(UINT8 type, UINT8 mod);
 	inline void write_vram(UINT8 type, UINT8 mod);
-	inline UINT16 check_pattern(UINT16 pattern);
 	inline void get_text_partition(int index, UINT32 *sad, UINT16 *len, int *im, int *wd);
 	inline void get_graphics_partition(int index, UINT32 *sad, UINT16 *len, int *im, int *wd);
 
-	void draw_pixel(int x, int y, UINT8 tile_data);
+	void draw_pixel(int x, int y, int xi, UINT16 tile_data);
 	void draw_line(int x, int y);
 	void draw_rectangle(int x, int y);
+	void draw_arc(int x, int y);
 	void draw_char(int x, int y);
 	int translate_command(UINT8 data);
 	void process_fifo();
+	void continue_command();
 	void update_text(bitmap_rgb32 &bitmap, const rectangle &cliprect);
-	void draw_graphics_line(bitmap_rgb32 &bitmap, UINT32 addr, int y, int wd);
+	void draw_graphics_line(bitmap_rgb32 &bitmap, UINT32 addr, int y, int wd, int pitch);
 	void update_graphics(bitmap_rgb32 &bitmap, const rectangle &cliprect, int force_bitmap);
 
 	upd7220_display_pixels_delegate     m_display_cb;
@@ -181,7 +183,6 @@ private:
 	int m_fifo_dir;                 // FIFO direction
 
 	UINT8 m_mode;                   // mode of operation
-	UINT8 m_draw_mode;              // mode of drawing
 
 	int m_de;                       // display enabled
 	int m_m;                        // 0 = accept external vertical sync (slave mode) / 1 = generate & output vertical sync (master mode)
@@ -210,6 +211,7 @@ private:
 		UINT8 m_dir;                // figs param 0: drawing direction
 		UINT8 m_figure_type;        // figs param 1: figure type
 		UINT16 m_dc;                // figs param 2:
+		UINT8  m_gd;                // mixed mode only
 		UINT16 m_d;                 // figs param 3:
 		UINT16 m_d1;                // figs param 4:
 		UINT16 m_d2;                // figs param 5:

@@ -2,15 +2,14 @@
  * flex_dsk.h
  *
  *  Created on: 24/06/2014
- *      Author: bsr
  */
 
 #ifndef FLEX_DSK_H_
 #define FLEX_DSK_H_
 
-#include "wd177x_dsk.h"
+#include "flopimg.h"
 
-class flex_format : public wd177x_format {
+class flex_format : public floppy_image_format_t {
 public:
 	flex_format();
 
@@ -19,6 +18,8 @@ public:
 	virtual const char *extensions() const;
 	virtual int identify(io_generic *io, UINT32 form_factor);
 	virtual bool load(io_generic *io, UINT32 form_factor, floppy_image *image);
+	virtual bool supports_save() const;
+
 private:
 	struct sysinfo_sector
 	{

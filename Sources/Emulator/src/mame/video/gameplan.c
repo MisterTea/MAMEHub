@@ -125,7 +125,7 @@ UINT32 gameplan_state::screen_update_leprechn(screen_device &screen, bitmap_rgb3
 		UINT8 y = offs >> 8;
 		UINT8 x = offs & 0xff;
 
-		bitmap.pix32(y, x) = pens[m_videoram[offs]];
+		bitmap.pix32(y, x) = pens[m_videoram[offs] & (LEPRECHN_NUM_PENS-1)];
 	}
 
 	return 0;
@@ -154,6 +154,12 @@ WRITE8_MEMBER(gameplan_state::gameplan_video_command_w)
 WRITE8_MEMBER(gameplan_state::leprechn_video_command_w)
 {
 	m_video_command = (data >> 3) & 0x07;
+}
+
+
+READ8_MEMBER(gameplan_state::leprechn_videoram_r)
+{
+	return m_videoram[m_video_y * (HBSTART - HBEND) + m_video_x];
 }
 
 
@@ -310,8 +316,6 @@ VIDEO_RESET_MEMBER(gameplan_state,gameplan)
 MACHINE_CONFIG_FRAGMENT( gameplan_video )
 	MCFG_VIDEO_START_OVERRIDE(gameplan_state,gameplan)
 	MCFG_VIDEO_RESET_OVERRIDE(gameplan_state,gameplan)
-
-	MCFG_VIDEO_START_OVERRIDE(gameplan_state,gameplan)
 
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(GAMEPLAN_PIXEL_CLOCK, HTOTAL, HBEND, HBSTART, VTOTAL, VBEND, VBSTART)

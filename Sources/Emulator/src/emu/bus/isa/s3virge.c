@@ -45,8 +45,7 @@ s3virgedx_rev1_vga_device::s3virgedx_rev1_vga_device(const machine_config &mconf
 
 void s3virge_vga_device::device_start()
 {
-	memset(&vga, 0, sizeof(vga));
-	memset(&svga, 0, sizeof(svga));
+	zero();
 
 	int x;
 	int i;
@@ -159,7 +158,7 @@ UINT8 s3virge_vga_device::s3_crtc_reg_read(UINT8 index)
 				res = s3.crt_reg_lock;
 				break;
 			case 0x36:  // Configuration register 1
-				res = s3.strapping & 0x000000ff;  // PCI (not really), Fast Page Mode DRAM
+				res = s3.strapping & 0x000000ff;
 				if(vga.svga_intf.vram_size == 0x200000)
 					res |= 0x80;
 				else if(vga.svga_intf.vram_size == 0x400000)
@@ -168,7 +167,7 @@ UINT8 s3virge_vga_device::s3_crtc_reg_read(UINT8 index)
 					res |= 0x80;  // shouldn't get here...
 				break;
 			case 0x37:  // Configuration register 2
-				res = (s3.strapping & 0x0000ff00) >> 8;  // enable chipset, 64k BIOS size, internal DCLK/MCLK
+				res = (s3.strapping & 0x0000ff00) >> 8;
 				break;
 			case 0x38:
 				res = s3.reg_lock1;
@@ -235,7 +234,7 @@ UINT8 s3virge_vga_device::s3_crtc_reg_read(UINT8 index)
 				res = s3.ext_misc_ctrl_2;
 				break;
 			case 0x68:  // Configuration register 3
-				res = (s3.strapping & 0x00ff0000) >> 16;  // no /CAS,/OE stretch time, 32-bit data bus size
+				res = (s3.strapping & 0x00ff0000) >> 16;
 				break;
 			case 0x69:
 				res = vga.crtc.start_addr_latch >> 16;
@@ -244,7 +243,7 @@ UINT8 s3virge_vga_device::s3_crtc_reg_read(UINT8 index)
 				res = svga.bank_r & 0x7f;
 				break;
 			case 0x6f: // Configuration register 4
-				res = (s3.strapping & 0xff000000) >> 24;  // LPB(?) mode, Serial port I/O at port 0xe8, Serial port I/O disabled (MMIO only), no WE delay
+				res = (s3.strapping & 0xff000000) >> 24;
 				break;
 			default:
 				res = vga.crtc.data[index];
@@ -284,7 +283,7 @@ void s3virge_vga_device::s3_define_video_mode()
 			case 0x03: svga.rgb15_en = 1; divisor = 2; break;
 			case 0x05: svga.rgb16_en = 1; divisor = 2; break;
 			case 0x0d: svga.rgb32_en = 1; divisor = 1; break;
-			default: fatalerror("TODO: s3 video mode not implemented %02x\n",((s3.ext_misc_ctrl_2) >> 4)); break;
+			default: fatalerror("TODO: s3 video mode not implemented %02x\n",((s3.ext_misc_ctrl_2) >> 4));
 		}
 	}
 	else

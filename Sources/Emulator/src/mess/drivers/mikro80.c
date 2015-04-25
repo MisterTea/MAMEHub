@@ -11,7 +11,6 @@
 #include "cpu/i8085/i8085.h"
 #include "sound/wave.h"
 #include "includes/mikro80.h"
-#include "imagedev/cartslot.h"
 #include "formats/rk_cas.h"
 #include "sound/dac.h"
 
@@ -179,7 +178,6 @@ static MACHINE_CONFIG_START( mikro80, mikro80_state )
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", mikro80)
 	MCFG_PALETTE_ADD_BLACK_AND_WHITE("palette")
 
-
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
@@ -187,6 +185,9 @@ static MACHINE_CONFIG_START( mikro80, mikro80_state )
 	MCFG_CASSETTE_ADD( "cassette" )
 	MCFG_CASSETTE_FORMATS(rk8_cassette_formats)
 	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED | CASSETTE_SPEAKER_ENABLED | CASSETTE_MOTOR_ENABLED)
+	MCFG_CASSETTE_INTERFACE("mikro80_cass")
+
+	MCFG_SOFTWARE_LIST_ADD("cass_list", "mikro80")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( radio99, mikro80 )
@@ -216,7 +217,7 @@ ROM_END
 
 ROM_START( radio99 )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASEFF )
-	ROM_LOAD( "monrk88.bin", 0xf800, 0x0800, CRC(5415D847) SHA1(c8233c72548bc79846b9d998766a10df349c5bda))
+	ROM_LOAD( "monrk88.bin", 0xf800, 0x0800, CRC(5415d847) SHA1(c8233c72548bc79846b9d998766a10df349c5bda))
 	ROM_REGION(0x0800, "gfx1",0)
 	ROM_LOAD ("mikro80.fnt", 0x0000, 0x0800, CRC(43eb72bb) SHA1(761319cc6747661b33e84aa449cec83800543b5b) )
 ROM_END
@@ -227,6 +228,8 @@ ROM_START( kristall2 )
 	ROM_REGION(0x0800, "gfx1",0)
 	ROM_LOAD( "kristall-2.fnt", 0x0000, 0x0800, CRC(9661c9f5) SHA1(830c38735dcb1c8a271fa0027f94b4e034848fc8))
 ROM_END
+
+
 /* Driver */
 /*    YEAR  NAME    PARENT  COMPAT  MACHINE     INPUT       INIT     COMPANY                  FULLNAME   FLAGS */
 COMP( 1983, mikro80,     0,      0, mikro80,    mikro80, mikro80_state, mikro80, "<unknown>", "Mikro-80",    0)

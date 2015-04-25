@@ -2693,11 +2693,11 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( selfeena, taitob_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)   /* 12 MHz */
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_24MHz/2)   /* 12 MHz */
 	MCFG_CPU_PROGRAM_MAP(selfeena_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", taitob_state,  selfeena_interrupt)
 
-	MCFG_CPU_ADD("audiocpu", Z80, 4000000)  /* 4 MHz */
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_16MHz/4)  /* 4 MHz */
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
@@ -2734,7 +2734,7 @@ static MACHINE_CONFIG_START( selfeena, taitob_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
+	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_16MHz/2)  /* 8 MHz */
 	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
@@ -2758,11 +2758,11 @@ void taitob_state::ryujin_patch(void)
 static MACHINE_CONFIG_START( ryujin, taitob_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 12000000)   /* 12 MHz */
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_24MHz/2)   /* 12 MHz */
 	MCFG_CPU_PROGRAM_MAP(selfeena_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", taitob_state,  selfeena_interrupt)
 
-	MCFG_CPU_ADD("audiocpu", Z80, 4000000)  /* 4 MHz */
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_16MHz/4)  /* 4 MHz */
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(600))
@@ -2799,7 +2799,7 @@ static MACHINE_CONFIG_START( ryujin, taitob_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SOUND_ADD("ymsnd", YM2610, 8000000)
+	MCFG_SOUND_ADD("ymsnd", YM2610, XTAL_16MHz/2)  /* 8 MHz */
 	MCFG_YM2610_IRQ_HANDLER(WRITELINE(taitob_state, irqhandler))
 	MCFG_SOUND_ROUTE(0, "mono", 0.25)
 	MCFG_SOUND_ROUTE(1, "mono", 1.0)
@@ -3256,7 +3256,7 @@ ROM_START( rambo3p ) /* Is this set a prototype or possible bootleg? */
 	ROM_LOAD16_BYTE( "r3-0e.rom",  0x00000, 0x10000, CRC(3efa4177) SHA1(5e4995e34b92f625f7825238dfbc9e76d4090871) )
 	ROM_LOAD16_BYTE( "r3-0o.rom",  0x00001, 0x10000, CRC(55c38d92) SHA1(4f712b4eb20ee176da83a5f1154d5890d1360398) )
 
-/*NOTE: there is a hole in address space here */
+	/*NOTE: there is a hole in address space here */
 
 	ROM_LOAD16_BYTE( "r3-1e.rom" , 0x40000, 0x20000, CRC(40e363c7) SHA1(9907def4736fbff15cf769a762bf1811f890d1c7) )
 	ROM_LOAD16_BYTE( "r3-1o.rom" , 0x40001, 0x20000, CRC(7f1fe6ab) SHA1(31231747982d9c42f693f650bc137794b438c2b7) )
@@ -3513,9 +3513,7 @@ ROM_START( masterwj )
 	ROM_LOAD( "b72-01.5", 0x080000, 0x080000, CRC(a24ac26e) SHA1(895715a2bb0cb15334cba2283bd228b4fc08cd0c) )
 ROM_END
 
-
-
-ROM_START( yukiwo )
+ROM_START( yukiwo ) /* Prototype of Master of Weapons */
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 512k for 68000 code */
 	ROM_LOAD16_BYTE( "ic33-rom0e.bin", 0x00000, 0x20000, CRC(a0dd51d9) SHA1(a4740bf08e26e1e576344c95d945df5d970738f2) )
 	ROM_LOAD16_BYTE( "ic24-e882.bin",  0x00001, 0x20000, CRC(d66f29d4) SHA1(0854f1a0943a20693e6cd02825666e39b4fe28ca) )
@@ -3537,7 +3535,7 @@ ROM_START( yukiwo )
 	ROM_LOAD16_BYTE( "ic8-e28a.bin", 0x0c0000, 0x020000, CRC(1b3db354) SHA1(a8481799182e5a06e105a4600679d4544317a350) )
 ROM_END
 
-ROM_START( silentd )
+ROM_START( silentd ) /* Silkscreened PCB number ET910000B */
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 256k for 68000 code */
 	ROM_LOAD16_BYTE( "east-12-1.ic32", 0x00000, 0x20000, CRC(5883d362) SHA1(21c3af053fa92c26f119466ecd655697cc72ff3a) )
 	ROM_LOAD16_BYTE( "east-15-1.ic10", 0x00001, 0x20000, CRC(8c0a72ae) SHA1(2199c4d6b87913ffb24cdccd6ca5176a97132baa) )
@@ -3560,7 +3558,7 @@ ROM_START( silentd )
 	ROM_LOAD( "east-02.ic3", 0x00000, 0x80000, CRC(e0de5c39) SHA1(75d0e193d882e67921c216c3293454e34304d25e) )
 ROM_END
 
-ROM_START( silentdj )
+ROM_START( silentdj ) /* Silkscreened PCB number ET910000B */
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 256k for 68000 code */
 	ROM_LOAD16_BYTE( "east-12-1.ic32", 0x00000, 0x20000, CRC(5883d362) SHA1(21c3af053fa92c26f119466ecd655697cc72ff3a) )
 	ROM_LOAD16_BYTE( "east-10-1.ic10", 0x00001, 0x20000, CRC(584306fc) SHA1(961cb6aaa426e3d83c499d101ef369b86a84c5d8) )
@@ -3622,7 +3620,7 @@ ROM_START( selfeena ) /* Silkscreened PCB number ET910000A */
 	ROM_LOAD( "se-06.11", 0x00000, 0x80000, CRC(80d5e772) SHA1(bee4982a3d65210ff86495e36a0b656934b00c7d) )
 ROM_END
 
-ROM_START( ryujin )
+ROM_START( ryujin ) /* Silkscreened PCB number ET910000A */
 	ROM_REGION( 0x80000, "maincpu", 0 )     /* 256k for 68000 code */
 	ROM_LOAD16_BYTE( "ruj02.27", 0x00000, 0x20000, CRC(0d223aee) SHA1(33f5498a650b244c5a4a22415408a269da597abf) )
 	ROM_LOAD16_BYTE( "ruj01.26", 0x00001, 0x20000, CRC(c6bcdd1e) SHA1(d8620995ad1bc256eab4ed7e1c549e8b6ec5c3fb) )

@@ -80,6 +80,63 @@ endif
 $(CPUOBJ)/8x300/8x300.o:    $(CPUSRC)/8x300/8x300.c \
 							$(CPUSRC)/8x300/8x300.h
 
+
+
+#-------------------------------------------------
+# ARCangent A4
+#@src/emu/cpu/arc/arc.h,CPUS += ARC
+#-------------------------------------------------
+
+ifneq ($(filter ARC,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/arc
+CPUOBJS += $(CPUOBJ)/arc/arc.o
+DASMOBJS += $(CPUOBJ)/arc/arcdasm.o
+endif
+
+$(CPUOBJ)/arc/arc.o:  $(CPUSRC)/arc/arc.c \
+			$(CPUSRC)/arc/arc.h
+
+
+
+#-------------------------------------------------
+# ARcompact (ARCtangent-A5, ARC 600, ARC 700)
+#@src/emu/cpu/arc/arc.h,CPUS += ARCOMPACT
+#-------------------------------------------------
+
+ifneq ($(filter ARCOMPACT,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/arcompact
+CPUOBJS += $(CPUOBJ)/arcompact/arcompact.o $(CPUOBJ)/arcompact/arcompact_execute.o
+DASMOBJS += $(CPUOBJ)/arcompact/arcompactdasm.o $(CPUOBJ)/arcompact/arcompactdasm_dispatch.o $(CPUOBJ)/arcompact/arcompactdasm_ops.o $(CPUOBJ)/arcompact/arcompact_common.o
+endif
+
+$(CPUOBJ)/arcompact/arcompact.o:  $(CPUSRC)/arcompact/arcompact.c \
+			$(CPUSRC)/arcompact/arcompact.h \
+			$(CPUSRC)/arcompact/arcompact_common.h \
+			$(CPUOBJ)/arcompact/arcompact.inc
+
+$(CPUOBJ)/arcompact/arcompact_execute.o:  $(CPUSRC)/arcompact/arcompact_execute.c \
+			$(CPUSRC)/arcompact/arcompact.h \
+			$(CPUSRC)/arcompact/arcompact_common.h \
+			$(CPUOBJ)/arcompact/arcompact.inc
+
+$(CPUOBJ)/arcompact/arcompactdasm_dispatch.o:  $(CPUSRC)/arcompact/arcompactdasm_dispatch.c \
+			$(CPUSRC)/arcompact/arcompactdasm_dispatch.h \
+			$(CPUSRC)/arcompact/arcompact_common.h
+
+$(CPUOBJ)/arcompact/arcompactdasm_ops.o:  $(CPUSRC)/arcompact/arcompactdasm_ops.c \
+			$(CPUSRC)/arcompact/arcompactdasm_ops.h \
+			$(CPUSRC)/arcompact/arcompact_common.h
+
+$(CPUOBJ)/arcompact/arcompact_common.o:  $(CPUSRC)/arcompact/arcompact_common.c \
+			$(CPUSRC)/arcompact/arcompact_common.h
+
+# rule to generate the C files
+$(CPUOBJ)/arcompact/arcompact.inc: $(CPUSRC)/arcompact/arcompact_make.py
+	@echo Generating arcompact source .inc files...
+	$(PYTHON) $(CPUSRC)/arcompact/arcompact_make.py $@
+
+
+
 #-------------------------------------------------
 # Acorn ARM series
 #
@@ -123,6 +180,8 @@ $(CPUOBJ)/arm7/arm7thmb.o:  $(CPUSRC)/arm7/arm7thmb.c \
 						$(CPUSRC)/arm7/arm7help.h \
 						$(CPUSRC)/arm7/arm7core.h \
 
+
+
 #-------------------------------------------------
 # Advanced Digital Chips SE3208
 #@src/emu/cpu/se3208/se3208.h,CPUS += SE3208
@@ -136,6 +195,26 @@ endif
 
 $(CPUOBJ)/se3208/se3208.o:  $(CPUSRC)/se3208/se3208.c \
 							$(CPUSRC)/se3208/se3208.h
+
+
+
+#-------------------------------------------------
+# American Microsystems, Inc.(AMI) S2000 series
+#@src/emu/cpu/amis2000/amis2000.h,CPUS += AMIS2000
+#-------------------------------------------------
+
+ifneq ($(filter AMIS2000,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/amis2000
+CPUOBJS += $(CPUOBJ)/amis2000/amis2000.o
+DASMOBJS += $(CPUOBJ)/amis2000/amis2000d.o
+endif
+
+$(CPUOBJ)/amis2000/amis2000.o:  $(CPUSRC)/amis2000/amis2000.h \
+								$(CPUSRC)/amis2000/amis2000.c \
+								$(CPUSRC)/amis2000/amis2000op.inc
+
+$(CPUOBJ)/amis2000/amis2000d.o: $(CPUSRC)/amis2000/amis2000.h \
+								$(CPUSRC)/amis2000/amis2000d.c
 
 
 
@@ -662,6 +741,8 @@ $(CPUOBJ)/h8/h8s2600.inc: $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst
 	@echo Generating H8S/2600 source file...
 	$(PYTHON) $(CPUSRC)/h8/h8make.py $(CPUSRC)/h8/h8.lst s26 $@
 
+
+
 #-------------------------------------------------
 # Hitachi HCD62121
 #@src/emu/cpu/hcd62121/hcd62121.h,CPUS += HCD62121
@@ -676,6 +757,27 @@ endif
 $(CPUOBJ)/hcd62121/hcd62121.o:  $(CPUSRC)/hcd62121/hcd62121.c \
 							$(CPUSRC)/hcd62121/hcd62121.h \
 							$(CPUSRC)/hcd62121/hcd62121_ops.h
+
+
+
+#-------------------------------------------------
+# Hitachi HMCS40 series
+#@src/emu/cpu/hmcs40/hmcs40.h,CPUS += HMCS40
+#-------------------------------------------------
+
+ifneq ($(filter HMCS40,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/hmcs40
+CPUOBJS += $(CPUOBJ)/hmcs40/hmcs40.o
+DASMOBJS += $(CPUOBJ)/hmcs40/hmcs40d.o
+endif
+
+$(CPUOBJ)/hmcs40/hmcs40.o:      $(CPUSRC)/hmcs40/hmcs40.h \
+								$(CPUSRC)/hmcs40/hmcs40.c \
+								$(CPUSRC)/hmcs40/hmcs40op.inc
+
+$(CPUOBJ)/hmcs40/hmcs40d.o:     $(CPUSRC)/hmcs40/hmcs40.h \
+								$(CPUSRC)/hmcs40/hmcs40d.c
+
 
 
 #-------------------------------------------------
@@ -699,6 +801,8 @@ $(CPUOBJ)/sh2/sh2.o:    $(CPUSRC)/sh2/sh2.c \
 $(CPUOBJ)/sh2/sh2fe.o:  $(CPUSRC)/sh2/sh2fe.c \
 			$(CPUSRC)/sh2/sh2.h \
 			$(CPUSRC)/sh2/sh2comn.h
+
+
 
 #-------------------------------------------------
 # Hitachi SH4
@@ -744,6 +848,8 @@ $(CPUOBJ)/sh4/sh4dmac.o: $(CPUSRC)/sh4/sh4dmac.c \
 			$(CPUSRC)/sh4/sh4regs.h \
 			$(CPUSRC)/sh4/sh4comn.h \
 			$(CPUSRC)/sh4/sh3comn.h
+
+
 
 #-------------------------------------------------
 # Hudsonsoft 6280
@@ -1174,7 +1280,7 @@ $(CPUOBJ)/mips/mips3drc.o:  $(CPUSRC)/mips/mips3drc.c \
 
 ifneq ($(filter PSX,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/psx
-CPUOBJS += $(CPUOBJ)/psx/psx.o $(CPUOBJ)/psx/gte.o $(CPUOBJ)/psx/dma.o $(CPUOBJ)/psx/irq.o $(CPUOBJ)/psx/mdec.o $(CPUOBJ)/psx/rcnt.o $(CPUOBJ)/psx/sio.o $(CPUOBJ)/psx/siodev.o
+CPUOBJS += $(CPUOBJ)/psx/psx.o $(CPUOBJ)/psx/gte.o $(CPUOBJ)/psx/dma.o $(CPUOBJ)/psx/irq.o $(CPUOBJ)/psx/mdec.o $(CPUOBJ)/psx/rcnt.o $(CPUOBJ)/psx/sio.o
 DASMOBJS += $(CPUOBJ)/psx/psxdasm.o
 endif
 
@@ -1547,7 +1653,7 @@ BUILD += $(M68KMAKE)
 
 $(M68KMAKE): $(CPUOBJ)/m68000/m68kmake.o $(LIBOCORE)
 	@echo Linking $@...
-	$(LD) $(LDFLAGS) $(OSDBGLDFLAGS) $^ $(LIBS) -o $@
+	$(LD) $(LDFLAGS) $(OSDBGLDFLAGS) $^ $(BASELIBS) -o $@
 endif
 
 # rule to ensure we build the header before building the core CPU file
@@ -1670,6 +1776,7 @@ OBJDIRS += $(CPUOBJ)/nec
 CPUOBJS += $(CPUOBJ)/nec/nec.o
 CPUOBJS += $(CPUOBJ)/nec/v25.o
 CPUOBJS += $(CPUOBJ)/nec/v25sfr.o
+CPUOBJS += $(CPUOBJ)/nec/v53.o
 DASMOBJS += $(CPUOBJ)/nec/necdasm.o
 endif
 
@@ -1788,6 +1895,25 @@ $(CPUOBJ)/upd7810/upd7810.o:    $(CPUSRC)/upd7810/upd7810.c \
 
 
 #-------------------------------------------------
+# NEC uCOM-4 series
+#@src/emu/cpu/ucom4/ucom4.h,CPUS += UCOM4
+#-------------------------------------------------
+
+ifneq ($(filter UCOM4,$(CPUS)),)
+OBJDIRS += $(CPUOBJ)/ucom4
+CPUOBJS += $(CPUOBJ)/ucom4/ucom4.o
+DASMOBJS += $(CPUOBJ)/ucom4/ucom4d.o
+endif
+
+$(CPUOBJ)/ucom4/ucom4.o:        $(CPUSRC)/ucom4/ucom4.h \
+								$(CPUSRC)/ucom4/ucom4.c \
+								$(CPUSRC)/ucom4/ucom4op.inc
+
+$(CPUOBJ)/ucom4/ucom4d.o:       $(CPUSRC)/ucom4/ucom4.h \
+								$(CPUSRC)/ucom4/ucom4d.c
+
+
+#-------------------------------------------------
 # Nintendo Minx
 #@src/emu/cpu/minx/minx.h,CPUS += MINX
 #-------------------------------------------------
@@ -1814,17 +1940,33 @@ $(CPUOBJ)/minx/minx.o:      $(CPUSRC)/minx/minx.c \
 
 ifneq ($(filter RSP,$(CPUS)),)
 OBJDIRS += $(CPUOBJ)/rsp
-CPUOBJS += $(CPUOBJ)/rsp/rsp.o $(CPUOBJ)/rsp/rspdrc.o $(CPUOBJ)/rsp/rspfe.o $(DRCOBJ)
+CPUOBJS += $(CPUOBJ)/rsp/rsp.o $(CPUOBJ)/rsp/rspdrc.o $(CPUOBJ)/rsp/rspfe.o  $(CPUOBJ)/rsp/rspcp2.o $(CPUOBJ)/rsp/rspcp2d.o $(DRCOBJ)
 DASMOBJS += $(CPUOBJ)/rsp/rsp_dasm.o
 endif
 
 $(CPUOBJ)/rsp/rsp.o:    $(CPUSRC)/rsp/rsp.c \
-				$(CPUSRC)/rsp/rsp.h
+			$(CPUSRC)/rsp/rsp.h \
+			$(CPUSRC)/rsp/rspcp2.c \
+			$(CPUSRC)/rsp/rspcp2.h
 
 $(CPUOBJ)/rsp/rspdrc.o: $(CPUSRC)/rsp/rspdrc.c \
 			$(CPUSRC)/rsp/rsp.h \
 			$(CPUSRC)/rsp/rspfe.h \
 			$(DRCDEPS)
+
+$(CPUOBJ)/rsp/rspcp2.o: $(CPUSRC)/rsp/rspcp2.c \
+			$(CPUSRC)/rsp/rspcp2.h \
+			$(CPUSRC)/rsp/rspdrc.c \
+			$(CPUSRC)/rsp/rsp.c \
+			$(CPUSRC)/rsp/rsp.h
+
+$(CPUOBJ)/rsp/rspcp2d.o: $(CPUSRC)/rsp/rspcp2d.c \
+			$(CPUSRC)/rsp/rspcp2d.h \
+			$(CPUSRC)/rsp/rspcp2.c \
+			$(CPUSRC)/rsp/rspcp2.h \
+			$(CPUSRC)/rsp/rspdrc.c \
+			$(CPUSRC)/rsp/rsp.c \
+			$(CPUSRC)/rsp/rsp.h
 
 $(CPUOBJ)/rsp/rspfe.o:  $(CPUSRC)/rsp/rspfe.c \
 			$(CPUSRC)/rsp/rspfe.h
@@ -2230,7 +2372,8 @@ OBJDIRS += $(CPUOBJ)/z80
 CPUOBJS += $(CPUOBJ)/z80/z80.o \
 	$(CPUOBJ)/z80/z80daisy.o \
 	$(CPUOBJ)/z80/tmpz84c011.o \
-	$(CPUOBJ)/z80/tmpz84c015.o
+	$(CPUOBJ)/z80/tmpz84c015.o \
+	$(CPUOBJ)/z80/kl5c80a12.o
 
 DASMOBJS += $(CPUOBJ)/z80/z80dasm.o
 endif

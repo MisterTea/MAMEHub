@@ -112,6 +112,8 @@
 #include "uiinput.h"
 #include "debug/debugcon.h"
 
+#include "osdepend.h"
+
 #include <ctype.h>
 #include <time.h>
 
@@ -801,7 +803,7 @@ void digital_joystick::frame_update()
 		//
 		//  If joystick is pointing at a diagonal, acknowledge that the player moved
 		//  the joystick by favoring a direction change.  This minimizes frustration
-		//  when using a keyboard for input, and maximizes responsiveness.
+		//  and maximizes responsiveness.
 		//
 		//  For example, if you are holding "left" then switch to "up" (where both left
 		//  and up are briefly pressed at the same time), we'll transition immediately
@@ -2022,7 +2024,7 @@ void ioport_field::frame_update(ioport_value &result, bool mouse_down)
 		curstate = false;
 
 	// additional logic to restrict digital joysticks
-	if (curstate && !mouse_down && m_live->joystick != NULL && m_way != 16 && !machine().options().joystick_contradictory())
+	if (curstate && !m_digital_value && !mouse_down && m_live->joystick != NULL && m_way != 16 && !machine().options().joystick_contradictory())
 	{
 		UINT8 mask = (m_way == 4) ? m_live->joystick->current4way() : m_live->joystick->current();
 		if (!(mask & (1 << m_live->joydir)))
@@ -2498,6 +2500,9 @@ ioport_port_live::ioport_port_live(ioport_port &port)
 		// let the field initialize its live state
 		field->init_live_state(analog);
 	}
+
+  port.machine().save().save_item(NULL, "ioport", port.tag(), 0, defvalue, "defvalue");
+  port.machine().save().save_item(NULL, "ioport", port.tag(), 1, digital, "digital");
 }
 
 
@@ -2519,7 +2524,8 @@ ioport_manager::ioport_manager(running_machine &machine)
 		m_record_file(machine.options().input_directory(), OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS),
 		m_playback_file(machine.options().input_directory(), OPEN_FLAG_READ),
 		m_playback_accumulated_speed(0),
-		m_playback_accumulated_frames(0)
+		m_playback_accumulated_frames(0),
+    m_framecount(0)
 {
 	memset(m_type_to_entry, 0, sizeof(m_type_to_entry));
 }
@@ -2538,6 +2544,8 @@ attotime inputStartTime(1,0);
 
 time_t ioport_manager::initialize()
 {
+  machine().save().save_item(NULL, "ioport", "manager", 0, m_framecount, "framecount");
+
   for(int a=0;a<MAX_PLAYERS;a++) {
     playerInputData[a].set_capacity(30000);
   }
@@ -2593,14 +2601,14 @@ time_t ioport_manager::initialize()
 	init_autoselect_devices(IPT_TRACKBALL_X, IPT_TRACKBALL_Y,  0,              OPTION_TRACKBALL_DEVICE,  "trackball");
 	init_autoselect_devices(IPT_MOUSE_X,     IPT_MOUSE_Y,      0,              OPTION_MOUSE_DEVICE,      "mouse");
 
-	// look for 4-way joysticks and change the default map if we find any
+	// look for 4-way diagonal joysticks and change the default map if we find any
 	const char *joystick_map_default = machine().options().joystick_map();
 	if (joystick_map_default[0] == 0 || strcmp(joystick_map_default, "auto") == 0)
 		for (ioport_port *port = first_port(); port != NULL; port = port->next())
 			for (ioport_field *field = port->first_field(); field != NULL; field = field->next())
-				if (field->live().joystick != NULL && field->way() == 4)
+				if (field->live().joystick != NULL && field->rotated())
 				{
-					machine().input().set_global_joystick_map(field->rotated() ? joystick_map_4way_diagonal : joystick_map_4way_sticky);
+					machine().input().set_global_joystick_map(joystick_map_4way_diagonal);
 					break;
 				}
 
@@ -3057,8 +3065,14 @@ nsm::Attotime attotimeToProto(const attotime& at) {
 //  per-frame input port updating
 //-------------------------------------------------
 
+INT64 lastInputFramecount = -1;
+extern UINT64 inputFrameNumber;
+
 void ioport_manager::frame_update()
 {
+  m_framecount++;
+  inputFrameNumber++;
+
   //cout << "UPDATING FRAME\n";
 g_profiler.start(PROFILER_INPUT);
 
@@ -3105,6 +3119,7 @@ g_profiler.start(PROFILER_INPUT);
 	}
 
   nsm::InputState inputState;
+  inputState.set_framecount(m_framecount);
 	// loop over all input ports
 
 	for (ioport_port *port = first_port(); port != NULL; port = port->next())
@@ -3149,14 +3164,17 @@ g_profiler.start(PROFILER_INPUT);
       // Inputs before the input start time are not valid.
     } else if(futureInputTime <= mostRecentSentReport) {
       // We haven't caught up with the server yet, don't send.
-    } else if(futureInputTime < lastFutureInputTime) {
-      // This input would occur in the past, ignore it.
+    } else if(futureInputTime <= lastFutureInputTime) {
+      // This input would occur in the past or be a duplicate, ignore it.
+    } else if(m_framecount <= lastInputFramecount) {
+      // This input would occur in the past or be a duplicate, ignore it.
     } else {
       if (!rollback && lastFutureInputTime < inputStartTime) {
         // Make sure that the first input is exactly on the input start time.
         futureInputTime = inputStartTime;
       }
       lastFutureInputTime = futureInputTime;
+      lastInputFramecount = m_framecount;
 
       //cout << "SENDING INPUTS AT TIME " << futureInputTime.seconds << "." << futureInputTime.attoseconds << endl;
       nsm::Attotime nsmAttotime = attotimeToProto(futureInputTime);
@@ -3296,7 +3314,23 @@ void ioport_manager::pollForPeerCatchup(attotime curMachineTime) {
 }
 
 void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
-  while(playerInputData[player].empty() || playerInputData[player].rbegin()->first <= curMachineTime) {
+  while(true) {
+    bool stale=true;
+    if (!playerInputData[player].empty()) {
+      if (netCommon->isRollback()) {
+        if (playerInputData[player].rbegin()->second.framecount() >= m_framecount) {
+          // In rollback, we check framecount
+          stale = false;
+        }
+      } else {
+        stale = playerInputData[player].rbegin()->first <= curMachineTime;
+      }
+    }
+
+    if (!stale) {
+      break;
+    }
+
     static time_t realtime = time(NULL);
     bool printDebug=false;
     if(printDebug || realtime != time(NULL))
@@ -3338,6 +3372,9 @@ void ioport_manager::pollForDataAfter(int player, attotime curMachineTime) {
   //cout << "PLAYER " << player << " is up to date with last input at " << playerInputData[player].rbegin()->first.seconds << "." << playerInputData[player].rbegin()->first.attoseconds << endl;
 }
 
+extern bool doRollback;
+extern attotime rollbackTime;
+
 std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMachineTime) {
   bool rollback = netCommon->isRollback();
   vector<nsm::InputState*> retval;
@@ -3363,30 +3400,48 @@ std::vector<nsm::InputState*> ioport_manager::fetch_remote_inputs(attotime curMa
 
     while(true)
     {
-      if(it==playerInputData[player].rend())
-      {
-        cout << "MISSING PLAYER INPUT IN THE PAST " << playerInputData[player].size() << endl;
-        throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
-      }
-      else if(it->first<=curMachineTime)
-      {
-        if (rollback) {
+      if (rollback) {
+        if (it->second.framecount() <= m_framecount) {
           retval.push_back(&(it->second));
-        } else {
-          if(it==itold)
-          {
-            //throw emu_fatalerror("OOPS");
-
-            // This can happen for a few frames after someone
-            // disconnects but before the server takes over.
-            retval.push_back(NULL);
-          } else {
-            retval.push_back(&(itold->second));
-          }
+          break;
         }
-        break;
       } else {
-        //cout << "GOT INPUT BUT TOO NEW: " << it->first.seconds << "." << it->first.attoseconds << " " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
+        if(it==playerInputData[player].rend())
+        {
+          cout << "MISSING PLAYER INPUT IN THE PAST " << playerInputData[player].size() << endl;
+          throw emu_fatalerror("OOPS: INVALID PLAYER INPUT");
+        }
+        else if(it->first<=curMachineTime)
+        {
+          if (rollback) {
+            if (player <= 1) {
+              cout << "INPUT TIMES FOR " << player << ": " << it->first << " / " << curMachineTime << endl;
+              cout << "INPUT DATA: " << it->second.DebugString() << endl;
+            }
+            if (netServer && player == 0 && it->first != curMachineTime) {
+              cout << "Invalid machine time: " << it->first << ' ' << curMachineTime << endl;
+              throw emu_fatalerror("INVALID MACHINE TIME");
+              cout << "GOING TO TRY TO ROLL BACK FURTHER\n";
+              doRollback=true;
+              rollbackTime -= attotime(0,ATTOSECONDS_PER_SECOND/10);
+            }
+            retval.push_back(&(it->second));
+          } else {
+            if(it==itold)
+            {
+              //throw emu_fatalerror("OOPS");
+
+              // This can happen for a few frames after someone
+              // disconnects but before the server takes over.
+              retval.push_back(NULL);
+            } else {
+              retval.push_back(&(itold->second));
+            }
+          }
+          break;
+        } else {
+          //cout << "GOT INPUT BUT TOO NEW: " << it->first.seconds << "." << it->first.attoseconds << " " << curMachineTime.seconds << "." << curMachineTime.attoseconds << endl;
+        }
       }
 
       itold = it;
@@ -4547,7 +4602,6 @@ analog_field::analog_field(ioport_field &field)
 
 		default:
 			fatalerror("Unknown analog port type -- don't know if it is absolute or not\n");
-			break;
 	}
 
 	// further processing for absolute controls

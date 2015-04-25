@@ -690,10 +690,15 @@ static void m68k_cause_bus_error(m68000_base_device *m68k)
 
 	m68k->run_mode = RUN_MODE_BERR_AERR_RESET;
 
-	if (!CPU_TYPE_IS_020_PLUS(m68k->cpu_type))
+	if (!CPU_TYPE_IS_010_PLUS(m68k->cpu_type))
 	{
 		/* Note: This is implemented for 68000 only! */
 		m68ki_stack_frame_buserr(m68k, sr);
+	}
+	else if (CPU_TYPE_IS_010(m68k->cpu_type))
+	{
+		/* only the 68010 throws this unique type-1000 frame */
+		m68ki_stack_frame_1000(m68k, REG_PPC(m68k), sr, EXCEPTION_BUS_ERROR);
 	}
 	else if (m68k->mmu_tmp_buserror_address == REG_PPC(m68k))
 	{
@@ -993,6 +998,7 @@ void m68000_base_device::init_cpu_common(void)
 	save_item(NAME(pref_addr));
 	save_item(NAME(pref_data));
 	save_item(NAME(reset_cycles));
+	save_item(NAME(virq_state));
 	save_item(NAME(nmi_pending));
 	save_item(NAME(has_pmmu));
 	save_item(NAME(has_hmmu));
@@ -1125,7 +1131,6 @@ void m68000_base_device::state_import(const device_state_entry &entry)
 
 		default:
 			fatalerror("CPU_IMPORT_STATE(this) called for unexpected value\n");
-			break;
 	}
 
 }
@@ -1165,7 +1170,6 @@ void m68000_base_device::state_export(const device_state_entry &entry)
 
 		default:
 			fatalerror("CPU_EXPORT_STATE(this) called for unexpected value\n");
-			break;
 	}
 }
 
@@ -1881,6 +1885,12 @@ void m68000_base_device::init_cpu_m68020(void)
 	define_state();
 }
 
+void m68000_base_device::init_cpu_m68020fpu(void)
+{
+	init_cpu_m68020();
+
+	has_fpu          = 1;
+}
 
 void m68000_base_device::init_cpu_m68020pmmu(void)
 {
@@ -2239,6 +2249,7 @@ offs_t m68008plcc_device::disasm_disassemble(char *buffer, offs_t pc, const UINT
 offs_t m68010_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options) { return CPU_DISASSEMBLE_NAME(dasm_m68010)(this, buffer, pc, oprom, opram, options); };
 offs_t m68ec020_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options) { return CPU_DISASSEMBLE_NAME(dasm_m68020)(this, buffer, pc, oprom, opram, options); };
 offs_t m68020_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options) { return CPU_DISASSEMBLE_NAME(dasm_m68020)(this, buffer, pc, oprom, opram, options); };
+offs_t m68020fpu_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options) { return CPU_DISASSEMBLE_NAME(dasm_m68020)(this, buffer, pc, oprom, opram, options); };
 offs_t m68020pmmu_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options) { return CPU_DISASSEMBLE_NAME(dasm_m68020)(this, buffer, pc, oprom, opram, options); };
 offs_t m68020hmmu_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options) { return CPU_DISASSEMBLE_NAME(dasm_m68020)(this, buffer, pc, oprom, opram, options); };
 offs_t m68ec030_device::disasm_disassemble(char *buffer, offs_t pc, const UINT8 *oprom, const UINT8 *opram, UINT32 options) { return CPU_DISASSEMBLE_NAME(dasm_m68ec030)(this, buffer, pc, oprom, opram, options); };
@@ -2467,10 +2478,11 @@ void m68000_base_device::clear_all()
 	mmu_tmp_buserror_rw = 0;
 
 	for (int i=0;i<M68K_IC_SIZE;i++)
+	{
 		ic_address[i] = 0;
-
-	for (int i=0;i<M68K_IC_SIZE;i++)
 		ic_data[i] = 0;
+		ic_valid[i] = false;
+	}
 
 	internal = 0;
 }
@@ -2543,6 +2555,7 @@ const device_type M68008PLCC = &device_creator<m68008plcc_device>;
 const device_type M68010 = &device_creator<m68010_device>;
 const device_type M68EC020 = &device_creator<m68ec020_device>;
 const device_type M68020 = &device_creator<m68020_device>;
+const device_type M68020FPU = &device_creator<m68020fpu_device>;
 const device_type M68020PMMU = &device_creator<m68020pmmu_device>;
 const device_type M68020HMMU = &device_creator<m68020hmmu_device>;
 const device_type M68EC030 = &device_creator<m68ec030_device>;
@@ -2640,6 +2653,17 @@ m68020_device::m68020_device(const machine_config &mconfig, const char *tag, dev
 void m68020_device::device_start()
 {
 	init_cpu_m68020();
+}
+
+
+m68020fpu_device::m68020fpu_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: m68000_base_device(mconfig, "M68020FPU", tag, owner, clock, M68020, 32,32, "m68020fpu", __FILE__)
+{
+}
+
+void m68020fpu_device::device_start()
+{
+	init_cpu_m68020fpu();
 }
 
 // 68020 with 68851 PMMU

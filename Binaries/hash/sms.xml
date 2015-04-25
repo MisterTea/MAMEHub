@@ -867,6 +867,119 @@
 		</part>
 	</software>
 
+<!--
+    The labelling of Hi-Com multigame carts is arbitrary. The boxes appears to what was intended as unique product number
+    but boxes are typically mixed up and patched with stickers added to change game titles (on both boxes and cartridges)
+    making the product number rather unreliable AND realistically we may never find out the correct numbers.
+-->
+	<software name="hicom3a">
+		<description>The Best Game Collection - Hang On + Pit Pot + Spy vs Spy (Kor)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="131072">
+				<rom name="hi-com 3-in-1 the best game collection a (kr).sms" size="131072" crc="98af0236" sha1="a64f63eb81bfdd81476daf74a810b5b29fb55986" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hicom3b">
+		<description>The Best Game Collection - Great Baseball + Great Soccer + Super Tennis (Kor)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="131072">
+				<rom name="hi-com 3-in-1 the best game collection b (kr).sms" size="131072" crc="6ebfe1c3" sha1="65ed4232b972e3d85147561b310115dd6b642b99" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hicom3c">
+		<description>The Best Game Collection - Teddy Boy Blues + Pit-Pot + Astro Flash (Kor)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="131072">
+				<rom name="hi-com 3-in-1 the best game collection c (kr).sms" size="131072" crc="81a36a4f" sha1="d3912814b33ce9ca13340902524bcc01dcf397b0" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hicom3d">
+		<description>The Best Game Collection - Teddy Boy Blues + Great Soccer + Comical Machine Gun Joe (Kor)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="131072">
+				<rom name="hi-com 3-in-1 the best game collection d (kr).sms" size="131072" crc="8d2d695d" sha1="5e20414c5eb61c3c817509f794381e1577e69111" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hicom3e">
+		<description>The Best Game Collection - Ghost House + Teddy Boy Blues + Seishun Scandal (Kor)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="131072">
+				<rom name="hi-com 3-in-1 the best game collection e (kr).sms" size="131072" crc="82c09b57" sha1="940af778df6190ef2606a3555d47c0a7d194e05c" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hicom3f">
+		<description>The Best Game Collection - Satellite-7 + Great Baseball + Seishun Scandal (Kor)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="131072">
+				<rom name="hi-com 3-in-1 the best game collection f (kr).sms" size="131072" crc="4088eeb4" sha1="9ee8554a85dfc0a5a278474f4886b311650b37dc" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hicom8a">
+		<description>The Best Game Collection (Kor, 8 in 1 Ver. A)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="262144">
+				<rom name="hi-com 8-in-1 the best game collection a (kr).sms" size="262144" crc="fba94148" sha1="cbcdcd85317becd7ced71612a72913c02fa805be" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hicom8b">
+		<description>The Best Game Collection (Kor, 8 in 1 Ver. B)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="262144">
+				<rom name="hi-com 8-in-1 the best game collection b (kr).sms" size="262144" crc="8333c86e" sha1="657051e0cf27377b8c89c42d3a8f3deef165430a" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="hicom8c">
+		<description>The Best Game Collection (Kor, 8 in 1 Ver. C)</description>
+		<year>1990</year>
+		<publisher>Hi-Com</publisher>
+		<part name="cart" interface="sms_cart">
+			<feature name="slot" value="hicom" />
+			<dataarea name="rom" size="262144">
+				<rom name="hi-com 8-in-1 the best game collection c (kr).sms" size="262144" crc="00e9809f" sha1="c7eddfbdf0383e0b813abf2bbf47c1e779587adb" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="blackblt">
 		<description>Black Belt (Euro, USA)</description>
 		<year>1986</year>
@@ -3256,6 +3369,17 @@
 		</part>
 	</software>
 
+	<software name="jangpun2">
+		<description>Jang Pung II (Kor)</description>
+		<year>1993</year>
+		<publisher>Sieco</publisher>
+		<part name="cart" interface="sms_cart">
+			<dataarea name="rom" size="524288">
+				<rom name="jang pung ii (kr).bin" size="524288" crc="929222c4" sha1="10a5095513efebae3d045b217caa7a520e66f26f" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="jangpun3">
 		<description>Jang Pung 3 (Kor)</description>
 		<year>1994</year>
@@ -3862,6 +3986,17 @@
 		</part>
 	</software>
 
+	<software name="sdmilhao">
+		<description>Show do Milhão (Bra, Prototype)</description>
+		<year>2003</year>
+		<publisher>Tec Toy</publisher>
+		<part name="cart" interface="sms_cart">
+			<dataarea name="rom" size="131072">
+				<rom name="milhao.bin" size="131072" crc="58423688" sha1="06e4bb261d44dffad882043305f59816a0be6f47" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="miracle">
 		<description>Miracle Warriors - Seal of the Dark Lord (Euro, USA, Bra)</description>
 		<year>1987</year>
@@ -4100,6 +4235,7 @@
 		<description>NBA Jam (Euro, Prototype)</description>
 		<year>1994</year>
 		<publisher>Acclaim</publisher>
+		<info name="usage" value="Only runs with certain drivers, e.g. smsj - others show SOFTWARE ERROR" />
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="524288">
 				<rom name="nba jam [proto].bin" size="524288" crc="332a847d" sha1="690addaea2b5f9b8d1c8788540ec7f695b396ff8" offset="000000" status="baddump"/>
@@ -5249,6 +5385,17 @@
 		</part>
 	</software>
 
+	<software name="segagfx">
+		<description>Sega Graphic Board (Jpn, Prototype v2.0)</description>
+		<year>1987</year>
+		<publisher>Sega</publisher>
+		<part name="cart" interface="sms_cart">
+			<dataarea name="rom" size="32768">
+				<rom name="graphic board v2.0.bin" size="32768" crc="276aa542" sha1="d04ea11e1f6743ab4e73eadd95fa9f9fb2eb01fe" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="segawtg">
 		<description>Sega World Tournament Golf (Euro, Bra, Kor)</description>
 		<year>1993</year>
@@ -5292,6 +5439,18 @@
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="32768">
 				<rom name="sky jaguar (kr).bin" size="32768" crc="5b8e65e4" sha1="6ce290d59f14e9be5711d932095909abc0d681d1" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="skyjag1" cloneof="skyjag">
+		<description>Sky Jaguar (Kor, Clover)</description>
+		<year>199?</year>
+		<publisher>Clover</publisher>
+		<info name="alt_title" value="스카이쟈가"/>
+		<part name="cart" interface="sms_cart">
+			<dataarea name="rom" size="32768">
+				<rom name="sky jaguar [clover] (kr).bin" size="32768" crc="e3f260ca" sha1="7eb9e296b674c4cda935e7c5b58eb3dad3aa322f" offset="000000" />
 			</dataarea>
 		</part>
 	</software>
@@ -5953,7 +6112,7 @@
 
 	<software name="strider">
 		<description>Strider (Euro, USA, Bra, Kor)</description>
-		<year>1993</year>
+		<year>1991</year>
 		<publisher>Sega</publisher>
 		<info name="serial" value="9005, GB4028JG"/>
 		<part name="cart" interface="sms_cart">
@@ -5968,7 +6127,7 @@
 
 	<software name="striderd" cloneof="strider">
 		<description>Strider (USA, Display Unit Sample)</description>
-		<year>1993</year>
+		<year>1991</year>
 		<publisher>Sega</publisher>
 		<part name="cart" interface="sms_cart">
 			<dataarea name="rom" size="131072">

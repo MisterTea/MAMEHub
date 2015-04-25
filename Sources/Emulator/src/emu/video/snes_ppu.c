@@ -214,50 +214,9 @@ void snes_ppu_device::device_start()
 {
 	m_openbus_cb.resolve_safe(0);
 
-#if SNES_LAYER_DEBUG
-	memset(&m_debug_options, 0, sizeof(m_debug_options));
-#endif
-
 	m_vram = auto_alloc_array(machine(), UINT8, SNES_VRAM_SIZE);
 	m_cgram = auto_alloc_array(machine(), UINT16, SNES_CGRAM_SIZE/2);
 	m_oam_ram = auto_alloc_array(machine(), UINT16, SNES_OAM_SIZE/2);
-
-	/* Inititialize registers/variables */
-	m_update_windows = 1;
-	m_beam.latch_vert = 0;
-	m_beam.latch_horz = 0;
-	m_beam.current_vert = 0;
-	m_beam.current_horz = 0;
-	m_beam.last_visible_line = 225; /* TODO: PAL setting */
-	m_mode = 0;
-	m_ppu1_version = 1;  // 5C77 chip version number, read by STAT77, only '1' is known
-	m_ppu2_version = 3;  // 5C78 chip version number, read by STAT78, only '2' & '3' encountered so far.
-
-	m_cgram_address = 0;
-	m_read_ophct = 0;
-	m_read_opvct = 0;
-
-	PPU_REG(VMAIN) = 0x80;
-	// what about other regs?
-
-	/* Inititialize mosaic table */
-	for (int j = 0; j < 16; j++)
-	{
-		for (int i = 0; i < 4096; i++)
-			m_mosaic_table[j][i] = (i / (j + 1)) * (j + 1);
-	}
-
-	/* Init VRAM */
-	memset(m_vram, 0, SNES_VRAM_SIZE);
-
-	/* Init Palette RAM */
-	memset((UINT8 *)m_cgram, 0, SNES_CGRAM_SIZE);
-
-	/* Init oam RAM */
-	memset((UINT8 *)m_oam_ram, 0xff, SNES_OAM_SIZE);
-
-	m_stat78 = 0;
-	memset(m_regs, 0x00, sizeof(m_regs));
 
 	for (int i = 0; i < 2; i++)
 	{
@@ -309,7 +268,6 @@ void snes_ppu_device::device_start()
 
 	save_item(NAME(m_beam.latch_horz));
 	save_item(NAME(m_beam.latch_vert));
-	save_item(NAME(m_beam.current_horz));
 	save_item(NAME(m_beam.current_vert));
 	save_item(NAME(m_beam.last_visible_line));
 	save_item(NAME(m_beam.interlace_count));
@@ -326,6 +284,29 @@ void snes_ppu_device::device_start()
 	save_item(NAME(m_mode7.hor_offset));
 	save_item(NAME(m_mode7.ver_offset));
 	save_item(NAME(m_mode7.extbg));
+
+	for (int i = 0; i < ARRAY_LENGTH(m_oam_spritelist); i++)
+	{
+		save_item(NAME(m_oam_spritelist[i].tile), i);
+		save_item(NAME(m_oam_spritelist[i].x), i);
+		save_item(NAME(m_oam_spritelist[i].y), i);
+		save_item(NAME(m_oam_spritelist[i].size), i);
+		save_item(NAME(m_oam_spritelist[i].vflip), i);
+		save_item(NAME(m_oam_spritelist[i].hflip), i);
+		save_item(NAME(m_oam_spritelist[i].priority_bits), i);
+		save_item(NAME(m_oam_spritelist[i].pal), i);
+		save_item(NAME(m_oam_spritelist[i].height), i);
+		save_item(NAME(m_oam_spritelist[i].width), i);
+	}
+
+	for (int i = 0; i < ARRAY_LENGTH(m_oam_tilelist); i++)
+	{
+		save_item(NAME(m_oam_tilelist[i].x), i);
+		save_item(NAME(m_oam_tilelist[i].priority), i);
+		save_item(NAME(m_oam_tilelist[i].pal), i);
+		save_item(NAME(m_oam_tilelist[i].tileaddr), i);
+		save_item(NAME(m_oam_tilelist[i].hflip), i);
+	}
 
 	save_item(NAME(m_mosaic_size));
 	save_item(NAME(m_clip_to_black));
@@ -377,7 +358,111 @@ void snes_ppu_device::device_start()
 	save_pointer(NAME(m_oam_ram), SNES_OAM_SIZE/2);
 }
 
+void snes_ppu_device::device_reset()
+{
+#if SNES_LAYER_DEBUG
+	memset(&m_debug_options, 0, sizeof(m_debug_options));
+#endif
 
+	/* Inititialize registers/variables */
+	m_update_windows = 1;
+	m_beam.latch_vert = 0;
+	m_beam.latch_horz = 0;
+	m_beam.current_vert = 0;
+	m_beam.last_visible_line = 225; /* TODO: PAL setting */
+	m_mode = 0;
+	m_ppu1_version = 1;  // 5C77 chip version number, read by STAT77, only '1' is known
+	m_ppu2_version = 3;  // 5C78 chip version number, read by STAT78, only '2' & '3' encountered so far.
+
+	m_cgram_address = 0;
+	m_read_ophct = 0;
+	m_read_opvct = 0;
+
+	m_vmadd = 0;
+
+	PPU_REG(VMAIN) = 0x80;
+	// what about other regs?
+
+	/* Inititialize mosaic table */
+	for (int j = 0; j < 16; j++)
+	{
+		for (int i = 0; i < 4096; i++)
+			m_mosaic_table[j][i] = (i / (j + 1)) * (j + 1);
+	}
+
+	/* Init VRAM */
+	memset(m_vram, 0, SNES_VRAM_SIZE);
+
+	/* Init Palette RAM */
+	memset((UINT8 *)m_cgram, 0, SNES_CGRAM_SIZE);
+
+	/* Init oam RAM */
+	memset((UINT8 *)m_oam_ram, 0xff, SNES_OAM_SIZE);
+
+	m_stat78 = 0;
+
+	// other initializations to 0
+	memset(m_regs, 0, sizeof(m_regs));
+	memset(m_oam_itemlist, 0, sizeof(m_oam_itemlist));
+	memset(&m_oam, 0, sizeof(m_oam));
+	memset(&m_mode7, 0, sizeof(m_mode7));
+
+	for (int i = 0; i < 2; i++)
+	{
+		m_scanlines[i].enable = 0;
+		m_scanlines[i].clip = 0;
+		memset(m_scanlines[i].buffer, 0, SNES_SCR_WIDTH);
+		memset(m_scanlines[i].priority, 0, SNES_SCR_WIDTH);
+		memset(m_scanlines[i].layer, 0, SNES_SCR_WIDTH);
+		memset(m_scanlines[i].blend_exception, 0, SNES_SCR_WIDTH);
+	}
+
+	for (int i = 0; i < 6; i++)
+	{
+		m_layer[i].window1_enabled = 0;
+		m_layer[i].window1_invert = 0;
+		m_layer[i].window2_enabled = 0;
+		m_layer[i].window2_invert = 0;
+		m_layer[i].wlog_mask = 0;
+		m_layer[i].color_math = 0;
+		m_layer[i].charmap = 0;
+		m_layer[i].tilemap = 0;
+		m_layer[i].tilemap_size = 0;
+		m_layer[i].tile_size = 0;
+		m_layer[i].mosaic_enabled = 0;
+		m_layer[i].main_window_enabled = 0;
+		m_layer[i].sub_window_enabled = 0;
+		m_layer[i].main_bg_enabled = 0;
+		m_layer[i].sub_bg_enabled = 0;
+		m_layer[i].hoffs = 0;
+		m_layer[i].voffs = 0;
+
+		memset(m_clipmasks[i], 0, SNES_SCR_WIDTH);
+	}
+
+	for (int i = 0; i < ARRAY_LENGTH(m_oam_spritelist); i++)
+	{
+		m_oam_spritelist[i].tile = 0;
+		m_oam_spritelist[i].x = 0;
+		m_oam_spritelist[i].y = 0;
+		m_oam_spritelist[i].size = 0;
+		m_oam_spritelist[i].vflip = 0;
+		m_oam_spritelist[i].hflip = 0;
+		m_oam_spritelist[i].priority_bits = 0;
+		m_oam_spritelist[i].pal = 0;
+		m_oam_spritelist[i].height = 0;
+		m_oam_spritelist[i].width = 0;
+	}
+
+	for (int i = 0; i < ARRAY_LENGTH(m_oam_tilelist); i++)
+	{
+		m_oam_tilelist[i].x = 0;
+		m_oam_tilelist[i].priority = 0;
+		m_oam_tilelist[i].pal = 0;
+		m_oam_tilelist[i].tileaddr = 0;
+		m_oam_tilelist[i].hflip = 0;
+	}
+}
 
 /*****************************************
  * get_bgcolor()
@@ -1723,7 +1808,7 @@ inline void snes_ppu_device::draw_blend( UINT16 offset, UINT16 *colour, UINT8 pr
  * the optimized averaging algorithm.
  *********************************************/
 
-void snes_ppu_device::refresh_scanline( running_machine &machine, bitmap_rgb32 &bitmap, UINT16 curline )
+void snes_ppu_device::refresh_scanline( bitmap_rgb32 &bitmap, UINT16 curline )
 {
 	UINT16 ii;
 	int x;
@@ -1731,7 +1816,7 @@ void snes_ppu_device::refresh_scanline( running_machine &machine, bitmap_rgb32 &
 	struct SNES_SCANLINE *scanline1, *scanline2;
 	UINT16 c;
 	UINT16 prev_colour = 0;
-	int blurring = machine.root_device().ioport("OPTIONS")->read_safe(0) & 0x01;
+	int blurring = machine().root_device().ioport("OPTIONS")->read_safe(0) & 0x01;
 
 	g_profiler.start(PROFILER_VIDEO);
 
@@ -1779,7 +1864,7 @@ void snes_ppu_device::refresh_scanline( running_machine &machine, bitmap_rgb32 &
 		update_obsel();
 
 #if SNES_LAYER_DEBUG
-		if (dbg_video(machine, curline))
+		if (dbg_video(curline))
 		{
 			g_profiler.stop();
 			return;
@@ -1891,20 +1976,18 @@ static const UINT16 vram_fgr_inccnts[4] = { 0, 32, 64, 128 };
 static const UINT16 vram_fgr_shiftab[4] = { 0, 5, 6, 7 };
 
 // utility function - latches the H/V counters.  Used by IRQ, writes to WRIO, etc.
-void snes_ppu_device::latch_counters( running_machine &machine )
+void snes_ppu_device::set_latch_hv(INT16 x, INT16 y)
 {
-	m_beam.current_horz = machine.first_screen()->hpos() / m_htmult;
-	m_beam.latch_vert = machine.first_screen()->vpos();
-	m_beam.latch_horz = m_beam.current_horz;
+	m_beam.latch_vert = y;
+	m_beam.latch_horz = x;
 	m_stat78 |= 0x40;   // indicate we latched
-//  m_read_ophct = m_read_opvct = 0;    // clear read flags - 2009-08: I think we must clear these when STAT78 is read...
 
 //  printf("latched @ H %d V %d\n", m_beam.latch_horz, m_beam.latch_vert);
 }
 
-void snes_ppu_device::dynamic_res_change( running_machine &machine )
+void snes_ppu_device::dynamic_res_change()
 {
-	rectangle visarea = machine.first_screen()->visible_area();
+	rectangle visarea = m_screen->visible_area();
 	attoseconds_t refresh;
 
 	visarea.min_x = visarea.min_y = 0;
@@ -1921,12 +2004,12 @@ void snes_ppu_device::dynamic_res_change( running_machine &machine )
 	if ((m_stat78 & 0x10) == SNES_NTSC)
 	{
 		refresh = HZ_TO_ATTOSECONDS(DOTCLK_NTSC) * SNES_HTOTAL * SNES_VTOTAL_NTSC;
-		machine.first_screen()->configure(SNES_HTOTAL * 2, SNES_VTOTAL_NTSC * m_interlace, visarea, refresh);
+		m_screen->configure(SNES_HTOTAL * 2, SNES_VTOTAL_NTSC * m_interlace, visarea, refresh);
 	}
 	else
 	{
 		refresh = HZ_TO_ATTOSECONDS(DOTCLK_PAL) * SNES_HTOTAL * SNES_VTOTAL_PAL;
-		machine.first_screen()->configure(SNES_HTOTAL * 2, SNES_VTOTAL_PAL * m_interlace, visarea, refresh);
+		m_screen->configure(SNES_HTOTAL * 2, SNES_VTOTAL_PAL * m_interlace, visarea, refresh);
 	}
 }
 
@@ -1946,7 +2029,7 @@ void snes_ppu_device::dynamic_res_change( running_machine &machine )
  when interlace is active.
 *************************************************/
 
-inline UINT32 snes_ppu_device::get_vram_address( running_machine &machine )
+inline UINT32 snes_ppu_device::get_vram_address()
 {
 	UINT32 addr = m_vmadd;
 
@@ -2221,7 +2304,7 @@ UINT8 snes_ppu_device::read(address_space &space, UINT32 offset, UINT8 wrio_bit7
 				return m_ppu1_open_bus;
 			}
 		case SLHV:      /* Software latch for H/V counter */
-			latch_counters(space.machine());
+			set_latch_hv(m_screen->hpos() / m_htmult, m_screen->vpos());
 			return m_openbus_cb(space, 0);       /* Return value is meaningless */
 
 		case ROAMDATA:  /* Read data from OAM (DR) */
@@ -2236,7 +2319,7 @@ UINT8 snes_ppu_device::read(address_space &space, UINT32 offset, UINT8 wrio_bit7
 			return m_ppu1_open_bus;
 		case RVMDATAL:  /* Read data from VRAM (low) */
 			{
-				UINT32 addr = get_vram_address(space.machine());
+				UINT32 addr = get_vram_address();
 				m_ppu1_open_bus = m_vram_read_buffer & 0xff;
 
 				if (!m_vram_fgr_high)
@@ -2251,7 +2334,7 @@ UINT8 snes_ppu_device::read(address_space &space, UINT32 offset, UINT8 wrio_bit7
 			}
 		case RVMDATAH:  /* Read data from VRAM (high) */
 			{
-				UINT32 addr = get_vram_address(space.machine());
+				UINT32 addr = get_vram_address();
 				m_ppu1_open_bus = (m_vram_read_buffer >> 8) & 0xff;
 
 				if (m_vram_fgr_high)
@@ -2382,7 +2465,7 @@ void snes_ppu_device::write(address_space &space, UINT32 offset, UINT8 data)
 			return;
 		case BGMODE:    /* BG mode and character size settings */
 			m_mode = data & 0x07;
-			dynamic_res_change(space.machine());
+			dynamic_res_change();
 			m_bg3_priority_bit = BIT(data, 3);
 			m_layer[SNES_BG1].tile_size = BIT(data, 4);
 			m_layer[SNES_BG2].tile_size = BIT(data, 5);
@@ -2484,7 +2567,7 @@ void snes_ppu_device::write(address_space &space, UINT32 offset, UINT8 data)
 			{
 				UINT32 addr;
 				m_vmadd = (m_vmadd & 0xff00) | (data << 0);
-				addr = get_vram_address(space.machine());
+				addr = get_vram_address();
 				m_vram_read_buffer = vram_read(space, addr);
 				m_vram_read_buffer |= (vram_read(space, addr + 1) << 8);
 			}
@@ -2493,14 +2576,14 @@ void snes_ppu_device::write(address_space &space, UINT32 offset, UINT8 data)
 			{
 				UINT32 addr;
 				m_vmadd = (m_vmadd & 0x00ff) | (data << 8);
-				addr = get_vram_address(space.machine());
+				addr = get_vram_address();
 				m_vram_read_buffer = vram_read(space, addr);
 				m_vram_read_buffer |= (vram_read(space, addr + 1) << 8);
 			}
 			break;
 		case VMDATAL:   /* 2118: Data for VRAM write (low) */
 			{
-				UINT32 addr = get_vram_address(space.machine());
+				UINT32 addr = get_vram_address();
 				vram_write(space, addr, data);
 
 				if (!m_vram_fgr_high)
@@ -2509,7 +2592,7 @@ void snes_ppu_device::write(address_space &space, UINT32 offset, UINT8 data)
 			return;
 		case VMDATAH:   /* 2119: Data for VRAM write (high) */
 			{
-				UINT32 addr = get_vram_address(space.machine());
+				UINT32 addr = get_vram_address();
 				vram_write(space, addr + 1, data);
 
 				if (m_vram_fgr_high)
@@ -2713,7 +2796,7 @@ void snes_ppu_device::write(address_space &space, UINT32 offset, UINT8 data)
 			m_beam.last_visible_line = (data & 0x04) ? 240 : 225;
 			m_pseudo_hires = BIT(data, 3);
 			m_mode7.extbg = BIT(data, 6);
-			dynamic_res_change(space.machine());
+			dynamic_res_change();
 #ifdef SNES_DBG_REG_W
 			if ((data & 0x8) != (PPU_REG(SETINI) & 0x8))
 				osd_printf_debug("Pseudo 512 mode: %s\n", (data & 0x8) ? "on" : "off");
@@ -2740,16 +2823,16 @@ void snes_ppu_device::write(address_space &space, UINT32 offset, UINT8 data)
 		popmessage MSG2;                          \
 	}
 
-UINT8 snes_ppu_device::dbg_video( running_machine &machine, UINT16 curline )
+UINT8 snes_ppu_device::dbg_video( UINT16 curline )
 {
 	int i;
-	UINT8 toggles = machine.root_device().ioport("DEBUG1")->read_safe(0);
+	UINT8 toggles = machine().root_device().ioport("DEBUG1")->read_safe(0);
 	m_debug_options.select_pri[SNES_BG1] = (toggles & 0x03);
 	m_debug_options.select_pri[SNES_BG2] = (toggles & 0x0c) >> 2;
 	m_debug_options.select_pri[SNES_BG3] = (toggles & 0x30) >> 4;
 	m_debug_options.select_pri[SNES_BG4] = (toggles & 0xc0) >> 6;
 
-	toggles = machine.root_device().ioport("DEBUG2")->read_safe(0);
+	toggles = machine().root_device().ioport("DEBUG2")->read_safe(0);
 	for (i = 0; i < 4; i++)
 		DEBUG_TOGGLE(i, m_debug_options.bg_disabled[i], ("Debug: Disabled BG%d.\n", i + 1), ("Debug: Enabled BG%d.\n", i + 1))
 	DEBUG_TOGGLE(4, m_debug_options.bg_disabled[SNES_OAM], ("Debug: Disabled OAM.\n"), ("Debug: Enabled OAM.\n"))
@@ -2757,11 +2840,11 @@ UINT8 snes_ppu_device::dbg_video( running_machine &machine, UINT16 curline )
 	DEBUG_TOGGLE(6, m_debug_options.colormath_disabled, ("Debug: Disabled Color Math.\n"), ("Debug: Enabled Color Math.\n"))
 	DEBUG_TOGGLE(7, m_debug_options.windows_disabled, ("Debug: Disabled Window Masks.\n"), ("Debug: Enabled Window Masks.\n"))
 
-	toggles = machine.root_device().ioport("DEBUG4")->read_safe(0);
+	toggles = machine().root_device().ioport("DEBUG4")->read_safe(0);
 	for (i = 0; i < 8; i++)
 		DEBUG_TOGGLE(i, m_debug_options.mode_disabled[i], ("Debug: Disabled Mode %d drawing.\n", i), ("Debug: Enabled Mode %d drawing.\n", i))
 
-	toggles = machine.root_device().ioport("DEBUG3")->read_safe(0);
+	toggles = machine().root_device().ioport("DEBUG3")->read_safe(0);
 	DEBUG_TOGGLE(2, m_debug_options.mosaic_disabled, ("Debug: Disabled Mosaic.\n"), ("Debug: Enabled Mosaic.\n"))
 	m_debug_options.sprite_reversed = BIT(toggles, 7);
 	m_debug_options.select_pri[SNES_OAM] = (toggles & 0x70) >> 4;

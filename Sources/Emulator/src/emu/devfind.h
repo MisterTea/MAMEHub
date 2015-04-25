@@ -20,6 +20,16 @@
 #define FINDER_DUMMY_TAG "finder_dummy_tag"
 
 //**************************************************************************
+//  IOPORT ARRAY MACROS
+//**************************************************************************
+
+// these macros can be used to initialize an ioport_array with
+// individual port names, instead of a base name + numeric suffix
+
+#define IOPORT_ARRAY_MEMBER(name) const char * const name[] =
+#define DECLARE_IOPORT_ARRAY(name) static const char * const name[]
+
+//**************************************************************************
 //  TYPE DEFINITIONS
 //**************************************************************************
 
@@ -43,8 +53,11 @@ public:
 
 protected:
 	// helpers
-	void *find_memory(UINT8 width, size_t &bytes, bool required);
+	void *find_memregion(UINT8 width, size_t &length, bool required);
+	void *find_memshare(UINT8 width, size_t &bytes, bool required);
 	bool report_missing(bool found, const char *objname, bool required);
+
+	void printf_warning(const char *format, ...) ATTR_PRINTF(2,3);
 
 	// internal state
 	finder_base *m_next;
@@ -102,8 +115,7 @@ public:
 		this->m_target = dynamic_cast<_DeviceClass *>(device);
 		if (device != NULL && this->m_target == NULL)
 		{
-			void osd_printf_warning(const char *format, ...) ATTR_PRINTF(1,2);
-			osd_printf_warning("Device '%s' found but is of incorrect type (actual type is %s)\n", this->m_tag, device->name());
+			this->printf_warning("Device '%s' found but is of incorrect type (actual type is %s)\n", this->m_tag, device->name());
 		}
 		return this->report_missing(this->m_target != NULL, "device", _Required);
 	}
@@ -216,6 +228,9 @@ public:
 	// make reference use transparent as well
 	operator ioport_port &() { assert(object_finder_base<ioport_port>::m_target != NULL); return *object_finder_base<ioport_port>::m_target; }
 
+	// allow dereference even when target is NULL so read_safe() can be used
+	ioport_port *operator->() const { return object_finder_base<ioport_port>::m_target; }
+
 	// finder
 	virtual bool findit(bool isvalidation = false)
 	{
@@ -291,6 +306,57 @@ public:
 };
 
 
+// ======================> region_ptr_finder
+
+// memory region pointer finder template
+template<typename _PointerType, bool _Required>
+class region_ptr_finder : public object_finder_base<_PointerType>
+{
+public:
+	// construction/destruction
+	region_ptr_finder(device_t &base, const char *tag)
+		: object_finder_base<_PointerType>(base, tag),
+			m_length(0) { }
+
+	// operators to make use transparent
+	_PointerType operator[](int index) const { assert(index < m_length); return this->m_target[index]; }
+	_PointerType &operator[](int index) { assert(index < m_length); return this->m_target[index]; }
+
+	// getter for explicit fetching
+	UINT32 length() const { return m_length; }
+	UINT32 bytes() const { return m_length * sizeof(_PointerType); }
+	UINT32 mask() const { return m_length - 1; } // only valid if length is known to be a power of 2
+
+	// finder
+	virtual bool findit(bool isvalidation = false)
+	{
+		if (isvalidation) return true;
+		this->m_target = reinterpret_cast<_PointerType *>(this->find_memregion(sizeof(_PointerType), m_length, _Required));
+		return this->report_missing(this->m_target != NULL, "memory region", _Required);
+	}
+
+protected:
+	// internal state
+	size_t m_length;
+};
+
+// optional region pointer finder
+template<class _PointerType>
+class optional_region_ptr : public region_ptr_finder<_PointerType, false>
+{
+public:
+	optional_region_ptr(device_t &base, const char *tag = FINDER_DUMMY_TAG) : region_ptr_finder<_PointerType, false>(base, tag) { }
+};
+
+// required region pointer finder
+template<class _PointerType>
+class required_region_ptr : public region_ptr_finder<_PointerType, true>
+{
+public:
+	required_region_ptr(device_t &base, const char *tag = FINDER_DUMMY_TAG) : region_ptr_finder<_PointerType, true>(base, tag) { }
+};
+
+
 // ======================> shared_ptr_finder
 
 // shared pointer finder template
@@ -310,7 +376,7 @@ public:
 
 	// getter for explicit fetching
 	UINT32 bytes() const { return m_bytes; }
-	UINT32 mask() const { return m_bytes - 1; }
+	UINT32 mask() const { return m_bytes - 1; } // FIXME: wrong when sizeof(_PointerType) != 1
 
 	// setter for setting the object
 	void set_target(_PointerType *target, size_t bytes) { this->m_target = target; m_bytes = bytes; }
@@ -329,7 +395,7 @@ public:
 	virtual bool findit(bool isvalidation = false)
 	{
 		if (isvalidation) return true;
-		this->m_target = reinterpret_cast<_PointerType *>(this->find_memory(m_width, m_bytes, _Required));
+		this->m_target = reinterpret_cast<_PointerType *>(this->find_memshare(m_width, m_bytes, _Required));
 		return this->report_missing(this->m_target != NULL, "shared pointer", _Required);
 	}
 

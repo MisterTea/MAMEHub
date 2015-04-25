@@ -10,7 +10,8 @@
 
 *********************************************************************/
 
-#include "emu.h"
+#include <assert.h>
+
 #include "flopimg.h"
 #include "formats/esq8_dsk.h"
 
@@ -52,7 +53,7 @@ esq8img_format::esq8img_format()
 
 const char *esq8img_format::name() const
 {
-	return "img";
+	return "esq8";
 }
 
 const char *esq8img_format::description() const

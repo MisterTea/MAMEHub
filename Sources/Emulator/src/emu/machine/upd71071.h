@@ -88,13 +88,13 @@ private:
 	devcb_write_line   m_out_dack_3_cb;
 	int m_hreq;
 	int m_eop;
-	required_device<cpu_device> m_cpu;
+	optional_device<cpu_device> m_cpu;
 };
 
 extern const device_type UPD71071;
 
 #define MCFG_UPD71071_CPU(_tag) \
-	upd71071_device::static_set_cpu_tag(*device, "^"_tag);
+	upd71071_device::static_set_cpu_tag(*device, "^" _tag);
 
 #define MCFG_UPD71071_CLOCK(_clk) \
 	upd71071_device::set_clock(*device, _clk);

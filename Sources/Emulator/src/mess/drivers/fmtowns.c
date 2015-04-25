@@ -15,6 +15,8 @@
             1024 sprites (16x16), rendered direct to VRAM
             16 colour text mode, rendered direct to VRAM
 
+    Later models add an unknown single channel 16-bit PCM/ADPCM (FreshTV, SJ, MX), and CL-GD543x Windows accelerator chipsets (SJ)
+
 
     Fujitsu FM-Towns Marty
 
@@ -2022,7 +2024,6 @@ READ8_MEMBER(towns_state::towns_volume_r)
 	default:
 		return 0;
 	}
-	return 0;
 }
 
 WRITE8_MEMBER(towns_state::towns_volume_w)
@@ -2729,6 +2730,8 @@ static MACHINE_CONFIG_FRAGMENT( towns_base )
 	MCFG_FLOPPY_DRIVE_ADD("fdc:1", towns_floppies, "35hd", towns_state::floppy_formats)
 
 	MCFG_CDROM_ADD("cdrom")
+	MCFG_CDROM_INTERFACE("fmt_cdrom")
+	MCFG_SOFTWARE_LIST_ADD("cd_list","fmtowns_cd")
 
 	MCFG_DEVICE_ADD("scsi", SCSI_PORT, 0)
 	MCFG_SCSIDEV_ADD("scsi:" SCSI_PORT_DEVICE1, "harddisk", SCSIHD, SCSI_ID_0)

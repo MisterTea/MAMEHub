@@ -1,26 +1,35 @@
 #include "sound/okim6295.h"
+#include "audio/seibu.h"
+#include "machine/raiden2cop.h"
+#include "video/seibu_crtc.h"
 
 class legionna_state : public driver_device
 {
 public:
 	legionna_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-			m_spriteram(*this, "spriteram") ,
-		m_back_data(*this, "back_data"),
+			m_spriteram(*this, "spriteram"),
+		/*m_back_data(*this, "back_data"),
 		m_fore_data(*this, "fore_data"),
 		m_mid_data(*this, "mid_data"),
-		m_textram(*this, "textram"),
+		m_textram(*this, "textram"),*/
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
+		m_seibu_sound(*this, "seibu_sound"),
 		m_oki(*this, "oki"),
 		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette") { }
+		m_palette(*this, "palette"),
+		m_wordswapram(*this, "wordswapram"),
+		m_raiden2cop(*this, "raiden2cop")
+	{
+		memset(scrollvals, 0, sizeof(UINT16)*6);
+	}
 
 	required_shared_ptr<UINT16> m_spriteram;
-	required_shared_ptr<UINT16> m_back_data;
-	required_shared_ptr<UINT16> m_fore_data;
-	required_shared_ptr<UINT16> m_mid_data;
-	required_shared_ptr<UINT16> m_textram;
+	UINT16* m_back_data;
+	UINT16* m_fore_data;
+	UINT16* m_mid_data;
+	UINT16* m_textram;
 	UINT16 *m_scrollram16;
 	UINT16 m_layer_disable;
 	int m_sprite_xoffs;
@@ -34,15 +43,26 @@ public:
 	UINT16 m_back_gfx_bank;
 	UINT16 m_fore_gfx_bank;
 	UINT16 m_mid_gfx_bank;
-
-	DECLARE_WRITE16_MEMBER(denjin_paletteram16_xBBBBBGGGGGRRRRR_word_w);
+	UINT16 scrollvals[6];
+	DECLARE_WRITE16_MEMBER(tilemap_enable_w);
+	DECLARE_WRITE16_MEMBER(tile_scroll_w);
+	DECLARE_WRITE16_MEMBER(videowrite_cb_w);
+	DECLARE_WRITE16_MEMBER(wordswapram_w);
 	DECLARE_WRITE16_MEMBER(legionna_background_w);
 	DECLARE_WRITE16_MEMBER(legionna_midground_w);
 	DECLARE_WRITE16_MEMBER(legionna_foreground_w);
 	DECLARE_WRITE16_MEMBER(legionna_text_w);
 	DECLARE_WRITE8_MEMBER(okim_rombank_w);
+	DECLARE_READ16_MEMBER(sound_comms_r);
+	DECLARE_WRITE16_MEMBER(sound_comms_w);
+	DECLARE_WRITE16_MEMBER(denjinmk_setgfxbank);
+	DECLARE_WRITE16_MEMBER(heatbrl_setgfxbank);
+
 	DECLARE_DRIVER_INIT(legiongfx);
+	DECLARE_DRIVER_INIT(cupsoc_debug);
 	DECLARE_DRIVER_INIT(cupsoc);
+	DECLARE_DRIVER_INIT(cupsocs);
+	DECLARE_DRIVER_INIT(olysoc92);
 	DECLARE_DRIVER_INIT(denjinmk);
 	TILE_GET_INFO_MEMBER(get_back_tile_info);
 	TILE_GET_INFO_MEMBER(get_mid_tile_info);
@@ -63,11 +83,11 @@ public:
 	void descramble_legionnaire_gfx(UINT8* src);
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
+	optional_device<seibu_sound_device> m_seibu_sound;
 	required_device<okim6295_device> m_oki;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
-};
+	optional_shared_ptr<UINT16> m_wordswapram;
+	optional_device<raiden2cop_device> m_raiden2cop;
 
-/*----------- defined in video/legionna.c -----------*/
-void heatbrl_setgfxbank(running_machine &machine, UINT16 data);
-void denjinmk_setgfxbank(running_machine &machine, UINT16 data);
+};

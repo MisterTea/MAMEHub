@@ -20,69 +20,46 @@
 #include "un7z.h"
 #include "validity.h"
 #include "sound/samples.h"
+#include "cliopts.h"
 #include "clifront.h"
 #include "xmlfile.h"
+
+#include "drivenum.h"
+
+#include "osdepend.h"
 
 #include <new>
 #include <ctype.h>
 
 
-//**************************************************************************
-//  COMMAND-LINE OPTIONS
-//**************************************************************************
 
-const options_entry cli_options::s_option_entries[] =
+// media_identifier class identifies media by hash via a search in
+// the driver database
+class media_identifier
 {
-	/* core commands */
-	{ NULL,                            NULL,       OPTION_HEADER,     "CORE COMMANDS" },
-	{ CLICOMMAND_HELP ";h;?",           "0",       OPTION_COMMAND,    "show help message" },
-	{ CLICOMMAND_VALIDATE ";valid",     "0",       OPTION_COMMAND,    "perform driver validation on all game drivers" },
+public:
+	// construction/destruction
+	media_identifier(cli_options &options);
 
-	/* configuration commands */
-	{ NULL,                            NULL,       OPTION_HEADER,     "CONFIGURATION COMMANDS" },
-	{ CLICOMMAND_CREATECONFIG ";cc",    "0",       OPTION_COMMAND,    "create the default configuration file" },
-	{ CLICOMMAND_SHOWCONFIG ";sc",      "0",       OPTION_COMMAND,    "display running parameters" },
-	{ CLICOMMAND_SHOWUSAGE ";su",       "0",       OPTION_COMMAND,    "show this help" },
+	// getters
+	int total() const { return m_total; }
+	int matches() const { return m_matches; }
+	int nonroms() const { return m_nonroms; }
 
-	/* frontend commands */
-	{ NULL,                            NULL,       OPTION_HEADER,     "FRONTEND COMMANDS" },
-	{ CLICOMMAND_LISTXML ";lx",         "0",       OPTION_COMMAND,    "all available info on driver in XML format" },
-	{ CLICOMMAND_LISTFULL ";ll",        "0",       OPTION_COMMAND,    "short name, full name" },
-	{ CLICOMMAND_LISTSOURCE ";ls",      "0",       OPTION_COMMAND,    "driver sourcefile" },
-	{ CLICOMMAND_LISTCLONES ";lc",      "0",       OPTION_COMMAND,    "show clones" },
-	{ CLICOMMAND_LISTBROTHERS ";lb",    "0",       OPTION_COMMAND,    "show \"brothers\", or other drivers from same sourcefile" },
-	{ CLICOMMAND_LISTCRC,               "0",       OPTION_COMMAND,    "CRC-32s" },
-	{ CLICOMMAND_LISTROMS ";lr",        "0",       OPTION_COMMAND,    "list required roms for a driver" },
-	{ CLICOMMAND_LISTSAMPLES,           "0",       OPTION_COMMAND,    "list optional samples for a driver" },
-	{ CLICOMMAND_VERIFYROMS,            "0",       OPTION_COMMAND,    "report romsets that have problems" },
-	{ CLICOMMAND_VERIFYSAMPLES,         "0",       OPTION_COMMAND,    "report samplesets that have problems" },
-	{ CLICOMMAND_ROMIDENT,              "0",       OPTION_COMMAND,    "compare files with known MAME roms" },
-	{ CLICOMMAND_LISTDEVICES ";ld",     "0",       OPTION_COMMAND,    "list available devices" },
-	{ CLICOMMAND_LISTSLOTS ";lslot",    "0",       OPTION_COMMAND,    "list available slots and slot devices" },
-	{ CLICOMMAND_LISTMEDIA ";lm",       "0",       OPTION_COMMAND,    "list available media for the system" },
-	{ CLICOMMAND_LISTSOFTWARE ";lsoft", "0",       OPTION_COMMAND,    "list known software for the system" },
-	{ CLICOMMAND_VERIFYSOFTWARE ";vsoft", "0",     OPTION_COMMAND,    "verify known software for the system" },
-	{ CLICOMMAND_GETSOFTLIST ";glist",  "0",       OPTION_COMMAND,    "retrieve software list by name" },
-	{ CLICOMMAND_VERIFYSOFTLIST ";vlist", "0",     OPTION_COMMAND,    "verify software list by name" },
-	{ CLICOMMAND_LIST_MIDI_DEVICES ";mlist", "0",  OPTION_COMMAND,    "list available MIDI I/O devices" },
-	{ NULL }
+	// operations
+	void reset() { m_total = m_matches = m_nonroms = 0; }
+	void identify(const char *name);
+	void identify_file(const char *name);
+	void identify_data(const char *name, const UINT8 *data, int length);
+	int find_by_hash(const hash_collection &hashes, int length);
+
+private:
+	// internal state
+	driver_enumerator   m_drivlist;
+	int                 m_total;
+	int                 m_matches;
+	int                 m_nonroms;
 };
-
-
-
-//**************************************************************************
-//  CLI OPTIONS
-//**************************************************************************
-
-//-------------------------------------------------
-//  cli_options - constructor
-//-------------------------------------------------
-
-cli_options::cli_options()
-{
-	add_entries(s_option_entries);
-}
-
 
 
 //**************************************************************************
@@ -135,9 +112,12 @@ int cli_frontend::execute(int argc, char **argv)
 #endif
 #endif
 
+  // Initial rand
+  srand(1234);
+
   // Initialize raknet time.
   RakNet::GetTime();
-  
+
 	// wrap the core execution in a try/catch to field all fatal errors
 	m_result = MAMERR_NONE;
 	try
@@ -287,6 +267,11 @@ int cli_frontend::execute(int argc, char **argv)
 		osd_printf_error("Caught unhandled emulator exception\n");
 		m_result = MAMERR_FATALERROR;
 	}
+	catch (add_exception &aex)
+	{
+		osd_printf_error("Tag '%s' already exists in tagged_list\n", aex.tag());
+		m_result = MAMERR_FATALERROR;
+	}
 	catch (std::exception &ex)
 	{
 		osd_printf_error("Caught unhandled %s exception: %s\n", typeid(ex).name(), ex.what());
@@ -299,12 +284,6 @@ int cli_frontend::execute(int argc, char **argv)
 	}
 
 	_7z_file_cache_clear();
-
-#ifdef MAME_DEBUG
-	// TODO: this will only be printed when the executable is exited and not when selecting a new set via the internal UI - it needs to be placed somewhere else where it can be printed and reset after each run (check Average Speed location)
-	if (*(m_options.command()) == 0)
-		osd_printf_info("%d tagmap lookups\n", g_tagmap_finds);
-#endif
 
 	return m_result;
 }
@@ -785,17 +764,6 @@ void cli_frontend::listmedia(const char *gamename)
 			printf("%-13s(none)\n", drivlist.driver().name);
 	}
 }
-
-//-------------------------------------------------
-//  listmididevices - output the list of MIDI devices
-//  available in the current system to be used
-//-------------------------------------------------
-
-void cli_frontend::listmididevices(const char *gamename)
-{
-	osd_list_midi_devices();
-}
-
 
 //-------------------------------------------------
 //  verifyroms - verify the ROM sets of one or
@@ -1307,13 +1275,12 @@ void cli_frontend::listsoftware(const char *gamename)
 	{
 		software_list_device_iterator iter(drivlist.config().root_device());
 		for (software_list_device *swlistdev = iter.first(); swlistdev != NULL; swlistdev = iter.next())
-			if (swlistdev->list_type() == SOFTWARE_LIST_ORIGINAL_SYSTEM)
-				if (list_map.add(swlistdev->list_name(), 0, false) != TMERR_DUPLICATE)
-					if (swlistdev->first_software_info() != NULL)
-					{
-						if (isfirst) { fprintf(out, SOFTLIST_XML_BEGIN); isfirst = false; }
-						output_single_softlist(out, *swlistdev);
-					}
+			if (list_map.add(swlistdev->list_name(), 0, false) != TMERR_DUPLICATE)
+				if (swlistdev->first_software_info() != NULL)
+				{
+					if (isfirst) { fprintf(out, SOFTLIST_XML_BEGIN); isfirst = false; }
+					output_single_softlist(out, *swlistdev);
+				}
 	}
 
 	if (!isfirst)
@@ -1651,11 +1618,10 @@ void cli_frontend::execute_commands(const char *exename)
 		{ CLICOMMAND_VERIFYSAMPLES, &cli_frontend::verifysamples },
 		{ CLICOMMAND_LISTMEDIA,     &cli_frontend::listmedia },
 		{ CLICOMMAND_LISTSOFTWARE,  &cli_frontend::listsoftware },
-		{ CLICOMMAND_VERIFYSOFTWARE,    &cli_frontend::verifysoftware },
+		{ CLICOMMAND_VERIFYSOFTWARE,&cli_frontend::verifysoftware },
 		{ CLICOMMAND_ROMIDENT,      &cli_frontend::romident },
 		{ CLICOMMAND_GETSOFTLIST,   &cli_frontend::getsoftlist },
-		{ CLICOMMAND_VERIFYSOFTLIST,    &cli_frontend::verifysoftlist },
-		{ CLICOMMAND_LIST_MIDI_DEVICES, &cli_frontend::listmididevices },
+		{ CLICOMMAND_VERIFYSOFTLIST,&cli_frontend::verifysoftlist },
 	};
 
 	// find the command
@@ -1668,8 +1634,9 @@ void cli_frontend::execute_commands(const char *exename)
 			return;
 		}
 
-	// if we get here, we don't know what has been requested
-	throw emu_fatalerror(MAMERR_INVALID_CONFIG, "Unknown command '%s' specified", m_options.command());
+	if (!m_osd.execute_command(m_options.command()))
+		// if we get here, we don't know what has been requested
+		throw emu_fatalerror(MAMERR_INVALID_CONFIG, "Unknown command '%s' specified", m_options.command());
 }
 
 

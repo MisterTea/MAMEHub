@@ -638,11 +638,10 @@ ADDRESS_MAP_END
                                Koro Koro Quest
 ***************************************************************************/
 
-static void show_leds(running_machine &machine)
+void cave_state::show_leds()
 {
 #ifdef MAME_DEBUG
-//  cave_state *state = machine.driver_data<cave_state>();
-//  popmessage("led %04X eep %02X", state->m_leds[0], (state->m_leds[1] >> 8) & ~0x70);
+//  popmessage("led %04X eep %02X", m_leds[0], (m_leds[1] >> 8) & ~0x70);
 #endif
 }
 
@@ -666,7 +665,7 @@ WRITE16_MEMBER(cave_state::korokoro_leds_w)
 	set_led_status(machine(), 7, data & 0x0002);
 	set_led_status(machine(), 8, data & 0x0001);
 
-	show_leds(machine());
+	show_leds();
 }
 
 
@@ -676,7 +675,7 @@ WRITE16_MEMBER(cave_state::korokoro_eeprom_msb_w)
 	{
 		logerror("%s: Unknown EEPROM bit written %04X\n",machine().describe_context(),data);
 		COMBINE_DATA(&m_leds[1]);
-		show_leds(machine());
+		show_leds();
 	}
 
 	if (ACCESSING_BITS_8_15)  // even address
@@ -924,10 +923,9 @@ READ16_MEMBER(cave_state::pwrinst2_eeprom_r)
 	return ~8 + ((m_eeprom->do_read() & 1) ? 8 : 0);
 }
 
-INLINE void vctrl_w(address_space &space, offs_t offset, UINT16 data, UINT16 mem_mask, int GFX)
+inline void cave_state::vctrl_w(address_space &space, offs_t offset, UINT16 data, UINT16 mem_mask, int GFX)
 {
-	cave_state *state = space.machine().driver_data<cave_state>();
-	UINT16 *VCTRL = state->m_vctrl[GFX];
+	UINT16 *VCTRL = m_vctrl[GFX];
 	if (offset == 4 / 2)
 	{
 		switch (data & 0x000f)
@@ -3611,7 +3609,7 @@ ROM_END
 ROM_START( guwanges )
 	ROM_REGION( 0x100000, "maincpu", 0 )        /* 68000 Code */
 	ROM_LOAD16_BYTE( "gu-u0127b.bin", 0x000000, 0x080000, CRC(64667d2e) SHA1(a5893eb38e309e2bced4a46559f02850ab39afe7) )
-	ROM_LOAD16_BYTE( "gu-u0129b.bin", 0x000001, 0x080000, CRC(a99C6b6c) SHA1(614a3cd1de9b325f73e461eaf250ff9cf773f4a5) )
+	ROM_LOAD16_BYTE( "gu-u0129b.bin", 0x000001, 0x080000, CRC(a99c6b6c) SHA1(614a3cd1de9b325f73e461eaf250ff9cf773f4a5) )
 
 	ROM_REGION( 0x2000000, "sprites0", 0 )       /* Sprites */
 	ROM_LOAD16_BYTE( "u083.bin", 0x0000000, 0x800000, CRC(adc4b9c4) SHA1(3f9fb004e19187bbfa87ddfe8cfc69740656a1bd) )
@@ -4626,7 +4624,7 @@ ROM_START( uopoko )
 	ROM_LOAD( "cave_cv-02_u49.u49", 0x000000, 0x400000, CRC(12fb11bb) SHA1(953df1b16b5c9a6c3eb2fdebec4669a879270e73) ) /* MASK ROM */
 
 	ROM_REGION( 0x200000, "ymz", 0 )    /* Samples */
-	ROM_LOAD( "came_cv-02_u4.u4", 0x000000, 0x200000, CRC(a2d0d755) SHA1(f8493ef7f367f3dc2a229ba785ac67bc5c2c54c0) ) /* MASK ROM */
+	ROM_LOAD( "cave_cv-02_u4.u4", 0x000000, 0x200000, CRC(a2d0d755) SHA1(f8493ef7f367f3dc2a229ba785ac67bc5c2c54c0) ) /* MASK ROM */
 
 	ROM_REGION16_BE( 0x80, "eeprom", 0 )
 	ROM_LOAD16_WORD( "eeprom-uopoko.bin", 0x0000, 0x0080, CRC(f4a24b95) SHA1(4043f0ffed24e38b4f7dbe1a5a4a9e79bdde7dfd) )
@@ -4644,7 +4642,7 @@ ROM_START( uopokoj )
 	ROM_LOAD( "cave_cv-02_u49.u49", 0x000000, 0x400000, CRC(12fb11bb) SHA1(953df1b16b5c9a6c3eb2fdebec4669a879270e73) ) /* MASK ROM */
 
 	ROM_REGION( 0x200000, "ymz", 0 )    /* Samples */
-	ROM_LOAD( "came_cv-02_u4.u4", 0x000000, 0x200000, CRC(a2d0d755) SHA1(f8493ef7f367f3dc2a229ba785ac67bc5c2c54c0) ) /* MASK ROM */
+	ROM_LOAD( "cave_cv-02_u4.u4", 0x000000, 0x200000, CRC(a2d0d755) SHA1(f8493ef7f367f3dc2a229ba785ac67bc5c2c54c0) ) /* MASK ROM */
 
 	ROM_REGION16_BE( 0x80, "eeprom", 0 )
 	ROM_LOAD16_WORD( "eeprom-uopoko.bin", 0x0000, 0x0080, CRC(f4a24b95) SHA1(4043f0ffed24e38b4f7dbe1a5a4a9e79bdde7dfd) )
@@ -4665,10 +4663,10 @@ ROM_END
 
 /* Tiles are 6 bit, 4 bits stored in one rom, 2 bits in the other.
    Expand the 2 bit part into a 4 bit layout, so we can decode it */
-static void sailormn_unpack_tiles( running_machine &machine, const char *region )
+void cave_state::sailormn_unpack_tiles( const char *region )
 {
-	const UINT32 len    =   machine.root_device().memregion(region)->bytes();
-	UINT8 *rgn      =   machine.root_device().memregion(region)->base();
+	const UINT32 len    =   memregion(region)->bytes();
+	UINT8 *rgn      =   memregion(region)->base();
 	UINT8 *src      =   rgn + (len/4)*3 - 1;
 	UINT8 *dst      =   rgn + (len/4)*4 - 2;
 
@@ -4684,22 +4682,20 @@ static void sailormn_unpack_tiles( running_machine &machine, const char *region 
 	}
 }
 
-static void init_cave(running_machine &machine)
+void cave_state::init_cave()
 {
-	cave_state *state = machine.driver_data<cave_state>();
+	m_spritetype[0] = 0; // Normal sprites
+	m_kludge = 0;
+	m_time_vblank_irq = 100;
 
-	state->m_spritetype[0] = 0; // Normal sprites
-	state->m_kludge = 0;
-	state->m_time_vblank_irq = 100;
-
-	state->m_irq_level = 1;
+	m_irq_level = 1;
 }
 
 
 DRIVER_INIT_MEMBER(cave_state,agallet)
 {
 	UINT8 *ROM = memregion("audiocpu")->base();
-	init_cave(machine());
+	init_cave();
 
 	membank("z80bank")->configure_entries(0, 0x20, &ROM[0x00000], 0x4000);
 
@@ -4711,14 +4707,14 @@ DRIVER_INIT_MEMBER(cave_state,agallet)
 	membank("oki2bank1")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
 	membank("oki2bank2")->configure_entries(0, 0x10, &ROM[0x00000], 0x20000);
 
-	sailormn_unpack_tiles(machine(), "layer2");
+	sailormn_unpack_tiles("layer2");
 
 	unpack_sprites("sprites0");
 }
 
 DRIVER_INIT_MEMBER(cave_state,dfeveron)
 {
-	init_cave(machine());
+	init_cave();
 
 	unpack_sprites("sprites0");
 	m_kludge = 2;
@@ -4726,7 +4722,7 @@ DRIVER_INIT_MEMBER(cave_state,dfeveron)
 
 DRIVER_INIT_MEMBER(cave_state,feversos)
 {
-	init_cave(machine());
+	init_cave();
 
 	unpack_sprites("sprites0");
 	m_kludge = 2;
@@ -4734,7 +4730,7 @@ DRIVER_INIT_MEMBER(cave_state,feversos)
 
 DRIVER_INIT_MEMBER(cave_state,ddonpach)
 {
-	init_cave(machine());
+	init_cave();
 
 	ddonpach_unpack_sprites("sprites0");
 	m_spritetype[0] = 1;    // "different" sprites (no zooming?)
@@ -4743,7 +4739,7 @@ DRIVER_INIT_MEMBER(cave_state,ddonpach)
 
 DRIVER_INIT_MEMBER(cave_state,donpachi)
 {
-	init_cave(machine());
+	init_cave();
 
 	ddonpach_unpack_sprites("sprites0");
 	m_spritetype[0] = 1;    // "different" sprites (no zooming?)
@@ -4753,7 +4749,7 @@ DRIVER_INIT_MEMBER(cave_state,donpachi)
 
 DRIVER_INIT_MEMBER(cave_state,esprade)
 {
-	init_cave(machine());
+	init_cave();
 
 	esprade_unpack_sprites("sprites0");
 	m_time_vblank_irq = 2000;   /**/
@@ -4768,7 +4764,7 @@ DRIVER_INIT_MEMBER(cave_state,esprade)
 
 DRIVER_INIT_MEMBER(cave_state,gaia)
 {
-	init_cave(machine());
+	init_cave();
 
 	/* No EEPROM */
 
@@ -4779,7 +4775,7 @@ DRIVER_INIT_MEMBER(cave_state,gaia)
 
 DRIVER_INIT_MEMBER(cave_state,guwange)
 {
-	init_cave(machine());
+	init_cave();
 
 	esprade_unpack_sprites("sprites0");
 	m_time_vblank_irq = 2000;   /**/
@@ -4789,7 +4785,7 @@ DRIVER_INIT_MEMBER(cave_state,hotdogst)
 {
 	UINT8 *ROM = memregion("audiocpu")->base();
 
-	init_cave(machine());
+	init_cave();
 
 	membank("z80bank")->configure_entries(0, 0x10, &ROM[0x00000], 0x4000);
 
@@ -4808,7 +4804,7 @@ DRIVER_INIT_MEMBER(cave_state,mazinger)
 	UINT8 *src = memregion("sprites0")->base();
 	int len = memregion("sprites0")->bytes();
 
-	init_cave(machine());
+	init_cave();
 
 	membank("z80bank")->configure_entries(0, 8, &ROM[0x00000], 0x4000);
 
@@ -4835,7 +4831,7 @@ DRIVER_INIT_MEMBER(cave_state,metmqstr)
 {
 	UINT8 *ROM = memregion("audiocpu")->base();
 
-	init_cave(machine());
+	init_cave();
 
 	membank("z80bank")->configure_entries(0, 0x10, &ROM[0x00000], 0x4000);
 
@@ -4855,7 +4851,7 @@ DRIVER_INIT_MEMBER(cave_state,metmqstr)
 
 DRIVER_INIT_MEMBER(cave_state,ppsatan)
 {
-	init_cave(machine());
+	init_cave();
 
 	unpack_sprites("sprites0");
 	unpack_sprites("sprites1");
@@ -4875,7 +4871,7 @@ DRIVER_INIT_MEMBER(cave_state,pwrinst2j)
 	int len = memregion("sprites0")->bytes();
 	int i, j;
 
-	init_cave(machine());
+	init_cave();
 
 	membank("z80bank")->configure_entries(0, 8, &ROM[0x00000], 0x4000);
 
@@ -4919,7 +4915,7 @@ DRIVER_INIT_MEMBER(cave_state,sailormn)
 	UINT8 *src = memregion("sprites0")->base();
 	int len = memregion("sprites0")->bytes();
 
-	init_cave(machine());
+	init_cave();
 
 	membank("z80bank")->configure_entries(0, 0x20, &ROM[0x00000], 0x4000);
 
@@ -4940,7 +4936,7 @@ DRIVER_INIT_MEMBER(cave_state,sailormn)
 		memcpy(src, buffer, len);
 	}
 
-	sailormn_unpack_tiles( machine(), "layer2" );
+	sailormn_unpack_tiles("layer2");
 
 	unpack_sprites("sprites0");
 	m_spritetype[0] = 2;    // Normal sprites with different position handling
@@ -4953,7 +4949,7 @@ DRIVER_INIT_MEMBER(cave_state,sailormn)
 
 DRIVER_INIT_MEMBER(cave_state,tjumpman)
 {
-	init_cave(machine());
+	init_cave();
 
 	unpack_sprites("sprites0");
 	m_spritetype[0] = 2;    // Normal sprites with different position handling
@@ -4966,7 +4962,7 @@ DRIVER_INIT_MEMBER(cave_state,tjumpman)
 
 DRIVER_INIT_MEMBER(cave_state,uopoko)
 {
-	init_cave(machine());
+	init_cave();
 
 	unpack_sprites("sprites0");
 	m_kludge = 2;
@@ -4975,7 +4971,7 @@ DRIVER_INIT_MEMBER(cave_state,uopoko)
 
 DRIVER_INIT_MEMBER(cave_state,korokoro)
 {
-	init_cave(machine());
+	init_cave();
 
 	m_irq_level = 2;
 

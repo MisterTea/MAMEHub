@@ -1,5 +1,6 @@
 /***************************************************************************
 TI-85 and TI-86 drivers by Krzysztof Strzecha
+TI-83 Plus, TI-84 Plus, and Siliver Edition support by Jon Sturm
 
 Notes:
 1. After start TI-85 waits for ON key interrupt, so press ON key to start
@@ -139,7 +140,7 @@ TI-82 ports:
     2: Memory page
     3: ON status, LCD power
     4: Video buffer width, interrupt control (write only)
-    10: Controll port for the display controller
+    10: Control port for the display controller
     11: Data port for the display controller
 
 TI-83 ports:
@@ -148,7 +149,7 @@ TI-83 ports:
     2: Memory page
     3: ON status, LCD power
     4: Video buffer width, interrupt control (write only)
-    10: Controll port for the display controller
+    10: Control port for the display controller
     11: Data port for the display controller
     14: Battery Status
 
@@ -160,8 +161,21 @@ TI-83Plus ports:
     4: Interrupt status
     6: Memory page 1
     7: Memory page 2
+    10: Control port for the display controller
+    11: Data port for the display controller
+
+TI-83PlusSE ports:
+    0: Link
+    1: Keypad
+    2: ?
+    3: ON status, LCD power
+    4: Interrupt status
+    5: Memory page 3
+    6: Memory page 1
+    7: Memory page 2
     10: Controll port for the display controller
     11: Data port for the display controller
+    15: Asic Version
 
 TI-85 ports:
     0: Video buffer offset (write only)
@@ -189,6 +203,7 @@ TI-86 ports:
 #include "cpu/z80/z80.h"
 #include "imagedev/snapquik.h"
 #include "includes/ti85.h"
+#include "machine/bankdev.h"
 
 /* port i/o functions */
 
@@ -252,13 +267,48 @@ static ADDRESS_MAP_START( ti83p_io, AS_IO, 8, ti85_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
 	AM_RANGE(0x0000, 0x0000) AM_READWRITE(ti8x_plus_serial_r, ti8x_plus_serial_w)
 	AM_RANGE(0x0001, 0x0001) AM_READWRITE(ti8x_keypad_r, ti8x_keypad_w )
-	AM_RANGE(0x0002, 0x0002) AM_READWRITE(ti83p_port_0002_r, ti83p_port_0002_w )
-	AM_RANGE(0x0003, 0x0003) AM_READWRITE(ti83_port_0003_r, ti83p_port_0003_w )
-	AM_RANGE(0x0004, 0x0004) AM_READWRITE(ti83_port_0003_r, ti83p_port_0004_w )
+	AM_RANGE(0x0002, 0x0002) AM_READ(ti83p_port_0002_r)
+	AM_RANGE(0x0003, 0x0003) AM_READWRITE(ti83_port_0003_r, ti83p_int_mask_w )
+	AM_RANGE(0x0004, 0x0004) AM_READWRITE(ti83p_port_0004_r, ti83p_port_0004_w )
 	AM_RANGE(0x0006, 0x0006) AM_READWRITE(ti86_port_0005_r, ti83p_port_0006_w )
 	AM_RANGE(0x0007, 0x0007) AM_READWRITE(ti86_port_0006_r, ti83p_port_0007_w )
 	AM_RANGE(0x0010, 0x0010) AM_DEVREADWRITE("t6a04", t6a04_device, control_read, control_write)
 	AM_RANGE(0x0011, 0x0011) AM_DEVREADWRITE("t6a04", t6a04_device, data_read, data_write)
+	AM_RANGE(0x0007, 0x0007) AM_WRITE(ti83p_port_0014_w )
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( ti83pse_io, AS_IO, 8, ti85_state )
+	ADDRESS_MAP_GLOBAL_MASK(0xff)
+	AM_RANGE(0x0000, 0x0000) AM_READWRITE(ti8x_plus_serial_r, ti8x_plus_serial_w)
+	AM_RANGE(0x0001, 0x0001) AM_READWRITE(ti8x_keypad_r, ti8x_keypad_w )
+	AM_RANGE(0x0002, 0x0002) AM_READWRITE(ti83pse_port_0002_r, ti83pse_int_ack_w )
+	AM_RANGE(0x0003, 0x0003) AM_READWRITE(ti83_port_0003_r, ti83p_int_mask_w )
+	AM_RANGE(0x0004, 0x0004) AM_READWRITE(ti83p_port_0004_r, ti83pse_port_0004_w )
+	AM_RANGE(0x0005, 0x0005) AM_READWRITE(ti83pse_port_0005_r, ti83pse_port_0005_w )
+	AM_RANGE(0x0006, 0x0006) AM_READWRITE(ti86_port_0005_r, ti83pse_port_0006_w )
+	AM_RANGE(0x0007, 0x0007) AM_READWRITE(ti86_port_0006_r, ti83pse_port_0007_w )
+	AM_RANGE(0x0009, 0x0009) AM_READ(ti83pse_port_0009_r)
+	AM_RANGE(0x0010, 0x0010) AM_DEVREADWRITE("t6a04", t6a04_device, control_read, control_write)
+	AM_RANGE(0x0011, 0x0011) AM_DEVREADWRITE("t6a04", t6a04_device, data_read, data_write)
+	AM_RANGE(0x0012, 0x0012) AM_DEVREADWRITE("t6a04", t6a04_device, control_read, control_write)
+	AM_RANGE(0x0013, 0x0013) AM_DEVREADWRITE("t6a04", t6a04_device, data_read, data_write)
+	AM_RANGE(0x0014, 0x0014) AM_WRITE(ti83p_port_0014_w )
+	AM_RANGE(0x0015, 0x0015) AM_READ(ti83pse_port_0015_r)
+	AM_RANGE(0x0020, 0x0020) AM_READWRITE(ti83pse_port_0020_r, ti83pse_port_0020_w )
+	AM_RANGE(0x0021, 0x0021) AM_READWRITE(ti83pse_port_0021_r, ti83pse_port_0021_w )
+
+	AM_RANGE(0x0030, 0x0030) AM_READWRITE(ti83pse_ctimer1_setup_r, ti83pse_ctimer1_setup_w )
+	AM_RANGE(0x0031, 0x0031) AM_READWRITE(ti83pse_ctimer1_loop_r, ti83pse_ctimer1_loop_w )
+	AM_RANGE(0x0032, 0x0032) AM_READWRITE(ti83pse_ctimer1_count_r, ti83pse_ctimer1_count_w )
+	AM_RANGE(0x0033, 0x0033) AM_READWRITE(ti83pse_ctimer2_setup_r, ti83pse_ctimer2_setup_w )
+	AM_RANGE(0x0034, 0x0034) AM_READWRITE(ti83pse_ctimer2_loop_r, ti83pse_ctimer2_loop_w )
+	AM_RANGE(0x0035, 0x0035) AM_READWRITE(ti83pse_ctimer2_count_r, ti83pse_ctimer2_count_w )
+	AM_RANGE(0x0036, 0x0036) AM_READWRITE(ti83pse_ctimer3_setup_r, ti83pse_ctimer3_setup_w )
+	AM_RANGE(0x0037, 0x0037) AM_READWRITE(ti83pse_ctimer3_loop_r, ti83pse_ctimer3_loop_w )
+	AM_RANGE(0x0038, 0x0038) AM_READWRITE(ti83pse_ctimer3_count_r, ti83pse_ctimer3_count_w )
+
+	AM_RANGE(0x0055, 0x0055) AM_READ(ti84pse_port_0055_r)
+	AM_RANGE(0x0056, 0x0056) AM_READ(ti84pse_port_0056_r)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( ti86_io, AS_IO, 8, ti85_state )
@@ -286,6 +336,29 @@ static ADDRESS_MAP_START( ti86_mem , AS_PROGRAM, 8, ti85_state )
 	AM_RANGE(0x4000, 0x7fff) AM_RAMBANK("bank2")
 	AM_RANGE(0x8000, 0xbfff) AM_RAMBANK("bank3")
 	AM_RANGE(0xc000, 0xffff) AM_RAMBANK("bank4")
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( ti83pse_banked_mem , AS_PROGRAM, 8, ti85_state )
+	AM_RANGE(0x0000, 0x1fffff) AM_DEVREADWRITE("flash", intelfsh8_device, read, write)
+	AM_RANGE(0x200000, 0x21BFFF) AM_RAM AM_SHARE("nvram")
+ADDRESS_MAP_END
+
+
+static ADDRESS_MAP_START( ti84p_banked_mem , AS_PROGRAM, 8, ti85_state )
+	AM_RANGE(0x0000, 0xfffff) AM_DEVREADWRITE("flash", intelfsh8_device, read, write)
+	AM_RANGE(0x200000, 0x21BFFF) AM_RAM AM_SHARE("nvram")
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( ti83p_banked_mem , AS_PROGRAM, 8, ti85_state )
+	AM_RANGE(0x00000, 0x7ffff) AM_DEVREADWRITE("flash", intelfsh8_device, read, write)
+	AM_RANGE(0x100000, 0x107fff) AM_RAM AM_SHARE("nvram")
+ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( ti83p_asic_mem , AS_PROGRAM, 8, ti85_state )
+	AM_RANGE(0x0000, 0x3fff) AM_DEVREADWRITE("membank1", address_map_bank_device, read8, write8)
+	AM_RANGE(0x4000, 0x7fff) AM_DEVREADWRITE("membank2", address_map_bank_device, read8, write8)
+	AM_RANGE(0x8000, 0xbfff) AM_DEVREADWRITE("membank3", address_map_bank_device, read8, write8)
+	AM_RANGE(0xc000, 0xffff) AM_DEVREADWRITE("membank4", address_map_bank_device, read8, write8)
 ADDRESS_MAP_END
 
 /* keyboard input */
@@ -428,7 +501,7 @@ static INPUT_PORTS_START (ti82)
 		PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("3") PORT_CODE(KEYCODE_3)
 		PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("2") PORT_CODE(KEYCODE_2)
 		PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("1") PORT_CODE(KEYCODE_1)
-		PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("STORE") PORT_CODE(KEYCODE_TAB)
+		PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("STORE") PORT_CODE(KEYCODE_S)
 		PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("TRACE") PORT_CODE(KEYCODE_F4)
 	PORT_START("BIT2")   /* bit 2 */
 		PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("Right") PORT_CODE(KEYCODE_RIGHT)
@@ -470,7 +543,7 @@ static INPUT_PORTS_START (ti82)
 	PORT_START("BIT7")   /* bit 7 */
 		PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("STAT") PORT_CODE(KEYCODE_TILDE)
 		PORT_BIT(0x10, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("x-VAR") PORT_CODE(KEYCODE_X)
-		PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("ALPHA") PORT_CODE(KEYCODE_CAPSLOCK)
+		PORT_BIT(0x20, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("ALPHA") PORT_CODE(KEYCODE_LSHIFT)
 		PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("DEL") PORT_CODE(KEYCODE_DEL)
 	PORT_START("ON")   /* ON */
 		PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("ON/OFF") PORT_CODE(KEYCODE_Q)
@@ -491,8 +564,6 @@ static MACHINE_CONFIG_START( ti81, ti85_state )
 	MCFG_CPU_ADD("maincpu", Z80, 2000000)        /* 2 MHz */
 	MCFG_CPU_PROGRAM_MAP(ti81_mem)
 	MCFG_CPU_IO_MAP(ti81_io)
-	MCFG_QUANTUM_TIME(attotime::from_hz(60))
-
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", LCD)
@@ -513,7 +584,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ti85, ti81 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK( 6000000)        /* 6 MHz */
+	MCFG_CPU_CLOCK(6000000)        /* 6 MHz */
 	MCFG_CPU_IO_MAP(ti85_io)
 
 	MCFG_MACHINE_RESET_OVERRIDE(ti85_state, ti85 )
@@ -537,7 +608,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ti82, ti81 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK( 6000000)        /* 6 MHz */
+	MCFG_CPU_CLOCK(6000000)        /* 6 MHz */
 	MCFG_CPU_IO_MAP(ti82_io)
 
 	MCFG_MACHINE_RESET_OVERRIDE(ti85_state, ti85 )
@@ -568,7 +639,7 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ti83, ti81 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK( 6000000)        /* 6 MHz */
+	MCFG_CPU_CLOCK(6000000)        /* 6 MHz */
 	MCFG_CPU_IO_MAP(ti83_io)
 
 	MCFG_MACHINE_RESET_OVERRIDE(ti85_state, ti85 )
@@ -598,12 +669,12 @@ MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ti83p, ti81 )
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_CPU_CLOCK( 6000000)        /* 8 MHz running at 6 MHz */
-	MCFG_CPU_PROGRAM_MAP(ti86_mem)
+	MCFG_CPU_CLOCK(6000000)        /* 8 MHz running at 6 MHz */
+	MCFG_CPU_PROGRAM_MAP(ti83p_asic_mem)
 	MCFG_CPU_IO_MAP(ti83p_io)
 
 	MCFG_MACHINE_START_OVERRIDE(ti85_state, ti83p )
-	MCFG_MACHINE_RESET_OVERRIDE(ti85_state, ti85 )
+	MCFG_MACHINE_RESET_OVERRIDE(ti85_state, ti83p )
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_UPDATE_DEVICE("t6a04", t6a04_device, screen_update)
@@ -612,6 +683,30 @@ static MACHINE_CONFIG_DERIVED( ti83p, ti81 )
 	MCFG_PALETTE_ENTRIES(2)
 	MCFG_PALETTE_INIT_OWNER(ti85_state, ti82 )
 
+	MCFG_DEVICE_ADD("membank1", ADDRESS_MAP_BANK, 0)
+	MCFG_DEVICE_PROGRAM_MAP(ti83p_banked_mem)
+	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
+	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_STRIDE(0x4000)
+
+	MCFG_DEVICE_ADD("membank2", ADDRESS_MAP_BANK, 0)
+	MCFG_DEVICE_PROGRAM_MAP(ti83p_banked_mem)
+	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
+	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_STRIDE(0x4000)
+
+	MCFG_DEVICE_ADD("membank3", ADDRESS_MAP_BANK, 0)
+	MCFG_DEVICE_PROGRAM_MAP(ti83p_banked_mem)
+	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
+	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_STRIDE(0x4000)
+
+	MCFG_DEVICE_ADD("membank4", ADDRESS_MAP_BANK, 0)
+	MCFG_DEVICE_PROGRAM_MAP(ti83p_banked_mem)
+	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
+	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_STRIDE(0x4000)
+
 	MCFG_DEVICE_ADD("t6a04", T6A04, 0)
 	MCFG_T6A04_SIZE(96, 64)
 
@@ -619,7 +714,53 @@ static MACHINE_CONFIG_DERIVED( ti83p, ti81 )
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
+	MCFG_AMD_29F400T_ADD("flash")
+
 	//MCFG_TI83PSERIAL_ADD( "tiserial" )
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( ti83pse, ti83p )
+	MCFG_CPU_MODIFY("maincpu")
+	MCFG_CPU_CLOCK( 15000000)
+	MCFG_CPU_IO_MAP(ti83pse_io)
+
+	MCFG_DEVICE_MODIFY("membank1")
+	MCFG_DEVICE_PROGRAM_MAP(ti83pse_banked_mem)
+
+	MCFG_DEVICE_MODIFY("membank2")
+	MCFG_DEVICE_PROGRAM_MAP(ti83pse_banked_mem)
+
+	MCFG_DEVICE_MODIFY("membank3")
+	MCFG_DEVICE_PROGRAM_MAP(ti83pse_banked_mem)
+
+	MCFG_DEVICE_MODIFY("membank4")
+	MCFG_DEVICE_PROGRAM_MAP(ti83pse_banked_mem)
+
+	MCFG_MACHINE_START_OVERRIDE(ti85_state, ti83pse )
+	MCFG_DEVICE_REPLACE("flash", FUJITSU_29F160T, 0)
+
+	//MCFG_TI83PSERIAL_ADD( "tiserial" )
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( ti84p, ti83pse )
+	MCFG_DEVICE_MODIFY("membank1")
+	MCFG_DEVICE_PROGRAM_MAP(ti84p_banked_mem)
+
+	MCFG_DEVICE_MODIFY("membank2")
+	MCFG_DEVICE_PROGRAM_MAP(ti84p_banked_mem)
+
+	MCFG_DEVICE_MODIFY("membank3")
+	MCFG_DEVICE_PROGRAM_MAP(ti84p_banked_mem)
+
+	MCFG_DEVICE_MODIFY("membank4")
+	MCFG_DEVICE_PROGRAM_MAP(ti84p_banked_mem)
+
+	MCFG_MACHINE_START_OVERRIDE(ti85_state, ti84p )
+	MCFG_DEVICE_REPLACE("flash", AMD_29F800T , 0)
+MACHINE_CONFIG_END
+
+static MACHINE_CONFIG_DERIVED( ti84pse, ti83pse )
+	MCFG_MACHINE_START_OVERRIDE(ti85_state, ti84pse )
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( ti73, ti83p )
@@ -628,7 +769,7 @@ static MACHINE_CONFIG_DERIVED( ti73, ti83p )
 MACHINE_CONFIG_END
 
 ROM_START (ti73)
-	ROM_REGION (0x80000, "bios",0)
+	ROM_REGION (0x80000, "flash",0)
 	ROM_DEFAULT_BIOS("v16")
 	ROM_SYSTEM_BIOS( 0, "v16", "V 1.6" )
 	ROMX_LOAD( "ti73v160.rom", 0x00000, 0x80000, CRC(bb0e3a16) SHA1(d62c2c7532698962818a747a7f32e35e41dfe338), ROM_BIOS(1) )
@@ -690,7 +831,7 @@ ROM_START (ti83)
 ROM_END
 
 ROM_START (ti83p)
-	ROM_REGION (0x80000, "bios",0)
+	ROM_REGION (0x80000, "flash",0)
 	ROM_DEFAULT_BIOS("v116")
 	ROM_SYSTEM_BIOS( 0, "v103", "V 1.03" )
 	ROMX_LOAD( "ti83pv103.bin", 0x00000, 0x80000, CRC(da466be0) SHA1(37eaeeb9fb5c18fb494e322b75070e80cc4d858e), ROM_BIOS(1) )
@@ -699,7 +840,7 @@ ROM_START (ti83p)
 	ROM_SYSTEM_BIOS( 2, "v103m2", "V 1.03 [m2]" )
 	ROMX_LOAD( "ti83pv103m2.bin", 0x00000, 0x80000, CRC(690d9d30) SHA1(d215d3880e06c2ae31ec24b21d542d5bb2f3935b), ROM_BIOS(3))
 	ROM_SYSTEM_BIOS( 3, "v110", "V 1.10" )
-	ROMX_LOAD( "ti83pv110.bin", 0x00000, 0x80000, CRC(62683990) SHA1(F86CDEFE4ED5EF9965CD9EB667CB859E2CB10E19), ROM_BIOS(4) )
+	ROMX_LOAD( "ti83pv110.bin", 0x00000, 0x80000, CRC(62683990) SHA1(f86cdefe4ed5ef9965cd9eb667cb859e2cb10e19), ROM_BIOS(4) )
 	ROM_SYSTEM_BIOS( 4, "v112", "V 1.12" )
 	ROMX_LOAD( "ti83pv112.bin", 0x00000, 0x80000, CRC(ddca5026) SHA1(6615df5554076b6b81bd128bf847d2ff046e556b), ROM_BIOS(5) )
 	ROM_SYSTEM_BIOS( 5, "v110-2", "V 1.10-2" )
@@ -754,19 +895,25 @@ ROM_END
 
 
 ROM_START (ti83pse)
-	ROM_REGION (0x200000, "bios",0)
+	ROM_REGION (0x200000, "flash", 0)
 	ROM_DEFAULT_BIOS("v116")
 	ROM_SYSTEM_BIOS( 0, "v116", "V 1.16" )
 	ROMX_LOAD( "ti83psev116.bin", 0x00000, 0x200000, CRC(d2570863) SHA1(d4214b3c0ebb26e10fe95294ac72a90d2ba99537), ROM_BIOS(1) )
 ROM_END
 
 ROM_START (ti84pse)
-	ROM_REGION (0x200000, "bios",0)
+	ROM_REGION (0x200000, "flash",0)
 	ROM_DEFAULT_BIOS("v241")
 	ROM_SYSTEM_BIOS( 0, "v241", "V 2.41" )
 	ROMX_LOAD( "ti84sev241.bin", 0x00000, 0x200000, CRC(5758db36) SHA1(7daa4f22e9b5dc8a1cc8fd31bceece9fa8b43515), ROM_BIOS(1) )
 ROM_END
 
+ROM_START (ti84p)
+	ROM_REGION (0x100000, "flash",0)
+	ROM_DEFAULT_BIOS("b100v255mp")
+	ROM_SYSTEM_BIOS( 0, "b100v255mp", "Boot 1.00 OS V 2.55MP" )
+	ROMX_LOAD( "ti84pb100v255mp.bin", 0x00000, 0x100000, CRC(4af31251) SHA1(8f67269346644b87e7cd0f353f5f4030e787cf57), ROM_BIOS(1) )
+ROM_END
 
 /*    YEAR  NAME        PARENT  COMPAT  MACHINE INPUT   INIT   COMPANY                 FULLNAME                        FLAGS */
 COMP( 1990, ti81,       0,      0,      ti81,   ti81, driver_device,   0,     "Texas Instruments",    "TI-81",                        GAME_NO_SOUND )
@@ -777,6 +924,6 @@ COMP( 1996, ti83,       0,      0,      ti83,   ti83, driver_device,   0,     "T
 COMP( 1997, ti86,       0,      0,      ti86,   ti85, driver_device,   0,     "Texas Instruments",    "TI-86",                        GAME_NO_SOUND )
 COMP( 1998, ti73,       0,      0,      ti73,   ti82, driver_device,   0,     "Texas Instruments",    "TI-73",                        GAME_NO_SOUND )
 COMP( 1999, ti83p,      0,      0,      ti83p,  ti82, driver_device,   0,     "Texas Instruments",    "TI-83 Plus",                   GAME_NO_SOUND )
-COMP( 2001, ti83pse,    0,      0,      ti85,   ti85, driver_device,   0,     "Texas Instruments",    "TI-83 Plus Silver Edition",    GAME_NOT_WORKING | GAME_NO_SOUND)
-//COMP( 2004, ti84p,      0,      0,      ti85,   ti85, driver_device,   0,   "Texas Instruments",    "TI-84 Plus",                   GAME_NOT_WORKING | GAME_NO_SOUND)
-COMP( 2004, ti84pse,    0,      0,      ti85,   ti85, driver_device,   0,     "Texas Instruments",    "TI-84 Plus Silver Edition",    GAME_NOT_WORKING | GAME_NO_SOUND)
+COMP( 2001, ti83pse,    0,      0,      ti83pse,   ti82, driver_device,   0,     "Texas Instruments",    "TI-83 Plus Silver Edition", GAME_NO_SOUND )
+COMP( 2004, ti84p,      0,      0,      ti84p,   ti82, driver_device,   0,   "Texas Instruments",    "TI-84 Plus",                    GAME_NO_SOUND )
+COMP( 2004, ti84pse,    0,      0,      ti84pse,   ti82, driver_device,   0,     "Texas Instruments",    "TI-84 Plus Silver Edition", GAME_NO_SOUND )

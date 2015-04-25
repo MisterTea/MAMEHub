@@ -1738,13 +1738,6 @@ static const char *const journey_sample_names[] =
 	0
 };
 
-static const samples_interface journey_samples_interface =
-{
-	1,
-	journey_sample_names
-};
-
-
 static const char *const twotiger_sample_names[] =
 {
 	"*twotiger",
@@ -1752,14 +1745,6 @@ static const char *const twotiger_sample_names[] =
 	"right",
 	0
 };
-
-static const samples_interface twotiger_samples_interface =
-{
-	2,
-	twotiger_sample_names
-};
-
-
 
 /*************************************
  *
@@ -1838,7 +1823,9 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( mcr_90010_tt, mcr_90010 )
 
 	/* sound hardware */
-	MCFG_SAMPLES_ADD("samples", twotiger_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(2)
+	MCFG_SAMPLES_NAMES(twotiger_sample_names)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.25)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.25)
 MACHINE_CONFIG_END
@@ -1853,7 +1840,9 @@ static MACHINE_CONFIG_DERIVED( mcr_91475, mcr_90010 )
 	MCFG_PALETTE_FORMAT(xxxxRRRRBBBBGGGG)
 
 	/* sound hardware */
-	MCFG_SAMPLES_ADD("samples", journey_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(journey_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.25)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.25)
 MACHINE_CONFIG_END
@@ -2193,12 +2182,12 @@ ROM_END
 
 ROM_START( tron3 )
 	ROM_REGION( 0x10000, "maincpu", 0 ) /* ROM's located on the Super CPU Board (90010) */
-	ROM_LOAD( "scpu_pga(__0617).d2", 0x0000, 0x2000, CRC(fc33afd7) SHA1(99a2ed972c3db477f35a7162079563367864f207) )
-	ROM_LOAD( "scpu_pgb(__0617).d3", 0x2000, 0x2000, CRC(7d9e22ac) SHA1(16a6e9651d5f764e8762fd8d6e53d13fda7473de) )
-	ROM_LOAD( "scpu_pgc(__0617).d4", 0x4000, 0x2000, CRC(902011c6) SHA1(17ac768a0fd1278ae83414f0d67d6ac8337f4773) )
-	ROM_LOAD( "scpu_pgd(__0617).d5", 0x6000, 0x2000, CRC(86477e89) SHA1(196f0d3930d10bfe4ddee82ce8b28bb99324069e) )
-	ROM_LOAD( "scpu_pge(__0617).d6", 0x8000, 0x2000, CRC(ea198fa8) SHA1(d8c97ea87d504e77edc38c87c2953c8c4f1a405b) )
-	ROM_LOAD( "scpu_pgf(__0617).d7", 0xa000, 0x2000, CRC(4325fb08) SHA1(70727aa37354425315d8a8b3ca07bbe91f7e8f08) )
+	ROM_LOAD( "scpu_pga.d2", 0x0000, 0x2000, CRC(fc33afd7) SHA1(99a2ed972c3db477f35a7162079563367864f207) ) // sldh
+	ROM_LOAD( "scpu_pgb.d3", 0x2000, 0x2000, CRC(7d9e22ac) SHA1(16a6e9651d5f764e8762fd8d6e53d13fda7473de) ) // sldh
+	ROM_LOAD( "scpu_pgc.d4", 0x4000, 0x2000, CRC(902011c6) SHA1(17ac768a0fd1278ae83414f0d67d6ac8337f4773) ) // sldh
+	ROM_LOAD( "scpu_pgd.d5", 0x6000, 0x2000, CRC(86477e89) SHA1(196f0d3930d10bfe4ddee82ce8b28bb99324069e) ) // sldh
+	ROM_LOAD( "scpu_pge.d6", 0x8000, 0x2000, CRC(ea198fa8) SHA1(d8c97ea87d504e77edc38c87c2953c8c4f1a405b) ) // sldh
+	ROM_LOAD( "scpu_pgf.d7", 0xa000, 0x2000, CRC(4325fb08) SHA1(70727aa37354425315d8a8b3ca07bbe91f7e8f08) ) // sldh
 
 	ROM_REGION( 0x10000, "ssio:cpu", 0 ) /* ROM's located on the Super Sound I/O Board (90913) */
 	ROM_LOAD( "ssi_0a.a7",   0x0000, 0x1000, CRC(765e6eba) SHA1(42efeefc8571dfc237c0be3368248f1e56add92e) )
@@ -2259,6 +2248,37 @@ ROM_START( tron4 )
 	ROM_LOAD( "0066-314bx-xxqx.g12.bin", 0x0000, 0x0001, NO_DUMP)
 ROM_END
 
+ROM_START( tronger )
+	ROM_REGION( 0x10000, "maincpu", 0 ) /* ROM's located on the Super CPU Board (90010) */
+	ROM_LOAD( "pro0.d2", 0x0000, 0x2000, CRC(ba14603d) SHA1(1cc30c4ea659926314343f00ccbcfe9021f4de26) )
+	ROM_LOAD( "scpu_pgb.d3", 0x2000, 0x2000, CRC(063a748f) SHA1(aefe647e9b562d6a9da1ec32a9d403fce7e62012) )// sldh
+	ROM_LOAD( "scpu_pgc.d4", 0x4000, 0x2000, CRC(6ca50365) SHA1(76e17284da7c3ddf752d67b5e80d3c145f64068e) )// sldh
+	ROM_LOAD( "scpu_pgd.d5", 0x6000, 0x2000, CRC(b5b241c9) SHA1(4a9bde02387365912b3e9878428c8aa1f87a365a) )// sldh
+	ROM_LOAD( "scpu_pge.d6", 0x8000, 0x2000, CRC(04597abe) SHA1(7a896b9415a2479da8519329568e5fb8a429d03e) )// sldh
+	ROM_LOAD( "scpu_pgf.d7", 0xa000, 0x2000, CRC(3908e404) SHA1(d61b73c87ba4b0ab8751d9c653b663b1342d5d73) )// sldh
+
+	ROM_REGION( 0x10000, "ssio:cpu", 0 ) /* ROM's located on the Super Sound I/O Board (90913) */
+	ROM_LOAD( "ssi_0a.a7",   0x0000, 0x1000, CRC(765e6eba) SHA1(42efeefc8571dfc237c0be3368248f1e56add92e) )
+	ROM_LOAD( "ssi_0b.a8",   0x1000, 0x1000, CRC(1b90ccdd) SHA1(0876e5eeaa63bb8cc97f3634a6ddd8a29a9b012f) )
+	ROM_LOAD( "ssi_0c.a9",   0x2000, 0x1000, CRC(3a4bc629) SHA1(ce8452a99a313ae7429de471bbea39de08c9fd4b) )
+
+	ROM_REGION( 0x04000, "gfx1", 0 ) /* ROM's located on the Super CPU Board (90010) */
+	ROM_LOAD( "scpu_bgg.g3", 0x0000, 0x2000, CRC(1a9ed2f5) SHA1(b0d85b47873ac8ad475da18b9540d37232cb2b7c) )
+	ROM_LOAD( "scpu_bgh.g4", 0x2000, 0x2000, CRC(3220f974) SHA1(a38ea5f1db27f05d9689db838ce7a8de98f34837) )
+
+	ROM_REGION( 0x08000, "gfx2", 0 ) /* ROM's located on the MCR/II Video Gen Board (91399) */
+	ROM_LOAD( "vga.e1",      0x0000, 0x2000, CRC(bc036d1d) SHA1(c5d54d0b80ac768ccf6fdd32cad1ef6359fa324c) )
+	ROM_LOAD( "vgb.dc1",     0x2000, 0x2000, CRC(58ee14d3) SHA1(5fb4268c9c73bdfc3b1e866618979aea3f219bbc) )
+	ROM_LOAD( "vgc.cb1",     0x4000, 0x2000, CRC(3329f9d4) SHA1(11f4d744374e475d2c5b195a9f70888414529dd3) )
+	ROM_LOAD( "vga.a1",      0x6000, 0x2000, CRC(9743f873) SHA1(71ed80ecd8caaf9fce1d7010f95c4678c9bd7102) )
+
+	ROM_REGION( 0x0005, "scpu_pals", 0) /* PAL's located on the Super CPU Board (90010) */
+	ROM_LOAD( "0066-313bx-xxqx.a12.bin", 0x0000, 0x0001, NO_DUMP)
+	ROM_LOAD( "0066-315bx-xxqx.b12.bin", 0x0000, 0x0001, NO_DUMP)
+	ROM_LOAD( "0066-322bx-xx0x.e3.bin",  0x0000, 0x0001, NO_DUMP)
+	ROM_LOAD( "0066-316bx-xxqx.g11.bin", 0x0000, 0x0001, NO_DUMP)
+	ROM_LOAD( "0066-314bx-xxqx.g12.bin", 0x0000, 0x0001, NO_DUMP)
+ROM_END
 
 ROM_START( kroozr )
 	ROM_REGION( 0x10000, "maincpu", 0 )
@@ -2679,6 +2699,9 @@ ROM_START( nflfoot )
 	ROM_LOAD( "nflvidfg.cp7", 0x0a000, 0x2000, CRC(73f62392) SHA1(18f28be7264f8edff38f8a6aa067eeb1970f544c) )
 	ROM_LOAD( "nflvidfg.c10", 0x0c000, 0x2000, CRC(1766dcc7) SHA1(df499e3c66ae702d2d56e6cd095a754665569fcd) )
 	ROM_LOAD( "nflvidfg.cp9", 0x0e000, 0x2000, CRC(46558146) SHA1(4bedfae8cf0fcb9d837706ee13fbe3944ab47216) )
+
+	DISK_REGION( "ced_videodisc" )
+		DISK_IMAGE_READONLY( "nflfoot", 0, NO_DUMP )
 ROM_END
 
 
@@ -2914,6 +2937,7 @@ GAME( 1982, tron,     0,        mcr_90010,     tron, mcr_state,     mcr_90010, R
 GAME( 1982, tron2,    tron,     mcr_90010,     tron, mcr_state,     mcr_90010, ROT90, "Bally Midway", "Tron (6/25)", GAME_SUPPORTS_SAVE )
 GAME( 1982, tron3,    tron,     mcr_90010,     tron3, mcr_state,    mcr_90010, ROT90, "Bally Midway", "Tron (6/17)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
 GAME( 1982, tron4,    tron,     mcr_90010,     tron3, mcr_state,    mcr_90010, ROT90, "Bally Midway", "Tron (6/15)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
+GAME( 1982, tronger,  tron,     mcr_90010,     tron3, mcr_state,    mcr_90010, ROT90, "Bally Midway", "Tron (Germany)", GAME_SUPPORTS_SAVE | GAME_NO_COCKTAIL )
 GAME( 1982, domino,   0,        mcr_90010,     domino, mcr_state,   mcr_90010, ROT0,  "Bally Midway", "Domino Man", GAME_SUPPORTS_SAVE )
 GAME( 1982, wacko,    0,        mcr_90010,     wacko, mcr_state,    wacko,     ROT0,  "Bally Midway", "Wacko", GAME_SUPPORTS_SAVE )
 GAME( 1984, twotigerc,twotiger, mcr_90010,     twotigrc, mcr_state, mcr_90010, ROT0,  "Bally Midway", "Two Tigers (Tron conversion)", GAME_SUPPORTS_SAVE )

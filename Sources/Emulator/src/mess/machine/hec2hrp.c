@@ -818,26 +818,6 @@ void hec2hrp_state::Update_Sound(address_space &space, UINT8 data)
 	m_sn->enable_w(m_Pin_Value[9][m_AU[14]]);
 }
 
-const sn76477_interface hector_sn76477_interface =
-{
-	RES_K(47),      /*  4  noise_res*/
-	RES_K(330),     /*  5  filter_res*/
-	CAP_P(390),     /*  6  filter_cap*/
-	RES_K(680),     /*  7  decay_res*/
-	CAP_U(47),      /*  8  attack_decay_cap*/
-	RES_K(180),     /* 10  attack_res*/
-	RES_K(33),      /* 11  amplitude_res*/
-	RES_K(100),     /* 12  feedback_res*/
-	2,              /* 16  vco_voltage*/
-	CAP_N(47) ,     /* 17  vco_cap*/
-	RES_K(1000),    /* 18  vco_res*/
-	2,              /* 19  pitch_voltage*/
-	RES_K(180),     /* 20  slf_res*/
-	CAP_U(0.1),     /* 21  slf_cap*/
-	CAP_U(1.00001), /* 23  oneshot_cap*/
-	RES_K(10000)    /* 24  oneshot_res*/
-};
-
 void hec2hrp_state::hector_reset(int hr, int with_D2 )
 {
 	// Initialization Hector
@@ -867,3 +847,34 @@ void hec2hrp_state::hector_init()
 	/* Sound sn76477*/
 	Init_Value_SN76477_Hector();  /*init R/C value*/
 }
+
+
+/* sound hardware */
+
+static DISCRETE_SOUND_START( hec2hrp )
+	DISCRETE_INPUT_LOGIC(NODE_01)
+	DISCRETE_OUTPUT(NODE_01, 5000)
+DISCRETE_SOUND_END
+
+MACHINE_CONFIG_FRAGMENT( hector_audio )
+	MCFG_SPEAKER_STANDARD_MONO("mono")
+	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
+	MCFG_SOUND_ROUTE(0, "mono", 0.25)  /* Sound level for cassette, as it is in mono => output channel=0*/
+
+	MCFG_SOUND_ADD("sn76477", SN76477, 0)
+	MCFG_SN76477_NOISE_PARAMS(RES_K(47), RES_K(330), CAP_P(390)) // noise + filter
+	MCFG_SN76477_DECAY_RES(RES_K(680))                  // decay_res
+	MCFG_SN76477_ATTACK_PARAMS(CAP_U(47), RES_K(180))   // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(33))                     // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(100))               // feedback_res
+	MCFG_SN76477_VCO_PARAMS(2, CAP_N(47), RES_K(1000))  // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(2)                       // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(0.1), RES_K(180))     // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(CAP_U(1.00001), RES_K(10000))   // oneshot caps + res
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.1)
+
+	MCFG_SOUND_ADD("discrete", DISCRETE, 0) /* Son 1bit*/
+	MCFG_DISCRETE_INTF(hec2hrp)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
+
+MACHINE_CONFIG_END

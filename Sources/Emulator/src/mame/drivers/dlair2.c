@@ -14,6 +14,8 @@ http://www.dragons-lair-project.com/tech/pages/dl2.asp
   (located inside coin door) - Release both buttons
 
 * Rom version determines LD Image to use:
+  ROM revision 2.00 works only with a Dragon's Lair II/Space Ace '91 proto disc,
+  and an AMOA prototype board with DL2 BIOS ROM.
   ROM revision 2.xx works only with a Dragon's Lair II disc, serial number
   C-910-00001-00.  This is the original pressing of the laser disc.
   ROM revision 3.xx works with a Dragon's Lair II disc, serial number
@@ -203,71 +205,124 @@ MACHINE_CONFIG_END
 ROM_START( dlair2 )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2_319.bin",     0x00000, 0x10000, CRC(e9453a1b) SHA1(eb1201abd0124f6edbabd49bec81af827369cb2c) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_319e )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2euro3.19.bin", 0x00000, 0x10000, CRC(cc23ad9f) SHA1(24add8f03749dcc27b1b166dc2e5d346534a0088) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_319s )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2-span.bin",    0x00000, 0x10000, CRC(4b9a811d) SHA1(6fe580f541305422f89edbbf475f7c5f17153738) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "dlair2_span", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_318 )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2_318.bin",     0x00000, 0x10000, CRC(64706492) SHA1(99c92572c59ce1206847a5363d3791196fccd742) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_317e )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2euro3.17.bin", 0x00000, 0x10000, CRC(743f65a5) SHA1(45199983156c561b8e88c69bef454fd4042579bb) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_316e )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2euro.bin",     0x00000, 0x10000, CRC(d68f1b13) SHA1(cc9ee307b4d3caba049be6226163c810cf89ab44) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_315 )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2_315.rom",     0x00000, 0x10000, CRC(13ec0600) SHA1(9366dfac4508c4a723d688016b8cddb57aa6f5f1) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_315s )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "315pi.bin",       0x00000, 0x10000, CRC(75d8861a) SHA1(56ab31a760f43f98fa40396ee7d7af7ce982d28d) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "dlair2_span", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_314 )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2_314.bin",     0x00000, 0x10000, CRC(af92b612) SHA1(a0b986fa8a0f2206beedf1dcaed4d108599947ff) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_312 )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "312.bin",         0x00000, 0x10000, CRC(c842be6b) SHA1(bf548ea3c6e98cd93f79408c3b9f0e1e22cc8bd1) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_300 )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2_300.bin",     0x00000, 0x10000, CRC(dec4f2e3) SHA1(fd96378c78df4aacd4b2190823ec5c1591199d44) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00002-00", 0, NO_DUMP )
 ROM_END
 
 ROM_START( dlair2_211 )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "dl2_211.bin",     0x00000, 0x10000, CRC(9f2660a3) SHA1(bf35356aab0138f86e6ea18c7bcf4f3f3c428d98) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "C-910-00001-00", 0, NO_DUMP )
+ROM_END
+
+ROM_START( dlair2_200 )
+	ROM_REGION( 0x10000, "ipl", 0 )
+	ROM_LOAD( "dl2_amoa_proto_9-8_2e7f.bin",      0x00000, 0x10000,CRC(b41bad8d) SHA1(c9d594f94c349d83f07c1f4730bfde371834263d) )
+
+	ROM_REGION( 0x2000, "bios", 0 ) /* BIOS for proto board */
+	ROM_LOAD( "dl2_amoa_proto_bios_mod_56ee.bin",0x00000, 0x2000, CRC(1fc21576) SHA1(dc5443f6a8d80ec8148314244f05ac0290e380ea) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "dl2-sa91_proto", 0, NO_DUMP )
 ROM_END
 
 ROM_START( spacea91 )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "ace.dat",         0x00000, 0x10000, CRC(de93a213) SHA1(1c95d5f45292f08149d749e1f7b5d9409d3a266e) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "spaceace91", 0, NO_DUMP )
 ROM_END
 
 ROM_START( spacea91_13e )
 	ROM_REGION( 0x10000, "ipl", 0 )
 	ROM_LOAD( "sa91euro1.3.bin", 0x00000, 0x10000, CRC(27dd0486) SHA1(8a57510b466381d9962e5397d89a7a3e73d757b0) )
+
+	DISK_REGION( "laserdisc" )
+	DISK_IMAGE_READONLY( "spaceace91", 0, NO_DUMP )
 ROM_END
 
 
@@ -280,8 +335,9 @@ GAME( 1991, dlair2_316e,  dlair2,   dlair2,  dlair2, driver_device,  0,       RO
 GAME( 1991, dlair2_315,   dlair2,   dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Dragon's Lair 2: Time Warp (US v3.15)", GAME_IS_SKELETON )
 GAME( 1991, dlair2_315s,  dlair2,   dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Dragon's Lair 2: Time Warp (Spanish v3.15)", GAME_IS_SKELETON )
 GAME( 1991, dlair2_314,   dlair2,   dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Dragon's Lair 2: Time Warp (US v3.14)", GAME_IS_SKELETON )
-GAME( 1991, dlair2_312,   dlair2,   dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Dragon's Lair 2: Time Warp (US v3.12)", GAME_IS_SKELETON )
+GAME( 1991, dlair2_312,   dlair2,   dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Dragon's Lair 2: Time Warp (Euro v3.12)", GAME_IS_SKELETON )
 GAME( 1991, dlair2_300,   dlair2,   dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Dragon's Lair 2: Time Warp (US v3.00)", GAME_IS_SKELETON )
 GAME( 1991, dlair2_211,   dlair2,   dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Dragon's Lair 2: Time Warp (US v2.11)", GAME_IS_SKELETON )
+GAME( 1991, dlair2_200,   dlair2,   dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Dragon's Lair 2: Time Warp (US v2.00, AMOA prototype)", GAME_IS_SKELETON )
 GAME( 1991, spacea91,     0,        dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Space Ace (DL2 Conversion) (US v1.3)", GAME_IS_SKELETON )
 GAME( 1991, spacea91_13e, spacea91, dlair2,  dlair2, driver_device,  0,       ROT0, "Leland",      "Space Ace (DL2 Conversion) (Euro v1.3)", GAME_IS_SKELETON )

@@ -53,10 +53,19 @@ class ecoinfr_state : public driver_device
 public:
 	ecoinfr_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu") { }
+		m_maincpu(*this, "maincpu"),
+		m_reel0(*this, "reel0"),
+		m_reel1(*this, "reel1"),
+		m_reel2(*this, "reel2"),
+		m_reel3(*this, "reel3")
+		{ }
 
 	int irq_toggle;
 	int m_optic_pattern;
+	DECLARE_WRITE_LINE_MEMBER(reel0_optic_cb) { if (state) m_optic_pattern |= 0x01; else m_optic_pattern &= ~0x01; }
+	DECLARE_WRITE_LINE_MEMBER(reel1_optic_cb) { if (state) m_optic_pattern |= 0x02; else m_optic_pattern &= ~0x02; }
+	DECLARE_WRITE_LINE_MEMBER(reel2_optic_cb) { if (state) m_optic_pattern |= 0x04; else m_optic_pattern &= ~0x04; }
+	DECLARE_WRITE_LINE_MEMBER(reel3_optic_cb) { if (state) m_optic_pattern |= 0x08; else m_optic_pattern &= ~0x08; }
 
 	UINT8 port09_value;
 	UINT8 port10_value;
@@ -106,8 +115,11 @@ public:
 	UINT8 m_banksel;
 	UINT8 m_credsel;
 
-	DECLARE_MACHINE_START(ecoinfr);
 	required_device<cpu_device> m_maincpu;
+	required_device<stepper_device> m_reel0;
+	required_device<stepper_device> m_reel1;
+	required_device<stepper_device> m_reel2;
+	required_device<stepper_device> m_reel3;
 };
 
 
@@ -151,12 +163,9 @@ WRITE8_MEMBER(ecoinfr_state::ec_port00_out_w)
 		printf("ec_port0a_out_w (reel 1 port) unk bits used %02x\n", data);
 	}
 
-	stepper_update(0, data&0x0f);
+	m_reel0->update(data&0x0f);
 
-	if ( stepper_optic_state(0) ) m_optic_pattern |=  0x01;
-	else                          m_optic_pattern &= ~0x01;
-
-	awp_draw_reel(0);
+	awp_draw_reel("reel1", m_reel0);
 }
 
 WRITE8_MEMBER(ecoinfr_state::ec_port01_out_w)
@@ -166,12 +175,9 @@ WRITE8_MEMBER(ecoinfr_state::ec_port01_out_w)
 		printf("ec_port01_out_w (reel 2 port) unk bits used %02x\n", data);
 	}
 
-	stepper_update(1, data&0x0f);
+	m_reel1->update(data&0x0f);
 
-	if ( stepper_optic_state(1) ) m_optic_pattern |=  0x02;
-	else                          m_optic_pattern &= ~0x02;
-
-	awp_draw_reel(1);
+	awp_draw_reel("reel2", m_reel1);
 }
 
 WRITE8_MEMBER(ecoinfr_state::ec_port02_out_w)
@@ -181,12 +187,9 @@ WRITE8_MEMBER(ecoinfr_state::ec_port02_out_w)
 		printf("ec_port02_out_w (reel 3 port) unk bits used %02x\n", data);
 	}
 
-	stepper_update(2, data&0x0f);
+	m_reel2->update(data&0x0f);
 
-	if ( stepper_optic_state(2) ) m_optic_pattern |=  0x04;
-	else                          m_optic_pattern &= ~0x04;
-
-	awp_draw_reel(2);
+	awp_draw_reel("reel3", m_reel2);
 }
 
 
@@ -764,14 +767,6 @@ void ecoinfr_state::machine_reset()
 }
 
 
-MACHINE_START_MEMBER(ecoinfr_state,ecoinfr)
-{
-	for ( int n = 0; n < 4; n++ )
-	{
-		stepper_config(machine(), n, &ecoin_interface_200step_reel);
-	}
-}
-
 static MACHINE_CONFIG_START( ecoinfr, ecoinfr_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", Z80,4000000)
@@ -781,9 +776,17 @@ static MACHINE_CONFIG_START( ecoinfr, ecoinfr_state )
 
 	MCFG_DEFAULT_LAYOUT(layout_ecoinfr)
 
-	MCFG_MACHINE_START_OVERRIDE(ecoinfr_state, ecoinfr )
 
 	MCFG_DEVICE_ADD(UPD8251_TAG, I8251, 0)
+
+	MCFG_ECOIN_200STEP_ADD("reel0")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(ecoinfr_state, reel0_optic_cb))
+	MCFG_ECOIN_200STEP_ADD("reel1")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(ecoinfr_state, reel1_optic_cb))
+	MCFG_ECOIN_200STEP_ADD("reel2")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(ecoinfr_state, reel2_optic_cb))
+	MCFG_ECOIN_200STEP_ADD("reel3")
+	MCFG_STEPPER_OPTIC_CALLBACK(WRITELINE(ecoinfr_state, reel3_optic_cb))
 MACHINE_CONFIG_END
 
 
@@ -1694,7 +1697,7 @@ GAME( 19??, ec_fltr,    0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   eco
 GAME( 19??, ec_rdht7,   0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Red Hot 7 (MAB PCB?) (Concept Games Ltd) (?)"      , GAME_FLAGS)
 GAME( 19??, ec_unkt,    0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "unknown 'T' (MAB PCB?) (Concept Games Ltd) (?)"        , GAME_FLAGS)
 
-//These look more like some variant of Astra Gaming hardware than the MAB PCB, but I can't be sure. Certainly they dont seem to be on the base hardware
+//These look more like some variant of Astra Gaming hardware than the MAB PCB, but I can't be sure. Certainly they don't seem to be on the base hardware
 GAME( 19??, ec_gold7,   0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Golden 7 (Concept Games Ltd) (?)"      , GAME_FLAGS)
 GAME( 19??, ec_mgbel,   0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Megabell (Concept Games Ltd) (?)"      , GAME_FLAGS)
 GAME( 19??, ec_jackb,   0        , ecoinfr,   ecoinfr_barx, ecoinfr_state,   ecoinfrmab,    ROT0,  "Concept Games Ltd", "Jackpot Bars (MAB PCB?) (Concept Games Ltd) (?)"       , GAME_FLAGS)

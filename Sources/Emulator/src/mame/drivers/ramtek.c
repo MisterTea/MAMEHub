@@ -1,21 +1,38 @@
-/***************************************************************************
+/*********************************************************************************
 
  Ramtek Discrete Games List
 
- Game Name                  DATA      Board #
- --------------------------------------------
- (Deluxe) Baseball (1974)   YES
- Clean Sweep (1974)         YES       501082
- Hockey (1973)              UNKNOWN
+ Game Name                  DATA      ASSY #         P/N
+ -------------------------------------------------------------------
+ Baseball (1974/10)         YES       550185/550186  0550228/0550229
+ Clean Sweep (1974/06)      YES       501082A/B/C/D  501083A/B/C/D
+ Deluxe Baseball (1975/06)  YES       550188
+ Hockey (1973/11)           YES       500699         500629
  Horoscope (1976)           UNKNOWN
- Knockout (1974)            UNKNOWN
- Sea Battle (1976)          UNKNOWN
- Soccer (1973)              UNKNOWN
- Trivia (1976)              YES
- Volly/Volley (1973)        YES
- Wipe Out (1974)            YES
+ Knock Out (1974/09)?       UNKNOWN
+ Lie Detector (1976)        UNKNOWN   Unreleased     Unreleased
+ Sea Battle (1976/04)       UNKNOWN
+ Soccer (1973/11)           YES       500880         500889
+ Trivia (1975/11)           YES
+ Volly (1973/03?)           YES       500378A        500322A
+ Wipe Out (1974/01)         YES       500986B/C      500963B/?
 
- ***************************************************************************/
+ Volly Industries Discrete Games List
+ (Volly was Ramtek's Canada-based affiliate and distributor.)
+
+ Game Name                                       Clone Of
+ ---------------------------------------------------------------------------------
+ Batter Up (1974/??)                             Deluxe Baseball (Ramtek, 1975/06)
+ Crossfire (1974/01) (registered trademark?)     Knock Out (Ramtek, 1974/09)?
+ Countdown (1974/02)                             Wipe Out (Ramtek, 1974/01)
+ Elimination (1973/12?) (registered trademark?)  unknown
+ Flip-Out (1974/05?)                             Clean Sweep (Ramtek, 1974/06)
+ Hockey (1973/??)                                Hockey (Ramtek, 1973/11)
+ Hockey (Cocktail) (1973/??)                     Soccer (Ramtek, 1973/11)
+ Scoring (1973/11?)                              Soccer (Ramtek, 1973/11)?
+ Tennis (1973/??)                                Volly (Ramtek, 1973/03?)
+
+ *********************************************************************************/
 
 
 #include "emu.h"
@@ -25,7 +42,7 @@
 #include "video/fixfreq.h"
 #include "astring.h"
 
-// copied by Pong, not accurate for this driver!
+// copied from Pong, not accurate for this driver!
 // start
 #define MASTER_CLOCK    7159000
 #define V_TOTAL         (0x105+1)       // 262
@@ -37,14 +54,6 @@
 #define VBEND                   (16)
 
 #define HRES_MULT                   (1)
-
-fixedfreq_interface fixedfreq_mode_ramtek = {
-	MASTER_CLOCK,
-	H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL,
-	V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL,
-	1,  /* non-interlaced */
-	0.30
-};
 // end
 
 
@@ -109,7 +118,12 @@ static MACHINE_CONFIG_START( ramtek, ramtek_state )
 	MCFG_NETLIST_SETUP(ramtek)
 
 	/* video hardware */
-	MCFG_FIXFREQ_ADD("fixfreq", "screen", fixedfreq_mode_ramtek)
+	MCFG_FIXFREQ_ADD("fixfreq", "screen")
+	MCFG_FIXFREQ_MONITOR_CLOCK(MASTER_CLOCK)
+	MCFG_FIXFREQ_HORZ_PARAMS(H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL)
+	MCFG_FIXFREQ_VERT_PARAMS(V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL)
+	MCFG_FIXFREQ_FIELDCOUNT(1)
+	MCFG_FIXFREQ_SYNC_THRESHOLD(0.30)
 MACHINE_CONFIG_END
 
 
@@ -176,9 +190,53 @@ ROM_START( wipeormt )
 ROM_END
 
 
-GAME( 1974, bballrmt,  0, ramtek, 0, driver_device,  0, ROT0, "Ramtek", "Baseball (Ramtek) [TTL]", GAME_IS_SKELETON )
-GAME( 1974, cleanswp,  0, ramtek, 0, driver_device,  0, ROT0, "Ramtek", "Clean Sweep [TTL]", GAME_IS_SKELETON )
+/***************************************************************************
+
+Ramtek Trivia
+
+Board is discrete logic.  Reads questions from 8-track tapes.
+
+Contains the following PROMS:
+
+550549-1.A4  MMI      6301-1 256x4
+550549-2.B4  MMI      6301-1 256x4
+550549-3.C4  MMI      6301-1 256x4
+550549-4.D4  MMI      6301-1 256x4
+550548.E3    Intersil IM5610 32x8
+
+Other components of note:
+
+1 10.7330Mhz crystal
+1 AY-5-1013A UART
+1 Signetics 2513 character generator
+2 2101 Static RAMs (256x4)
+
+My guess is that this is essentially a special purpose terminal.
+Together, 550549-3 and 550549-4 contain character data.
+
+On the PCB:
+    550549-2.B4 has data bits 0 and 1 not connected.
+    550549-4.D4 has data bit 3 not connected
+
+***************************************************************************/
+
+ROM_START( trivia )
+	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )
+
+	ROM_REGION( 0x0100, "roms", ROMREGION_ERASE00 )
+	ROM_LOAD( "550549-1.a4",    0x0000, 0x0100, CRC(89a2dcc8) SHA1(688f8d916d6ade0ffeeaf8d2900db45eb27abe8c) )
+	ROM_LOAD( "550549-2.b4",    0x0000, 0x0100, CRC(2405b7a5) SHA1(1e9e658815ae2e31f97cd41861d0fcf415c12963) )
+	ROM_LOAD( "550549-3.c4",    0x0000, 0x0100, CRC(496d5e6a) SHA1(fca17f1710169dff98536d13d80f76060860caf5) )
+	ROM_LOAD( "550549-4.d4",    0x0000, 0x0100, CRC(6dbc83e9) SHA1(8a4f211cb12e5a5244d213c20a4e2df6288abcab) )
+	ROM_LOAD( "550548.e3",      0x0000, 0x0020, CRC(2b7c6a5e) SHA1(943cc3901c651bfe5bf11a40c27801952731b6de) )
+ROM_END
+
+
+
 GAME( 1973, vollyrmt,  0, ramtek, 0, driver_device,  0, ROT0, "Ramtek", "Volly (Ramtek) [TTL]", GAME_IS_SKELETON )
 GAME( 1974, wipeormt,  0, ramtek, 0, driver_device,  0, ROT0, "Ramtek", "Wipeout (Ramtek) [TTL]", GAME_IS_SKELETON )
+GAME( 1974, bballrmt,  0, ramtek, 0, driver_device,  0, ROT0, "Ramtek", "Baseball (Ramtek) [TTL]", GAME_IS_SKELETON )
+GAME( 1974, cleanswp,  0, ramtek, 0, driver_device,  0, ROT0, "Ramtek", "Clean Sweep [TTL]", GAME_IS_SKELETON )
+GAME( 1975, trivia,    0, ramtek, 0, driver_device,  0, ROT0, "Ramtek", "Trivia (Rev B) [TTL]", GAME_IS_SKELETON )
 
 GAME( 197?, ramtek3,   0, ramtek, 0, driver_device,  0, ROT0, "Ramtek", "unknown Ramtek Game (Maybe Hockey?) [TTL]", GAME_IS_SKELETON )

@@ -9,14 +9,15 @@
     TODO:
     - Sound
     - SDCard
-    - Mouse
 
 ****************************************************************************/
 
 #include "emu.h"
 #include "cpu/avr8/avr8.h"
 #include "sound/dac.h"
-#include "imagedev/cartslot.h"
+#include "bus/generic/slot.h"
+#include "bus/generic/carts.h"
+#include "bus/snes_ctrl/ctrl.h"
 
 // overclocked to 8 * NTSC burst frequency
 #define MASTER_CLOCK 28618180
@@ -28,11 +29,16 @@ class uzebox_state : public driver_device
 public:
 	uzebox_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu")
-	{
-	}
+		m_maincpu(*this, "maincpu"),
+		m_cart(*this, "cartslot"),
+		m_ctrl1(*this, "ctrl1"),
+		m_ctrl2(*this, "ctrl2")
+	{ }
 
 	required_device<avr8_device> m_maincpu;
+	required_device<generic_slot_device> m_cart;
+	required_device<snes_control_port_device> m_ctrl1;
+	required_device<snes_control_port_device> m_ctrl2;
 
 	DECLARE_READ8_MEMBER(port_a_r);
 	DECLARE_WRITE8_MEMBER(port_a_w);
@@ -57,13 +63,15 @@ private:
 	UINT8           m_port_b;
 	UINT8           m_port_c;
 	UINT8           m_port_d;
-	UINT16          m_joy_data[2];
 	bitmap_rgb32    m_bitmap;
 };
 
 void uzebox_state::machine_start()
 {
 	machine().first_screen()->register_screen_bitmap(m_bitmap);
+
+	if (m_cart->exists())
+		m_maincpu->space(AS_PROGRAM).install_read_handler(0x0000, 0xffff, read8_delegate(FUNC(generic_slot_device::read_rom),(generic_slot_device*)m_cart));
 }
 
 void uzebox_state::machine_reset()
@@ -75,7 +83,6 @@ void uzebox_state::machine_reset()
 	m_port_b = 0;
 	m_port_c = 0;
 	m_port_d = 0;
-	m_joy_data[0] = m_joy_data[1] = 0;
 }
 
 
@@ -87,22 +94,15 @@ WRITE8_MEMBER(uzebox_state::port_a_w)
 	//  ---- --x-   SNES controller P2 data
 	//  ---- ---x   SNES controller P1 data
 
+	m_ctrl1->write_strobe(BIT(data, 2));
+	m_ctrl2->write_strobe(BIT(data, 2));
+
 	UINT8 changed = m_port_a ^ data;
-
-	if (changed & data & 0x04)
+	if ((changed & data & 0x08) || (changed & (~data) & 0x04))
 	{
-		m_joy_data[0] = ioport("P1")->read();
-		m_joy_data[1] = ioport("P2")->read();
-	}
-	else if (changed & 0x08)
-	{
-		if (changed & data & 0x08)
-		{
-			m_joy_data[0] >>= 1;
-			m_joy_data[1] >>= 1;
-		}
-
-		m_port_a = (m_joy_data[0] & 0x01) | ((m_joy_data[1] & 0x01) << 1);
+		m_port_a &= ~0x03;
+		m_port_a |= m_ctrl1->read_pin4() ? 0 : 0x01;
+		m_port_a |= m_ctrl2->read_pin4() ? 0 : 0x02;
 	}
 
 	m_port_a = (data & 0x0c) | (m_port_a & 0x03);
@@ -202,36 +202,6 @@ ADDRESS_MAP_END
 \****************************************************/
 
 static INPUT_PORTS_START( uzebox )
-	PORT_START( "P1" )
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("P1 Button B") PORT_PLAYER(1)
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("P1 Button Y") PORT_PLAYER(1)
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_SELECT ) PORT_NAME("P1 Select") PORT_PLAYER(1)
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_START1 ) PORT_NAME("P1 Start") PORT_PLAYER(1)
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(1)
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(1)
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(1)
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(1)
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("P1 Button A") PORT_PLAYER(1)
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_NAME("P1 Button X") PORT_PLAYER(1)
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_NAME("P1 Button L") PORT_PLAYER(1)
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_NAME("P1 Button R") PORT_PLAYER(1)
-	PORT_BIT( 0xf000, IP_ACTIVE_LOW, IPT_UNUSED )
-
-	PORT_START( "P2" )
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_NAME("P2 Button B") PORT_PLAYER(2)
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_NAME("P2 Button Y") PORT_PLAYER(2)
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_SELECT ) PORT_NAME("P2 Select") PORT_PLAYER(2)
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_START2 ) PORT_NAME("P2 Start")
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_PLAYER(2)
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_PLAYER(2)
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_PLAYER(2)
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2)
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("P2 Button A") PORT_PLAYER(2)
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_NAME("P2 Button X") PORT_PLAYER(2)
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_BUTTON5 ) PORT_NAME("P2 Button L") PORT_PLAYER(2)
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_BUTTON6 ) PORT_NAME("P2 Button R") PORT_PLAYER(2)
-	PORT_BIT( 0xf000, IP_ACTIVE_LOW, IPT_UNUSED )
-
 	PORT_START("AD725_CE")
 	PORT_CONFNAME( 0x01, 0x00, "AD725 CE" )
 	PORT_CONFSETTING( 0x00, "VCC" )
@@ -265,28 +235,24 @@ UINT32 uzebox_state::screen_update_uzebox(screen_device &screen, bitmap_rgb32 &b
 	return 0;
 }
 
-DEVICE_IMAGE_LOAD_MEMBER(uzebox_state,uzebox_cart)
+DEVICE_IMAGE_LOAD_MEMBER(uzebox_state, uzebox_cart)
 {
-	UINT8* rom = (UINT8*)(*memregion("maincpu"));
+	UINT32 size = m_cart->common_get_size("rom");
 
-	memset(rom, 0xff, memregion("maincpu")->bytes());
+	m_cart->rom_alloc(size, GENERIC_ROM8_WIDTH, ENDIANNESS_LITTLE);
 
 	if (image.software_entry() == NULL)
 	{
-		UINT32 size = image.length();
 		dynamic_buffer data(size);
-
 		image.fread(data, size);
 
 		if (!strncmp((const char*)&data[0], "UZEBOX", 6))
-			memcpy(rom, data + 0x200, size - 0x200);
+			memcpy(m_cart->get_rom_base(), data + 0x200, size - 0x200);
 		else
-			memcpy(rom, data, size);
+			memcpy(m_cart->get_rom_base(), data, size);
 	}
 	else
-	{
-		memcpy(rom, image.get_software_region("rom"), image.get_software_region_length("rom"));
-	}
+		memcpy(m_cart->get_rom_base(), image.get_software_region("rom"), size);
 
 	return IMAGE_INIT_PASS;
 }
@@ -296,19 +262,14 @@ DEVICE_IMAGE_LOAD_MEMBER(uzebox_state,uzebox_cart)
 * Machine definition                                 *
 \****************************************************/
 
-const avr8_config atmega644_config =
-{
-	"eeprom"
-};
-
 static MACHINE_CONFIG_START( uzebox, uzebox_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", ATMEGA644, MASTER_CLOCK)
-	MCFG_CPU_AVR8_CONFIG(atmega644_config)
 	MCFG_CPU_PROGRAM_MAP(uzebox_prg_map)
 	MCFG_CPU_DATA_MAP(uzebox_data_map)
 	MCFG_CPU_IO_MAP(uzebox_io_map)
+	MCFG_CPU_AVR8_EEPROM("eeprom")
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -323,11 +284,14 @@ static MACHINE_CONFIG_START( uzebox, uzebox_state )
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(0, "avr8", 1.00)
 
-	MCFG_CARTSLOT_ADD("cart1")
-	MCFG_CARTSLOT_EXTENSION_LIST("bin,uze")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(uzebox_state,uzebox_cart)
-	MCFG_CARTSLOT_INTERFACE("uzebox")
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "uzebox")
+	MCFG_GENERIC_EXTENSIONS("bin,uze")
+	MCFG_GENERIC_MANDATORY
+	MCFG_GENERIC_LOAD(uzebox_state, uzebox_cart)
+
+	MCFG_SNES_CONTROL_PORT_ADD("ctrl1", snes_control_port_devices, "joypad")
+	MCFG_SNES_CONTROL_PORT_ADD("ctrl2", snes_control_port_devices, "joypad")
+
 	MCFG_SOFTWARE_LIST_ADD("eprom_list","uzebox")
 MACHINE_CONFIG_END
 

@@ -329,7 +329,7 @@ void nes_ks7032_device::device_timer(emu_timer &timer, device_timer_id id, int p
 			{
 				m_irq_enable = 0;
 				m_irq_count = 0;
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 			}
 			else
 				m_irq_count++;
@@ -378,7 +378,7 @@ WRITE8_MEMBER(nes_ks7032_device::ks7032_write)
 READ8_MEMBER(nes_ks7032_device::read_m)
 {
 	LOG_MMC(("ks7032 read_m, offset: %04x\n", offset));
-	return m_prg[((m_reg[4] * 0x2000) + (offset & 0x1fff)) & (m_prg.count() - 1)];
+	return m_prg[((m_reg[4] * 0x2000) + (offset & 0x1fff)) & (m_prg_size - 1)];
 }
 
 /*-------------------------------------------------
@@ -445,7 +445,7 @@ void nes_ks7017_device::device_timer(emu_timer &timer, device_timer_id id, int p
 		{
 			if (!m_irq_count)
 			{
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 				m_irq_enable = 0;
 				m_irq_status |= 0x01;
 			}

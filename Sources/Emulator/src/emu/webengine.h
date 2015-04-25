@@ -23,6 +23,7 @@ public:
 	web_engine(emu_options &options);
 	~web_engine();
 
+	void serve();
 	void push_message(const char *message);
 	void close();
 
@@ -41,6 +42,7 @@ private:
 	struct mg_server *  m_server;
 	//osd_ticks_t         m_lastupdatetime;
 	bool                m_exiting_core;
+	bool                m_http;
 };
 
 #endif  /* __web_engine_H__ */

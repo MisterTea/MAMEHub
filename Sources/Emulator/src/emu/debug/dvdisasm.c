@@ -319,7 +319,7 @@ void debug_view_disasm::generate_bytes(offs_t pcbyte, int numbytes, int minbytes
 
 	// if we ran out of room, indicate more
 	string[maxchars - 1] = 0;
-	if (byte < numbytes && maxchars > (char_num*2 -1))
+	if (byte < numbytes && byte != minbytes && maxchars > (char_num*2 -1))
 		string[maxchars - char_num] = string[maxchars - char_num - 1] = string[maxchars - char_num -2] = '.';
 }
 
@@ -420,7 +420,7 @@ bool debug_view_disasm::recompute(offs_t pc, int startline, int lines)
 			offs_t comment_address = source.m_space.byte_to_address(m_byteaddress[instr]);
 			const char *text = source.m_device.debug()->comment_text(comment_address);
 			if (text != NULL)
-				sprintf(&destbuf[m_divider2], "// %.*s", row_width - m_divider2 - 1, text);
+				sprintf(&destbuf[m_divider2], "// %.*s", row_width - m_divider2 - 4, text);
 		}
 
 		// see if the line changed at all
@@ -433,7 +433,7 @@ bool debug_view_disasm::recompute(offs_t pc, int startline, int lines)
 	m_last_direct_raw = source.m_space.direct().raw();
 	m_last_change_count = source.m_device.debug()->comment_change_count();
 
-	// now longer need to recompute
+	// no longer need to recompute
 	m_recompute = false;
 	return changed;
 }

@@ -59,10 +59,9 @@ public:
 		emu_timer   *keyb_signal_timer;
 	} m_kbd;
 
-	UINT8                   m_ppi_portb;
-	UINT8                   m_ppi_portc;
-	UINT8 m_mc1502_spkrdata;
-	UINT8 m_mc1502_input;
+	UINT8 m_ppi_portb;
+	UINT8 m_ppi_portc;
+	UINT8 m_spkrdata;
 
 	DECLARE_WRITE_LINE_MEMBER(mc1502_pit8253_out1_changed);
 	DECLARE_WRITE_LINE_MEMBER(mc1502_pit8253_out2_changed);
@@ -78,15 +77,6 @@ public:
 
 private:
 	int m_pit_out2;
-
-/*
-    TIMER_CALLBACK_MEMBER(fdc_motor_callback);
-    static struct {
-        int         fdc_motor_on;
-        emu_timer   *fdc_motor_timer;
-    } m_motor;
-    const char *m_cputag;
-*/
 };
 
 #endif /* MC1502_H_ */

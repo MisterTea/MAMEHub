@@ -22,6 +22,8 @@
 
 #include "bus/a2bus/a2cffa.h"
 #include "bus/a2bus/a2applicard.h"
+#include "bus/a2bus/a2thunderclock.h"
+#include "bus/a2bus/mouse.h"
 
 static ADDRESS_MAP_START( apple3_map, AS_PROGRAM, 8, apple3_state )
 	AM_RANGE(0x0000, 0xffff) AM_READWRITE(apple3_memory_r, apple3_memory_w)
@@ -30,6 +32,8 @@ ADDRESS_MAP_END
 static SLOT_INTERFACE_START(apple3_cards)
 	SLOT_INTERFACE("cffa2", A2BUS_CFFA2_6502)  /* CFFA2000 Compact Flash for Apple II (www.dreher.net), 6502 firmware */
 	SLOT_INTERFACE("applicard", A2BUS_APPLICARD)    /* PCPI Applicard */
+	SLOT_INTERFACE("thclock", A2BUS_THUNDERCLOCK)    /* ThunderWare ThunderClock Plus - driver assumes slot 2 by default */
+	SLOT_INTERFACE("mouse", A2BUS_MOUSE)    /* Apple II Mouse Card */
 SLOT_INTERFACE_END
 
 static SLOT_INTERFACE_START( a3_floppies )
@@ -37,7 +41,7 @@ static SLOT_INTERFACE_START( a3_floppies )
 SLOT_INTERFACE_END
 
 FLOPPY_FORMATS_MEMBER( apple3_state::floppy_formats )
-	FLOPPY_A216S_FORMAT, FLOPPY_RWTS18_FORMAT
+	FLOPPY_A216S_FORMAT, FLOPPY_RWTS18_FORMAT, FLOPPY_EDD_FORMAT
 FLOPPY_FORMATS_END
 
 static MACHINE_CONFIG_START( apple3, apple3_state )
@@ -83,8 +87,8 @@ static MACHINE_CONFIG_START( apple3, apple3_state )
 	/* slot bus */
 	MCFG_DEVICE_ADD("a2bus", A2BUS, 0)
 	MCFG_A2BUS_CPU("maincpu")
-	//MCFG_A2BUS_OUT_IRQ_CB(WRITELINE(apple3_state, a2bus_irq_w))
-	//MCFG_A2BUS_OUT_NMI_CB(WRITELINE(apple3_state, a2bus_nmi_w))
+	MCFG_A2BUS_OUT_IRQ_CB(WRITELINE(apple3_state, a2bus_irq_w))
+	MCFG_A2BUS_OUT_NMI_CB(WRITELINE(apple3_state, a2bus_nmi_w))
 	//MCFG_A2BUS_OUT_INH_CB(WRITELINE(apple3_state, a2bus_inh_w))
 	MCFG_A2BUS_SLOT_ADD("a2bus", "sl1", apple3_cards, NULL)
 	MCFG_A2BUS_SLOT_ADD("a2bus", "sl2", apple3_cards, NULL)
@@ -97,6 +101,9 @@ static MACHINE_CONFIG_START( apple3, apple3_state )
 	MCFG_FLOPPY_DRIVE_ADD("1", a3_floppies, "525", apple3_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("2", a3_floppies, "525", apple3_state::floppy_formats)
 	MCFG_FLOPPY_DRIVE_ADD("3", a3_floppies, "525", apple3_state::floppy_formats)
+
+	/* softlist for fdc */
+	MCFG_SOFTWARE_LIST_ADD("flop525_list","apple3")
 
 	/* acia */
 	MCFG_DEVICE_ADD("acia", MOS6551, 0)

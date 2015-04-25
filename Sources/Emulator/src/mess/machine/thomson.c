@@ -638,7 +638,7 @@ static MACHINE_CONFIG_FRAGMENT( to7_io_line )
 	MCFG_RS232_CTS_HANDLER(WRITELINE(to7_io_line_device, write_cts))
 	MCFG_RS232_DSR_HANDLER(WRITELINE(to7_io_line_device, write_dsr))
 
-	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
 	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE(THOM_PIA_IO, pia6821_device, cb1_w))
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(to7_io_line_device, write_centronics_busy))
 
@@ -1018,10 +1018,6 @@ void thomson_state::to7_game_reset()
    (using, e.g., character device special files on some UNIX).
 */
 
-#ifdef CHARDEV
-
-#include "devices/chardev.h"
-
 /* Features an EF 6850 ACIA
 
    MIDI protocol is a serial asynchronous protocol
@@ -1036,196 +1032,6 @@ void thomson_state::to7_game_reset()
    We do not emulate the seral line but pass bytes directly between the
    6850 registers and the MIDI device.
 */
-
-
-static UINT8 to7_midi_status;   /* 6850 status word */
-static UINT8 to7_midi_overrun;  /* pending overrun */
-static UINT8 to7_midi_intr;     /* enabled interrupts */
-
-static chardev* to7_midi_chardev;
-
-
-
-void thomson_state::to7_midi_update_irq (  )
-{
-	if ( (to7_midi_intr & 4) && (to7_midi_status & ACIA_6850_RDRF) )
-		to7_midi_status |= ACIA_6850_irq; /* byte received interrupt */
-
-	if ( (to7_midi_intr & 4) && (to7_midi_status & ACIA_6850_OVRN) )
-		to7_midi_status |= ACIA_6850_irq; /* overrun interrupt */
-
-	if ( (to7_midi_intr & 3) == 1 && (to7_midi_status & ACIA_6850_TDRE) )
-		to7_midi_status |= ACIA_6850_irq; /* ready to transmit interrupt */
-
-	thom_irq_4( machine, to7_midi_status & ACIA_6850_irq );
-}
-
-
-
-void thomson_state::to7_midi_byte_received_cb( chardev_err s )
-{
-	to7_midi_status |= ACIA_6850_RDRF;
-	if ( s == CHARDEV_OVERFLOW )
-		to7_midi_overrun = 1;
-	to7_midi_update_irq( machine );
-}
-
-
-
-void thomson_state::to7_midi_ready_to_send_cb(  )
-{
-	to7_midi_status |= ACIA_6850_TDRE;
-	to7_midi_update_irq( machine );
-}
-
-
-
-READ8_MEMBER( thomson_state::to7_midi_r )
-{
-	/* ACIA 6850 registers */
-
-	switch ( offset )
-	{
-	case 0: /* get status */
-		/* bit 0:     data received */
-		/* bit 1:     ready to transmit data */
-		/* bit 2:     data carrier detect (ignored) */
-		/* bit 3:     clear to send (ignored) */
-		/* bit 4:     framing error (ignored) */
-		/* bit 5:     overrun */
-		/* bit 6:     parity error (ignored) */
-		/* bit 7:     interrupt */
-		LOG_MIDI(( "%s %f to7_midi_r: status $%02X (rdrf=%i, tdre=%i, ovrn=%i, irq=%i)\n",
-				space.machine().describe_context(), space.machine().time().as_double(), to7_midi_status,
-				(to7_midi_status & ACIA_6850_RDRF) ? 1 : 0,
-				(to7_midi_status & ACIA_6850_TDRE) ? 1 : 0,
-				(to7_midi_status & ACIA_6850_OVRN) ? 1 : 0,
-				(to7_midi_status & ACIA_6850_irq) ? 1 : 0 ));
-		return to7_midi_status;
-
-
-	case 1: /* get input data */
-	{
-				UINT8 data = chardev_in( to7_midi_chardev );
-				if ( !space.debugger_access() )
-				{
-						to7_midi_status &= ~(ACIA_6850_irq | ACIA_6850_RDRF);
-						if ( to7_midi_overrun )
-								to7_midi_status |= ACIA_6850_OVRN;
-						else
-								to7_midi_status &= ~ACIA_6850_OVRN;
-						to7_midi_overrun = 0;
-						LOG_MIDI(( "%s %f to7_midi_r: read data $%02X\n",
-									space.machine().describe_context(), space.machine().time().as_double(), data ));
-						to7_midi_update_irq();
-				}
-				return data;
-	}
-
-
-	default:
-		logerror( "%s to7_midi_r: invalid offset %i\n",
-				space.machine().describe_context(),  offset );
-		return 0;
-	}
-}
-
-
-
-WRITE8_MEMBER( thomson_state::to7_midi_w )
-{
-	/* ACIA 6850 registers */
-
-	switch ( offset )
-	{
-	case 0: /* set control */
-		/* bits 0-1: clock divide (ignored) or reset */
-		if ( (data & 3) == 3 )
-		{
-			/* reset */
-			LOG_MIDI(( "%s %f to7_midi_w: reset (data=$%02X)\n", space.machine().describe_context(), space.machine().time().as_double(), data ));
-			to7_midi_overrun = 0;
-			to7_midi_status = 2;
-			to7_midi_intr = 0;
-			chardev_reset( to7_midi_chardev );
-		}
-		else
-		{
-			/* bits 2-4: parity  */
-			/* bits 5-6: interrupt on transmit */
-			/* bit 7:    interrupt on receive */
-			to7_midi_intr = data >> 5;
-			{
-				static const int bits[8] = { 7,7,7,7,8,8,8,8 };
-				static const int stop[8] = { 2,2,1,1,2,1,1,1 };
-				static const char parity[8] = { 'e','o','e','o','-','-','e','o' };
-				LOG_MIDI(( "%s %f to7_midi_w: set control to $%02X (bits=%i, stop=%i, parity=%c, intr in=%i out=%i)\n",
-						space.machine().describe_context(), space.machine().time().as_double(),
-						data,
-						bits[ (data >> 2) & 7 ],
-						stop[ (data >> 2) & 7 ],
-						parity[ (data >> 2) & 7 ],
-						to7_midi_intr >> 2,
-						(to7_midi_intr & 3) ? 1 : 0));
-			}
-		}
-		to7_midi_update_irq( );
-		break;
-
-
-	case 1: /* output data */
-		LOG_MIDI(( "%s %f to7_midi_w: write data $%02X\n", space.machine().describe_context(), space.machine().time().as_double(), data ));
-		if ( data == 0x55 )
-			/* cable-detect: shortcut */
-			chardev_fake_in( to7_midi_chardev, 0x55 );
-		else
-		{
-			/* send to MIDI */
-			to7_midi_status &= ~(ACIA_6850_irq | ACIA_6850_TDRE);
-			chardev_out( to7_midi_chardev, data );
-		}
-		break;
-
-
-	default:
-		logerror( "%s to7_midi_w: invalid offset %i (data=$%02X) \n", space.machine().describe_context(), offset, data );
-	}
-}
-
-
-
-static const chardev_interface to7_midi_interface =
-{
-	to7_midi_byte_received_cb,
-	to7_midi_ready_to_send_cb,
-};
-
-
-
-void thomson_state::to7_midi_reset(  )
-{
-	LOG (( "to7_midi_reset called\n" ));
-	to7_midi_overrun = 0;
-	to7_midi_status = 0;
-	to7_midi_intr = 0;
-	chardev_reset( to7_midi_chardev );
-}
-
-
-
-void thomson_state::to7_midi_init(  )
-{
-	LOG (( "to7_midi_init\n" ));
-	to7_midi_chardev = chardev_open( &machine, "/dev/snd/midiC0D0", "/dev/snd/midiC0D1", &to7_midi_interface );
-	save_item(NAME(to7_midi_status );
-	save_item(NAME(to7_midi_overrun );
-	save_item(NAME(to7_midi_intr );
-}
-
-
-
-#else
-
 
 
 READ8_MEMBER( thomson_state::to7_midi_r )
@@ -1254,10 +1060,6 @@ void thomson_state::to7_midi_init()
 {
 	logerror( "to7_midi_init: not implemented\n" );
 }
-
-
-
-#endif
 
 
 
@@ -1715,7 +1517,7 @@ DEVICE_IMAGE_LOAD_MEMBER( thomson_state, mo5_cartridge )
 	else
 	{
 		astring errmsg;
-		errmsg.printf("Invalid cartridge size %"I64FMT"d", size);
+		errmsg.printf("Invalid cartridge size %" I64FMT "d", size);
 		image.seterror(IMAGE_ERROR_UNSUPPORTED, errmsg.cstr());
 		return IMAGE_INIT_FAIL;
 	}
@@ -2039,9 +1841,15 @@ void thomson_state::to9_set_video_mode( UINT8 data, int style )
 			thom_set_video_mode( THOM_VMODE_TO9 );
 		break;
 
+		// undocumented, but tested on a real TO8D
+		case 0x20: thom_set_video_mode( THOM_VMODE_MO5_ALT );     break;
+
 	case 0x21: thom_set_video_mode( THOM_VMODE_BITMAP4 );     break;
 
 	case 0x41: thom_set_video_mode( THOM_VMODE_BITMAP4_ALT ); break;
+
+		// also undocumented but tested
+	case 0x59: thom_set_video_mode( THOM_VMODE_BITMAP4_ALT_HALF ); break;
 
 	case 0x2a:
 		if ( style==0 )
@@ -2057,6 +1865,9 @@ void thomson_state::to9_set_video_mode( UINT8 data, int style )
 	case 0x25: thom_set_video_mode( THOM_VMODE_PAGE2 );       break;
 
 	case 0x26: thom_set_video_mode( THOM_VMODE_OVERLAY );     break;
+
+		// undocumented 160x200 variant of overlay
+	case 0x3e: thom_set_video_mode( THOM_VMODE_OVERLAY_HALF );     break;
 
 	case 0x3f: thom_set_video_mode( THOM_VMODE_OVERLAY3 );    break;
 
@@ -2110,7 +1921,6 @@ WRITE8_MEMBER( thomson_state::to9_vreg_w )
 		color = m_to9_palette_data[ 2 * idx + 1 ];
 		color = m_to9_palette_data[ 2 * idx ] | (color << 8);
 		thom_set_palette( idx ^ 8, color & 0x1fff );
-
 		m_to9_palette_idx = ( m_to9_palette_idx + 1 ) & 31;
 	}
 	break;

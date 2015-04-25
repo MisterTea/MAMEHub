@@ -40,7 +40,8 @@ enum
 	TMS7000_PORTA = 0,      /* read-only on 70x0 */
 	TMS7000_PORTB,          /* write-only */
 	TMS7000_PORTC,
-	TMS7000_PORTD
+	TMS7000_PORTD,
+	TMS7000_PORTE           /* TMS70C46 only */
 };
 
 // chip info flags
@@ -268,6 +269,7 @@ class tms7020_exl_device : public tms7000_device
 {
 public:
 	tms7020_exl_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
 protected:
 	virtual void execute_one(UINT8 op);
 
@@ -308,6 +310,26 @@ class tms70c46_device : public tms7000_device
 {
 public:
 	tms70c46_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
+
+	DECLARE_READ8_MEMBER(control_r);
+	DECLARE_WRITE8_MEMBER(control_w);
+
+	DECLARE_READ8_MEMBER(dockbus_status_r);
+	DECLARE_WRITE8_MEMBER(dockbus_status_w);
+	DECLARE_READ8_MEMBER(dockbus_data_r);
+	DECLARE_WRITE8_MEMBER(dockbus_data_w);
+
+	// access I/O port E if databus is disabled
+	DECLARE_READ8_MEMBER(e_bus_data_r) { return (space.debugger_access()) ? 0xff : ((m_control & 0x20) ? 0xff : m_io->read_byte(TMS7000_PORTE)); }
+	DECLARE_WRITE8_MEMBER(e_bus_data_w) { if (~m_control & 0x20) m_io->write_byte(TMS7000_PORTE, data); }
+
+protected:
+	// device-level overrides
+	virtual void device_start();
+	virtual void device_reset();
+
+private:
+	UINT8 m_control;
 };
 
 

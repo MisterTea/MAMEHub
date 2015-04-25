@@ -63,8 +63,8 @@
 			} \
 			break; \
 		case 0xC0: \
-			s2 = mem_readword( sm8500_b2w[r1 & 0x07] ); \
-			mem_writeword( sm8500_b2w[r1 & 0x07], s2 - 1 ); \
+			s2 = mem_readword( sm8500_b2w[r1 & 0x07])-1; \
+			mem_writeword( sm8500_b2w[r1 & 0x07], s2 ); \
 			break; \
 		} \
 		r2 = r1; \
@@ -1163,7 +1163,7 @@ case 0x4E:  /* BMOV Rr,#b,BF/BF,Rr,#b - 6 cycles - Flags affected: --------/-Z-0
 	r2 = mem_readbyte( m_PC++ );
 	r1 = mem_readbyte( m_PC++ );
 	switch( r2 & 0xC0 ) {
-	case 0x00:
+	case 0x40:
 		res = mem_readbyte( r1 );
 		if ( m_PS1 & FLAG_B ) {
 			res = res | ( 1 << ( r2 & 0x07 ) );
@@ -1172,7 +1172,7 @@ case 0x4E:  /* BMOV Rr,#b,BF/BF,Rr,#b - 6 cycles - Flags affected: --------/-Z-0
 		}
 		mem_writebyte( r1, res & 0xFF );
 		break;
-	case 0x40:
+	case 0x00:
 		m_PS1 = m_PS1 & ( FLAG_C | FLAG_S | FLAG_D | FLAG_H | FLAG_I );
 		if ( mem_readbyte( r1 ) & ( 1 << ( r2 & 0x07 ) ) ) {
 			m_PS1 = m_PS1 | FLAG_B;
@@ -1270,12 +1270,16 @@ case 0x59:  /* Invalid - 2? cycles - Flags affected: --------? */
 	mycycles += 2;
 	break;
 case 0x5A:  /* unk5A - 7,8,12,9,8 cycles */
-logerror( "%04X: unk%02x\n", m_PC-1,op );
-	ARG_ad16;
+	logerror( "%04X: unk%02x\n", m_PC-1,op );
+/* NOTE: This unknown command is used in the calculator as a compare instruction
+       at 0x493A and 0x4941, we set the flags on the 3rd byte, although its real
+       function remains a mystery */
+	ARG_iR;
+	OP_CMP8( 0, r1 );
 	mycycles += 7;
 	break;
 case 0x5B:  /* unk5B - 6,7,11,8,7 cycles */
-logerror( "%04X: unk%02x\n", m_PC-1,op );
+	logerror( "%04X: unk%02x\n", m_PC-1,op );
 /* NOTE: This unknown command is used in several carts, the code below allows those carts to boot */
 	ARG_iR;
 	r1 = r2 & 7;

@@ -31,8 +31,8 @@
 
 **************************************************************************/
 
+#include "emu.h" // PAIR
 #include "coco_cas.h"
-#include "emu.h"
 
 #define COCO_WAVESAMPLES_HEADER     (1.0)
 #define COCO_WAVESAMPLES_TRAILER    (1.0)

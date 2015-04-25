@@ -57,11 +57,15 @@ public:
 	UINT32 m_video_dma_address;
 	UINT32 m_layer_enable;
 	UINT32 m_layer_bank;
-	int m_rf2_layer_bank;
+	UINT8 m_rf2_layer_bank;
 	int m_rowscroll_enable;
 	int m_midl_layer_offset;
 	int m_fore_layer_offset;
 	int m_text_layer_offset;
+	int m_fore_layer_d13;
+	int m_back_layer_d14;
+	int m_midl_layer_d14;
+	int m_fore_layer_d14;
 	UINT32 *m_tilemap_ram;
 	UINT32 *m_palette_ram;
 	UINT32 *m_sprite_ram;
@@ -69,14 +73,14 @@ public:
 	UINT32 m_palette_ram_size;
 	UINT32 m_sprite_ram_size;
 	UINT32 m_bg_fore_layer_position;
-	UINT8 m_alpha_table[8192];
+	UINT8 m_alpha_table[0x2000];
 	int m_sprite_bpp;
 
 	DECLARE_READ32_MEMBER(spi_layer_bank_r);
 	DECLARE_WRITE32_MEMBER(spi_layer_bank_w);
 	DECLARE_READ32_MEMBER(spi_layer_enable_r);
 	DECLARE_WRITE32_MEMBER(spi_layer_enable_w);
-	DECLARE_WRITE8_MEMBER(spi_set_layer_banks_w);
+	DECLARE_WRITE8_MEMBER(rf2_layer_bank_w);
 	DECLARE_WRITE32_MEMBER(tilemap_dma_start_w);
 	DECLARE_WRITE32_MEMBER(palette_dma_start_w);
 	DECLARE_WRITE16_MEMBER(sprite_dma_start_w);
@@ -116,16 +120,17 @@ public:
 	INTERRUPT_GEN_MEMBER(spi_interrupt);
 
 	void set_layer_offsets();
-	void drawgfx_blend(bitmap_rgb32 &bitmap, const rectangle &cliprect, gfx_element *gfx, UINT32 code, UINT32 color, int flipx, int flipy, int sx, int sy);
-	void draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, int pri_mask);
+	void drawgfx_blend(bitmap_rgb32 &bitmap, const rectangle &cliprect, gfx_element *gfx, UINT32 code, UINT32 color, int flipx, int flipy, int sx, int sy, bitmap_ind8 &primap, int primask);
+	void draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect, bitmap_ind8 &primap, int priority);
 	void set_rowscroll(tilemap_t *layer, int scroll, INT16* rows);
 	void set_scroll(tilemap_t *layer, int scroll);
-	void combine_tilemap(bitmap_rgb32 &bitmap, const rectangle &cliprect, tilemap_t *tile, int x, int y, int opaque, INT16 *rowscroll);
+	void combine_tilemap(bitmap_rgb32 &bitmap, const rectangle &cliprect, tilemap_t *tile, int sx, int sy, int opaque, INT16 *rowscroll);
 
 	virtual void machine_start();
 	virtual void video_start();
 	DECLARE_MACHINE_RESET(spi);
 	DECLARE_MACHINE_RESET(sxx2e);
+	DECLARE_VIDEO_START(ejanhs);
 	DECLARE_VIDEO_START(sys386f);
 	TILE_GET_INFO_MEMBER(get_text_tile_info);
 	TILE_GET_INFO_MEMBER(get_back_tile_info);

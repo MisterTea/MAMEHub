@@ -17,7 +17,7 @@
 #include "corefile.h"
 
 #ifdef FLAC__NO_DLL
-#include "../../lib/libflac/include/FLAC/all.h"
+#include "libflac/include/FLAC/all.h"
 #else
 #include <FLAC/all.h>
 #endif
@@ -79,7 +79,7 @@ private:
 	UINT32                  m_block_size;           // block size
 
 	// header stripping
-	bool                    m_strip_metadata;       // strip the the metadata?
+	bool                    m_strip_metadata;       // strip the metadata?
 	UINT32                  m_ignore_bytes;         // how many bytes to ignore when writing
 	bool                    m_found_audio;          // have we hit the audio yet?
 };

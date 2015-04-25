@@ -1,3 +1,5 @@
+// license:BSD-3-Clause
+// copyright-holders:R. Belmont
 /***************************************************************************
 
   a2bus.c - Apple II slot bus and card emulation
@@ -158,6 +160,7 @@ a2bus_device::a2bus_device(const machine_config &mconfig, device_type type, cons
 void a2bus_device::device_start()
 {
 	m_maincpu = machine().device<cpu_device>(m_cputag);
+	m_maincpu_space = &machine().device<cpu_device>(m_cputag)->space(AS_PROGRAM);
 
 	// resolve callbacks
 	m_out_irq_cb.resolve_safe();
@@ -169,6 +172,8 @@ void a2bus_device::device_start()
 	{
 		m_device_list[i] = NULL;
 	}
+
+	m_slot_irq_mask = m_slot_nmi_mask = 0;
 }
 
 //-------------------------------------------------
@@ -199,19 +204,77 @@ void a2bus_device::add_a2bus_card(int slot, device_a2bus_card_interface *card)
 	m_device_list[slot] = card;
 }
 
-void a2bus_device::set_irq_line(int state)
+UINT8 a2bus_device::get_a2bus_irq_mask()
+{
+	return m_slot_irq_mask;
+}
+
+UINT8 a2bus_device::get_a2bus_nmi_mask()
+{
+	return m_slot_nmi_mask;
+}
+
+void a2bus_device::set_irq_line(int state, int slot)
 {
 	m_out_irq_cb(state);
+
+	if (state == CLEAR_LINE)
+	{
+		m_slot_irq_mask &= ~(1<<slot);
+	}
+	else if (state == ASSERT_LINE)
+	{
+		m_slot_irq_mask |= (1<<slot);
+	}
 }
 
-void a2bus_device::set_nmi_line(int state)
+void a2bus_device::set_nmi_line(int state, int slot)
 {
 	m_out_nmi_cb(state);
+
+	if (state == CLEAR_LINE)
+	{
+		m_slot_nmi_mask &= ~(1<<slot);
+	}
+	else if (state == ASSERT_LINE)
+	{
+		m_slot_nmi_mask |= (1<<slot);
+	}
 }
 
-void a2bus_device::set_inh_slotnum(int slot)
+void a2bus_device::set_maincpu_halt(int state)
 {
-	m_out_inh_cb(slot);
+	m_maincpu->set_input_line(INPUT_LINE_HALT, state);
+}
+
+UINT8 a2bus_device::dma_r(address_space &space, UINT16 offset)
+{
+	m_maincpu_space->set_debugger_access(space.debugger_access());
+
+	return m_maincpu_space->read_byte(offset);
+}
+
+void a2bus_device::dma_w(address_space &space, UINT16 offset, UINT8 data)
+{
+	m_maincpu_space->set_debugger_access(space.debugger_access());
+
+	m_maincpu_space->write_byte(offset, data);
+}
+
+UINT8 a2bus_device::dma_nospace_r(UINT16 offset)
+{
+	return m_maincpu_space->read_byte(offset);
+}
+
+void a2bus_device::dma_nospace_w(UINT16 offset, UINT8 data)
+{
+	m_maincpu_space->write_byte(offset, data);
+}
+
+void a2bus_device::recalc_inh(int slot)
+{
+	m_out_inh_cb(ASSERT_LINE);
+	m_out_inh_cb(CLEAR_LINE);
 }
 
 // interrupt request from a2bus card

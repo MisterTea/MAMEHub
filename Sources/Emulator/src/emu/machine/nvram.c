@@ -83,7 +83,7 @@ void nvram_device::nvram_default()
 	// region always wins
 	if (m_region != NULL)
 	{
-		memcpy(m_base, *m_region, m_length);
+		memcpy(m_base, m_region->base(), m_length);
 		return;
 	}
 
@@ -167,5 +167,5 @@ void nvram_device::determine_final_base()
 
 	// if we are region-backed for the default, find it now and make sure it's the right size
 	if (m_region != NULL && m_region->bytes() != m_length)
-		throw emu_fatalerror("NVRAM device '%s' has a default region, but it should be 0x%"SIZETFMT"X bytes", tag(), m_length);
+		throw emu_fatalerror("NVRAM device '%s' has a default region, but it should be 0x%" SIZETFMT "X bytes", tag(), m_length);
 }

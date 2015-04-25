@@ -41,7 +41,7 @@ void msx_state::check_irq()
 }
 
 
-void msx_state::msx_ch_reset_core ()
+void msx_state::machine_reset()
 {
 	msx_memory_reset ();
 	msx_memory_map_all ();
@@ -52,24 +52,10 @@ void msx_state::msx_ch_reset_core ()
 	check_irq();
 }
 
-MACHINE_START_MEMBER(msx_state,msx)
-{
-	MACHINE_START_CALL_MEMBER( msx2 );
-}
 
-MACHINE_START_MEMBER(msx_state,msx2)
+void msx_state::machine_start()
 {
 	m_port_c_old = 0xff;
-}
-
-MACHINE_RESET_MEMBER(msx_state,msx)
-{
-	msx_ch_reset_core ();
-}
-
-MACHINE_RESET_MEMBER(msx_state,msx2)
-{
-	msx_ch_reset_core ();
 }
 
 
@@ -189,13 +175,39 @@ static const UINT8 cc_ex[0x100] = {
 };
 
 
-DRIVER_INIT_MEMBER(msx_state,msx)
+void msx_state::driver_start()
 {
 	m_maincpu->set_input_line_vector(0, 0xff);
 
 	msx_memory_init();
 
 	m_maincpu->z80_set_cycle_tables( cc_op, cc_cb, cc_ed, cc_xy, cc_xycb, cc_ex );
+
+	save_item(NAME(m_psg_b));
+	save_item(NAME(m_mouse));
+	save_item(NAME(m_mouse_stat));
+	save_item(NAME(m_rtc_latch));
+	save_item(NAME(m_kanji_latch));
+	save_item(NAME(m_slot_expanded));
+	save_item(NAME(m_primary_slot));
+	save_item(NAME(m_secondary_slot));
+	save_item(NAME(m_port_c_old));
+	save_item(NAME(m_keylatch));
+	save_item(NAME(m_current_switched_device));
+	save_item(NAME(m_irq_state));
+
+	machine().save().register_postload(save_prepost_delegate(FUNC(msx_state::post_load), this));
+}
+
+void msx_state::post_load()
+{
+	for (int page = 0; page < 4; page++)
+	{
+		int slot_primary = (m_primary_slot >> (page * 2)) & 3;
+		int slot_secondary = (m_secondary_slot[slot_primary] >> (page * 2)) & 3;
+
+		m_current_page[page] = m_all_slots[slot_primary][slot_secondary][page];
+	}
 }
 
 TIMER_DEVICE_CALLBACK_MEMBER(msx_state::msx2_interrupt)

@@ -622,23 +622,18 @@ Driver by Takahiro Nogi (nogi@kt.rim.or.jp) 1999/11/06
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "includes/taitoipt.h"
-#include "cpu/mcs48/mcs48.h"
 #include "sound/2203intf.h"
-#include "sound/dac.h"
-#include "sound/samples.h"
 #include "includes/tnzs.h"
 #include "sound/2151intf.h"
 
-static SAMPLES_START( kageki_init_samples )
+SAMPLES_START_CB_MEMBER(tnzs_state::kageki_init_samples)
 {
-	running_machine &machine = device.machine();
-	tnzs_state *state = machine.driver_data<tnzs_state>();
 	UINT8 *scan, *src;
 	INT16 *dest;
 	int start, size;
 	int i, n;
 
-	src = state->memregion("samples")->base() + 0x0090;
+	src = memregion("samples")->base() + 0x0090;
 	for (i = 0; i < MAX_SAMPLES; i++)
 	{
 		start = (src[(i * 2) + 1] * 256) + src[(i * 2)];
@@ -655,15 +650,15 @@ static SAMPLES_START( kageki_init_samples )
 		}
 
 		/* 2009-11 FP: should these be saved? */
-		state->m_sampledata[i] = auto_alloc_array(machine, INT16, size);
-		state->m_samplesize[i] = size;
+		m_sampledata[i] = auto_alloc_array(machine(), INT16, size);
+		m_samplesize[i] = size;
 
 
 		if (start < 0x100)
 			start = size = 0;
 
 		// signed 8-bit sample to unsigned 8-bit sample convert
-		dest = state->m_sampledata[i];
+		dest = m_sampledata[i];
 		scan = &src[start];
 		for (n = 0; n < size; n++)
 		{
@@ -746,7 +741,7 @@ WRITE8_MEMBER(tnzs_state::kabukiz_sample_w)
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xbfff) AM_READWRITE( tnzs_ramrom_bank_r, tnzs_ramrom_bank_w ) /* ROM + RAM */
+	AM_RANGE(0x8000, 0xbfff) AM_DEVICE("mainbank", address_map_bank_device, amap8)
 	AM_RANGE(0xc000, 0xcfff) AM_RAM AM_DEVREADWRITE("spritegen", seta001_device, spritecodelow_r8, spritecodelow_w8)
 	AM_RANGE(0xd000, 0xdfff) AM_RAM AM_DEVREADWRITE("spritegen", seta001_device, spritecodehigh_r8, spritecodehigh_w8)
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("share1")
@@ -762,7 +757,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( cpu0_type2, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xbfff) AM_READWRITE( tnzs_ramrom_bank_r, tnzs_ramrom_bank_w ) /* ROM + RAM */
+	AM_RANGE(0x8000, 0xbfff) AM_DEVICE("mainbank", address_map_bank_device, amap8)
 	AM_RANGE(0xc000, 0xcfff) AM_RAM AM_DEVREADWRITE("spritegen", seta001_device, spritecodelow_r8, spritecodelow_w8)
 	AM_RANGE(0xd000, 0xdfff) AM_RAM AM_DEVREADWRITE("spritegen", seta001_device, spritecodehigh_r8, spritecodehigh_w8)
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("share1")
@@ -773,6 +768,7 @@ static ADDRESS_MAP_START( cpu0_type2, AS_PROGRAM, 8, tnzs_state )
 	/* kabukiz still writes here but it's not used (it's paletteram in type1 map) */
 	AM_RANGE(0xf800, 0xfbff) AM_WRITENOP
 ADDRESS_MAP_END
+
 
 static ADDRESS_MAP_START( sub_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
@@ -865,7 +861,7 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( jpopnics_main_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
-	AM_RANGE(0x8000, 0xbfff) AM_READWRITE( tnzs_ramrom_bank_r, tnzs_ramrom_bank_w )
+	AM_RANGE(0x8000, 0xbfff) AM_DEVICE("mainbank", address_map_bank_device, amap8)
 	AM_RANGE(0xc000, 0xcfff) AM_RAM AM_DEVREADWRITE("spritegen", seta001_device, spritecodelow_r8, spritecodelow_w8)
 	AM_RANGE(0xd000, 0xdfff) AM_RAM AM_DEVREADWRITE("spritegen", seta001_device, spritecodehigh_r8, spritecodehigh_w8)
 	AM_RANGE(0xe000, 0xefff) AM_RAM AM_SHARE("share1") /* WORK RAM (shared by the 2 z80's) */
@@ -899,6 +895,20 @@ static ADDRESS_MAP_START( jpopnics_sub_map, AS_PROGRAM, 8, tnzs_state )
 	AM_RANGE(0xf000, 0xf003) AM_READ(arknoid2_sh_f000_r)
 ADDRESS_MAP_END
 
+/* RAM/ROM bank that maps at 0x8000-0xbfff on maincpu */
+static ADDRESS_MAP_START( mainbank_map, AS_PROGRAM, 8, tnzs_state )
+	AM_RANGE(0x00000, 0x07fff) AM_RAM // instead of the first two banks of ROM being repeated redundantly the hardware maps RAM here
+	AM_RANGE(0x08000, 0x1ffff) AM_ROM AM_REGION(":maincpu", 0x8000)
+ADDRESS_MAP_END
+
+MACHINE_CONFIG_FRAGMENT( tnzs_mainbank )
+	MCFG_DEVICE_ADD("mainbank", ADDRESS_MAP_BANK, 0)
+	MCFG_DEVICE_PROGRAM_MAP(mainbank_map)
+	MCFG_ADDRESS_MAP_BANK_ENDIANNESS(ENDIANNESS_LITTLE)
+	MCFG_ADDRESS_MAP_BANK_DATABUS_WIDTH(8)
+	MCFG_ADDRESS_MAP_BANK_ADDRBUS_WIDTH(17)
+	MCFG_ADDRESS_MAP_BANK_STRIDE(0x4000)
+MACHINE_CONFIG_END
 
 #define COMMON_IN2\
 	PORT_START("IN2")\
@@ -1533,13 +1543,6 @@ WRITE_LINE_MEMBER(tnzs_state::irqhandler)
 	m_audiocpu->set_input_line(INPUT_LINE_NMI, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const samples_interface tnzs_samples_interface =
-{
-	1,
-	NULL,
-	kageki_init_samples
-};
-
 static MACHINE_CONFIG_START( arknoid2, tnzs_state )
 
 	/* basic machine hardware */
@@ -1550,6 +1553,8 @@ static MACHINE_CONFIG_START( arknoid2, tnzs_state )
 	MCFG_CPU_ADD("sub", Z80, XTAL_12MHz/2)  /* verified on pcb */
 	MCFG_CPU_PROGRAM_MAP(sub_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", tnzs_state,  irq0_line_hold)
+
+	MCFG_FRAGMENT_ADD(tnzs_mainbank)
 
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
@@ -1596,6 +1601,8 @@ static MACHINE_CONFIG_START( drtoppel, tnzs_state )
 	MCFG_CPU_ADD("sub", Z80,XTAL_12MHz/2)       /* 6.0 MHz ??? - Main board Crystal is 12MHz */
 	MCFG_CPU_PROGRAM_MAP(sub_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", tnzs_state,  irq0_line_hold)
+
+	MCFG_FRAGMENT_ADD(tnzs_mainbank)
 
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
@@ -1645,6 +1652,8 @@ static MACHINE_CONFIG_START( tnzs, tnzs_state )
 	MCFG_CPU_ADD("mcu", I8742, 12000000/2)  /* 400KHz ??? - Main board Crystal is 12MHz */
 	MCFG_CPU_IO_MAP(i8742_io_map)
 
+	MCFG_FRAGMENT_ADD(tnzs_mainbank)
+
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
 	MCFG_MACHINE_START_OVERRIDE(tnzs_state,tnzs)
@@ -1688,6 +1697,8 @@ static MACHINE_CONFIG_START( insectx, tnzs_state )
 	MCFG_CPU_ADD("sub", Z80, XTAL_12MHz/2)  /* verified on pcb */
 	MCFG_CPU_PROGRAM_MAP(sub_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", tnzs_state,  irq0_line_hold)
+
+	MCFG_FRAGMENT_ADD(tnzs_mainbank)
 
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
@@ -1733,6 +1744,8 @@ static MACHINE_CONFIG_START( kageki, tnzs_state )
 	MCFG_CPU_PROGRAM_MAP(kageki_sub_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", tnzs_state,  irq0_line_hold)
 
+	MCFG_FRAGMENT_ADD(tnzs_mainbank)
+
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
 	MCFG_MACHINE_START_OVERRIDE(tnzs_state,tnzs)
@@ -1767,7 +1780,9 @@ static MACHINE_CONFIG_START( kageki, tnzs_state )
 	MCFG_SOUND_ROUTE(2, "mono", 0.15)
 	MCFG_SOUND_ROUTE(3, "mono", 0.35)
 
-	MCFG_SAMPLES_ADD("samples", tnzs_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_START_CB(tnzs_state, kageki_init_samples)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1786,6 +1801,8 @@ static MACHINE_CONFIG_START( tnzsb, tnzs_state )
 	MCFG_CPU_ADD("audiocpu", Z80, XTAL_12MHz/2) /* verified on pcb */
 	MCFG_CPU_PROGRAM_MAP(tnzsb_cpu2_map)
 	MCFG_CPU_IO_MAP(tnzsb_io_map)
+
+	MCFG_FRAGMENT_ADD(tnzs_mainbank)
 
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
@@ -1851,9 +1868,11 @@ static MACHINE_CONFIG_START( jpopnics, tnzs_state )
 	MCFG_CPU_PROGRAM_MAP(jpopnics_sub_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", tnzs_state,  irq0_line_hold)
 
+	MCFG_FRAGMENT_ADD(tnzs_mainbank)
+
 	MCFG_QUANTUM_PERFECT_CPU("maincpu")
 
-	MCFG_MACHINE_START_OVERRIDE(tnzs_state,jpopnics)
+	MCFG_MACHINE_START_OVERRIDE(tnzs_state,tnzs_common)
 	MCFG_MACHINE_RESET_OVERRIDE(tnzs_state,jpopnics)
 
 	MCFG_DEVICE_ADD("spritegen", SETA001_SPRITE, 0)
@@ -2638,30 +2657,38 @@ ROM_END
 
 
 //    YEAR, NAME,      PARENT,   MACHINE,  INPUT,    INIT,     MONITOR,COMPANY,FULLNAME,FLAGS
-GAME( 1987, plumppop,  0,        drtoppel, plumppop, tnzs_state, plumpop,  ROT0,   "Taito Corporation", "Plump Pop (Japan)", 0 )
-GAME( 1987, extrmatn,  0,        arknoid2, extrmatn, tnzs_state, extrmatn, ROT270, "Taito Corporation Japan", "Extermination (World)", 0 )
-GAME( 1987, extrmatnu, extrmatn, arknoid2, extrmatn, tnzs_state, extrmatn, ROT270, "Taito (World Games license)", "Extermination (US)", 0 )
-GAME( 1987, extrmatnj, extrmatn, arknoid2, extrmatn, tnzs_state, extrmatn, ROT270, "Taito Corporation", "Extermination (Japan)", 0 )
-GAME( 1987, arknoid2,  0,        arknoid2, arknoid2, tnzs_state, arknoid2, ROT270, "Taito Corporation Japan", "Arkanoid - Revenge of DOH (World)", 0 )
-GAME( 1987, arknoid2u, arknoid2, arknoid2, arknid2u, tnzs_state, arknoid2, ROT270, "Taito America Corporation (Romstar license)", "Arkanoid - Revenge of DOH (US)", 0 )
-GAME( 1987, arknoid2j, arknoid2, arknoid2, arknid2u, tnzs_state, arknoid2, ROT270, "Taito Corporation", "Arkanoid - Revenge of DOH (Japan)", 0 )
-GAME( 1987, arknoid2b, arknoid2, arknoid2, arknid2u, tnzs_state, arknoid2, ROT270, "bootleg", "Arkanoid - Revenge of DOH (Japan bootleg)", 0 )
-GAME( 1987, drtoppel,  0,        drtoppel, drtoppel, tnzs_state, drtoppel, ROT90,  "Kaneko / Taito Corporation Japan", "Dr. Toppel's Adventure (World)", 0 ) /* Possible region hack */
-GAME( 1987, drtoppelu, drtoppel, drtoppel, drtopplu, tnzs_state, drtoppel, ROT90,  "Kaneko / Taito America Corporation", "Dr. Toppel's Adventure (US)", 0 ) /* Possible region hack */
-GAME( 1987, drtoppelj, drtoppel, drtoppel, drtopplu, tnzs_state, drtoppel, ROT90,  "Kaneko / Taito Corporation", "Dr. Toppel's Tankentai (Japan)", 0 )
-GAME( 1988, kageki,    0,        kageki,   kageki, tnzs_state,   kageki,   ROT90,  "Kaneko / Taito America Corporation (Romstar license)", "Kageki (US)", 0 )
-GAME( 1988, kagekij,   kageki,   kageki,   kagekij, tnzs_state,  kageki,   ROT90,  "Kaneko / Taito Corporation", "Kageki (Japan)", 0 )
-GAME( 1992, kagekih,   kageki,   kageki,   kageki, tnzs_state,   kageki,   ROT90,  "hack", "Kageki (hack)", 0 ) // date is hacked at least, might also be a Japan set hacked to show english
-GAME( 1988, chukatai,  0,        tnzs,     chukatai, tnzs_state, chukatai, ROT0,   "Taito Corporation Japan", "Chuka Taisen (World)", 0 ) /* Possible region hack */
-GAME( 1988, chukataiu, chukatai, tnzs,     chukatau, tnzs_state, chukatai, ROT0,   "Taito America Corporation", "Chuka Taisen (US)", 0 ) /* Possible region hack */
-GAME( 1988, chukataij, chukatai, tnzs,     chukatau, tnzs_state, chukatai, ROT0,   "Taito Corporation", "Chuka Taisen (Japan)", 0 )
-GAME( 1988, tnzs,      0,        tnzsb,    tnzs, tnzs_state,     tnzsb,    ROT0,   "Taito Corporation Japan", "The NewZealand Story (World, new version) (newer PCB)", 0 )
-GAME( 1988, tnzsj,     tnzs,     tnzsb,    tnzsj, tnzs_state,    tnzsb,    ROT0,   "Taito Corporation", "The NewZealand Story (Japan, new version) (newer PCB)", 0 )
-GAME( 1988, tnzsjo,    tnzs,     tnzs,     tnzsjo, tnzs_state,   tnzs,     ROT0,   "Taito Corporation", "The NewZealand Story (Japan, old version) (older PCB)", 0 )
-GAME( 1988, tnzso,     tnzs,     tnzs,     tnzsop, tnzs_state,   tnzs,     ROT0,   "Taito Corporation Japan", "The NewZealand Story (World, old version) (older PCB)", 0 )
-GAME( 1988, tnzsop,    tnzs,     tnzs,     tnzsop, tnzs_state,   tnzs,     ROT0,   "Taito Corporation Japan", "The NewZealand Story (World, prototype?) (older PCB)", 0 )
-GAME( 1988, kabukiz,   0,        kabukiz,  kabukiz, tnzs_state,  kabukiz,  ROT0,   "Kaneko / Taito Corporation Japan", "Kabuki-Z (World)", 0 )
-GAME( 1988, kabukizj,  kabukiz,  kabukiz,  kabukizj, tnzs_state, kabukiz,  ROT0,   "Kaneko / Taito Corporation", "Kabuki-Z (Japan)", 0 )
-GAME( 1989, insectx,   0,        insectx,  insectx, tnzs_state,  insectx,  ROT0,   "Taito Corporation Japan", "Insector X (World)", 0 )
-GAME( 1989, insectxj,  insectx,  insectx,  insectxj, tnzs_state, insectx,  ROT0,   "Taito Corporation", "Insector X (Japan)", 0 )
-GAME( 1992, jpopnics,  0,        jpopnics, jpopnics, driver_device, 0,        ROT0,   "bootleg (Nics)", "Jumping Pop (Nics, Korean bootleg of Plump Pop)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1987, plumppop,  0,        drtoppel, plumppop, tnzs_state,    plumpop,  ROT0,   "Taito Corporation", "Plump Pop (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1992, jpopnics,  0,        jpopnics, jpopnics, driver_device, 0,        ROT0,   "Nics",              "Jumping Pop (Nics, Korean hack of Plump Pop)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1987, extrmatn,  0,        arknoid2, extrmatn, tnzs_state,    extrmatn, ROT270, "Taito Corporation Japan",     "Extermination (World)", GAME_SUPPORTS_SAVE )
+GAME( 1987, extrmatnu, extrmatn, arknoid2, extrmatn, tnzs_state,    extrmatn, ROT270, "Taito (World Games license)", "Extermination (US)", GAME_SUPPORTS_SAVE )
+GAME( 1987, extrmatnj, extrmatn, arknoid2, extrmatn, tnzs_state,    extrmatn, ROT270, "Taito Corporation",           "Extermination (Japan)", GAME_SUPPORTS_SAVE )
+
+GAME( 1987, arknoid2,  0,        arknoid2, arknoid2, tnzs_state,    arknoid2, ROT270, "Taito Corporation Japan",                     "Arkanoid - Revenge of DOH (World)", GAME_SUPPORTS_SAVE )
+GAME( 1987, arknoid2u, arknoid2, arknoid2, arknid2u, tnzs_state,    arknoid2, ROT270, "Taito America Corporation (Romstar license)", "Arkanoid - Revenge of DOH (US)", GAME_SUPPORTS_SAVE )
+GAME( 1987, arknoid2j, arknoid2, arknoid2, arknid2u, tnzs_state,    arknoid2, ROT270, "Taito Corporation",                           "Arkanoid - Revenge of DOH (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1987, arknoid2b, arknoid2, arknoid2, arknid2u, tnzs_state,    arknoid2, ROT270, "bootleg",                                     "Arkanoid - Revenge of DOH (Japan bootleg)", GAME_SUPPORTS_SAVE )
+
+GAME( 1987, drtoppel,  0,        drtoppel, drtoppel, tnzs_state,    drtoppel, ROT90,  "Kaneko / Taito Corporation Japan",   "Dr. Toppel's Adventure (World)", GAME_SUPPORTS_SAVE ) /* Possible region hack */
+GAME( 1987, drtoppelu, drtoppel, drtoppel, drtopplu, tnzs_state,    drtoppel, ROT90,  "Kaneko / Taito America Corporation", "Dr. Toppel's Adventure (US)", GAME_SUPPORTS_SAVE ) /* Possible region hack */
+GAME( 1987, drtoppelj, drtoppel, drtoppel, drtopplu, tnzs_state,    drtoppel, ROT90,  "Kaneko / Taito Corporation",         "Dr. Toppel's Tankentai (Japan)", GAME_SUPPORTS_SAVE )
+
+GAME( 1988, kageki,    0,        kageki,   kageki,   tnzs_state,    kageki,   ROT90,  "Kaneko / Taito America Corporation (Romstar license)", "Kageki (US)", GAME_SUPPORTS_SAVE )
+GAME( 1988, kagekij,   kageki,   kageki,   kagekij,  tnzs_state,    kageki,   ROT90,  "Kaneko / Taito Corporation",                           "Kageki (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1992, kagekih,   kageki,   kageki,   kageki,   tnzs_state,    kageki,   ROT90,  "hack",                                                 "Kageki (hack)", GAME_SUPPORTS_SAVE ) // date is hacked at least, might also be a Japan set hacked to show english
+
+GAME( 1988, chukatai,  0,        tnzs,     chukatai, tnzs_state,    chukatai, ROT0,   "Taito Corporation Japan",   "Chuka Taisen (World)", GAME_SUPPORTS_SAVE ) /* Possible region hack */
+GAME( 1988, chukataiu, chukatai, tnzs,     chukatau, tnzs_state,    chukatai, ROT0,   "Taito America Corporation", "Chuka Taisen (US)", GAME_SUPPORTS_SAVE ) /* Possible region hack */
+GAME( 1988, chukataij, chukatai, tnzs,     chukatau, tnzs_state,    chukatai, ROT0,   "Taito Corporation",         "Chuka Taisen (Japan)", GAME_SUPPORTS_SAVE )
+
+GAME( 1988, tnzs,      0,        tnzsb,    tnzs,     tnzs_state,    tnzsb,    ROT0,   "Taito Corporation Japan", "The NewZealand Story (World, new version) (newer PCB)", GAME_SUPPORTS_SAVE )
+GAME( 1988, tnzsj,     tnzs,     tnzsb,    tnzsj,    tnzs_state,    tnzsb,    ROT0,   "Taito Corporation",       "The NewZealand Story (Japan, new version) (newer PCB)", GAME_SUPPORTS_SAVE )
+GAME( 1988, tnzsjo,    tnzs,     tnzs,     tnzsjo,   tnzs_state,    tnzs,     ROT0,   "Taito Corporation",       "The NewZealand Story (Japan, old version) (older PCB)", GAME_SUPPORTS_SAVE )
+GAME( 1988, tnzso,     tnzs,     tnzs,     tnzsop,   tnzs_state,    tnzs,     ROT0,   "Taito Corporation Japan", "The NewZealand Story (World, old version) (older PCB)", GAME_SUPPORTS_SAVE )
+GAME( 1988, tnzsop,    tnzs,     tnzs,     tnzsop,   tnzs_state,    tnzs,     ROT0,   "Taito Corporation Japan", "The NewZealand Story (World, prototype?) (older PCB)", GAME_SUPPORTS_SAVE )
+
+GAME( 1988, kabukiz,   0,        kabukiz,  kabukiz,  tnzs_state,    kabukiz,  ROT0,   "Kaneko / Taito Corporation Japan", "Kabuki-Z (World)", GAME_SUPPORTS_SAVE )
+GAME( 1988, kabukizj,  kabukiz,  kabukiz,  kabukizj, tnzs_state,    kabukiz,  ROT0,   "Kaneko / Taito Corporation",       "Kabuki-Z (Japan)", GAME_SUPPORTS_SAVE )
+
+GAME( 1989, insectx,   0,        insectx,  insectx,  tnzs_state,    insectx,  ROT0,   "Taito Corporation Japan", "Insector X (World)", GAME_SUPPORTS_SAVE )
+GAME( 1989, insectxj,  insectx,  insectx,  insectxj, tnzs_state,    insectx,  ROT0,   "Taito Corporation",       "Insector X (Japan)", GAME_SUPPORTS_SAVE )

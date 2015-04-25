@@ -25,7 +25,7 @@ TODO:
 Stephh's notes :
 
   - Coin 2 as well as buttons 2 to 4 for each player are only read in "test mode".
-    Same issue for Dip Siwtches 0-7 and 1-2 to 1-6.
+    Same issue for Dip Switches 0-7 and 1-2 to 1-6.
     Some other games on the same hardware might use them.
   - Dip Switch 0 is stored at 0xf0ac and Dip Switch 1 is stored at 0xf0ad.
     However they are both read back at the same time with "ld   hl,($F0AC)" instructions.
@@ -73,7 +73,7 @@ WRITE8_MEMBER(iqblock_state::grndtour_prot_w)
 }
 
 
-TIMER_DEVICE_CALLBACK_MEMBER(iqblock_state::iqblock_irq)
+TIMER_DEVICE_CALLBACK_MEMBER(iqblock_state::irq)
 {
 	int scanline = param;
 
@@ -87,7 +87,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(iqblock_state::iqblock_irq)
 }
 
 
-WRITE8_MEMBER(iqblock_state::iqblock_irqack_w)
+WRITE8_MEMBER(iqblock_state::irqack_w)
 {
 	m_maincpu->set_input_line(0, CLEAR_LINE);
 }
@@ -119,10 +119,10 @@ static ADDRESS_MAP_START( main_portmap, AS_IO, 8, iqblock_state )
 	AM_RANGE(0x5090, 0x5090) AM_READ_PORT("SW0")
 	AM_RANGE(0x50a0, 0x50a0) AM_READ_PORT("SW1")
 	AM_RANGE(0x50b0, 0x50b1) AM_DEVWRITE("ymsnd", ym2413_device, write) // UM3567_data_port_0_w
-	AM_RANGE(0x50c0, 0x50c0) AM_WRITE(iqblock_irqack_w)
-	AM_RANGE(0x6000, 0x603f) AM_WRITE(iqblock_fgscroll_w)
-	AM_RANGE(0x6800, 0x69ff) AM_WRITE(iqblock_fgvideoram_w) AM_SHARE("fgvideoram") /* initialized up to 6fff... bug or larger tilemap? */
-	AM_RANGE(0x7000, 0x7fff) AM_RAM_WRITE(iqblock_bgvideoram_w) AM_SHARE("bgvideoram")
+	AM_RANGE(0x50c0, 0x50c0) AM_WRITE(irqack_w)
+	AM_RANGE(0x6000, 0x603f) AM_WRITE(fgscroll_w)
+	AM_RANGE(0x6800, 0x69ff) AM_WRITE(fgvideoram_w) AM_SHARE("fgvideoram") /* initialized up to 6fff... bug or larger tilemap? */
+	AM_RANGE(0x7000, 0x7fff) AM_RAM_WRITE(bgvideoram_w) AM_SHARE("bgvideoram")
 	AM_RANGE(0x8000, 0xffff) AM_ROM AM_REGION("user1", 0)
 ADDRESS_MAP_END
 
@@ -205,6 +205,87 @@ INPUT_PORTS_END
 
 
 
+static INPUT_PORTS_START( grndtour )
+	PORT_START("P1")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_START1 )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON2 )
+
+	PORT_START("P2")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN2 )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_START2 )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_COCKTAIL
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_COCKTAIL
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_COCKTAIL
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_COCKTAIL
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_COCKTAIL
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_COCKTAIL
+
+	PORT_START("EXTRA")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON3 )
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON4 )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_COCKTAIL
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_COCKTAIL
+	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
+
+	PORT_START("SW0")
+	PORT_DIPNAME( 0x01, 0x01, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x1c, 0x1c, DEF_STR( Coinage ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( 4C_1C ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( 3C_1C ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( 2C_1C ) )
+	PORT_DIPSETTING(    0x1c, DEF_STR( 1C_1C ) )
+	PORT_DIPSETTING(    0x18, DEF_STR( 1C_2C ) )
+	PORT_DIPSETTING(    0x14, DEF_STR( 1C_3C ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( 1C_4C ) )
+	PORT_DIPSETTING(    0x0c, DEF_STR( 1C_6C ) )
+	PORT_DIPNAME( 0x20, 0x00, "Attract Music" ) // NOT Demo Sounds (SFX are always played?)
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x40, 0x40, DEF_STR( Free_Play ) )
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "Gal Images" )
+	PORT_DIPSETTING(    0x00, "No" )
+	PORT_DIPSETTING(    0x80, "Yes" )
+
+	PORT_START("SW1")
+	PORT_DIPNAME( 0x01, 0x01, "Allow P2 to Join / Always Split Screen" )
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	// in Level test mode the following select the start level, do they have any effect during normal gameplay?
+	PORT_DIPNAME( 0x02, 0x02, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x02, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x04, 0x04, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x04, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x08, 0x08, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x08, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x10, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x20, 0x20, DEF_STR( Unknown ) )
+	PORT_DIPSETTING(    0x20, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0xc0, 0xc0, "Test Mode" )
+	PORT_DIPSETTING(    0xc0, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x80, "Background Test" )
+	PORT_DIPSETTING(    0x40, "Input Test" )
+	PORT_DIPSETTING(    0x00, "Level Test / Debug Mode (use 5 above switches)" )
+INPUT_PORTS_END
+
 static const gfx_layout tilelayout1 =
 {
 	8,8,
@@ -259,7 +340,7 @@ static MACHINE_CONFIG_START( iqblock, iqblock_state )
 	MCFG_CPU_ADD("maincpu", Z80,12000000/2) /* 6 MHz */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_IO_MAP(main_portmap)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", iqblock_state, iqblock_irq, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", iqblock_state, irq, "screen", 0, 1)
 
 	MCFG_DEVICE_ADD("ppi8255", I8255A, 0)
 	MCFG_I8255_IN_PORTA_CB(IOPORT("P1"))
@@ -273,7 +354,7 @@ static MACHINE_CONFIG_START( iqblock, iqblock_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 64*8-1, 0*8, 30*8-1)
-	MCFG_SCREEN_UPDATE_DRIVER(iqblock_state, screen_update_iqblock)
+	MCFG_SCREEN_UPDATE_DRIVER(iqblock_state, screen_update)
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", iqblock)
@@ -450,5 +531,5 @@ DRIVER_INIT_MEMBER(iqblock_state,grndtour)
 
 
 
-GAME( 1993, iqblock,  0, iqblock,  iqblock, iqblock_state, iqblock,  ROT0, "IGS", "IQ-Block", 0 )
-GAME( 1993, grndtour, 0, iqblock,  iqblock, iqblock_state, grndtour, ROT0, "IGS", "Grand Tour", 0 )
+GAME( 1993, iqblock,  0, iqblock,  iqblock, iqblock_state, iqblock,  ROT0, "IGS", "IQ-Block", GAME_SUPPORTS_SAVE )
+GAME( 1993, grndtour, 0, iqblock,  grndtour,iqblock_state, grndtour, ROT0, "IGS", "Grand Tour", GAME_SUPPORTS_SAVE )

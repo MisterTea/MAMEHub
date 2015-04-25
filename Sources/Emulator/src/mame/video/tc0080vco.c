@@ -191,7 +191,7 @@ void tc0080vco_device::device_start()
 	m_scroll_ram    = m_ram + 0x20800 / 2;
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	m_gfxdecode->set_gfx(m_txnum, global_alloc(gfx_element(m_palette, charlayout, (UINT8 *)m_char_ram, 0, 64, 0)));
+	m_gfxdecode->set_gfx(m_txnum, global_alloc(gfx_element(m_palette, charlayout, (UINT8 *)m_char_ram, 0, 1, 512)));
 
 	save_pointer(NAME(m_ram), TC0080VCO_RAM_SIZE / 2);
 	machine().save().register_postload(save_prepost_delegate(FUNC(tc0080vco_device::postload), this));
@@ -273,8 +273,8 @@ TILE_GET_INFO_MEMBER(tc0080vco_device::get_tx_tile_info)
 
 	SET_TILE_INFO_MEMBER(m_txnum,
 			tile,
-			0x40,
-			0);     /* 0x20<<1 as 3bpp */
+			0,
+			0);
 }
 
 
@@ -439,11 +439,10 @@ void tc0080vco_device::bg0_tilemap_draw( screen_device &screen, bitmap_ind16 &bi
 
 		int sx, zoomx, zoomy;
 		int dx, ex, dy, ey;
-		int i, y, y_index, src_y_index, row_index;
+		int y_index, src_y_index, row_index;
 		int x_index, x_step;
 
 		int flip = m_flipscreen;
-		int machine_flip = 0;   /* for  ROT 180 ? */
 
 		int min_x = cliprect.min_x;
 		int max_x = cliprect.max_x;
@@ -501,12 +500,7 @@ void tc0080vco_device::bg0_tilemap_draw( screen_device &screen, bitmap_ind16 &bi
 			y_index = ((-m_scroll_ram[3] - 2) << 16) + min_y * zoomy - (max_y + min_y) * (zoomy - 0x10000);
 		}
 
-		if (!machine_flip)
-			y = min_y;
-		else
-			y = max_y;
-
-		do
+		for (int y = min_y; y <= max_y; y++)
 		{
 			src_y_index = (y_index >> 16) & 0x3ff;  /* tilemaps are 1024 px up/down */
 
@@ -525,7 +519,7 @@ void tc0080vco_device::bg0_tilemap_draw( screen_device &screen, bitmap_ind16 &bi
 
 			if (flags & TILEMAP_DRAW_OPAQUE)
 			{
-				for (i = 0; i < screen_width; i++)
+				for (int i = 0; i < screen_width; i++)
 				{
 					*dst16++ = src16[(x_index >> 16) & width_mask];
 					x_index += x_step;
@@ -533,7 +527,7 @@ void tc0080vco_device::bg0_tilemap_draw( screen_device &screen, bitmap_ind16 &bi
 			}
 			else
 			{
-				for (i = 0; i < screen_width; i++)
+				for (int i = 0; i < screen_width; i++)
 				{
 					if (tsrc[(x_index >> 16) & width_mask])
 						*dst16++ = src16[(x_index >> 16) & width_mask];
@@ -546,13 +540,7 @@ void tc0080vco_device::bg0_tilemap_draw( screen_device &screen, bitmap_ind16 &bi
 			taitoic_drawscanline(bitmap, cliprect, 0, y, scanline, (flags & TILEMAP_DRAW_OPAQUE) ? 0 : 1 , ROT0, screen.priority(), priority);
 
 			y_index += zoomy;
-
-			if (!machine_flip)
-				y++;
-			else
-				y--;
 		}
-		while ((!machine_flip && y <= max_y) || (machine_flip && y >= min_y));
 	}
 }
 

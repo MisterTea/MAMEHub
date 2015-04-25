@@ -6,6 +6,12 @@
 #include "cpu/scudsp/scudsp.h"
 #include "cpu/sh2/sh2.h"
 
+#include "bus/generic/slot.h"
+#include "bus/generic/carts.h"
+
+#include "machine/315-5881_crypt.h"
+#include "machine/315-5838_317-0229_comp.h"
+
 #define MAX_FILTERS (24)
 #define MAX_BLOCKS  (200)
 #define MAX_DIR_SIZE    (256*1024)
@@ -25,8 +31,12 @@ public:
 			m_audiocpu(*this, "audiocpu"),
 			m_scudsp(*this, "scudsp"),
 			m_eeprom(*this, "eeprom"),
-		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette")
+			m_cart1(*this, "stv_slot1"),
+			m_cart2(*this, "stv_slot2"),
+			m_cart3(*this, "stv_slot3"),
+			m_cart4(*this, "stv_slot4"),
+			m_gfxdecode(*this, "gfxdecode"),
+			m_palette(*this, "palette")
 	{
 	}
 
@@ -36,6 +46,7 @@ public:
 	required_shared_ptr<UINT16> m_sound_ram;
 	optional_ioport m_fake_comms;
 
+	memory_region *m_cart_reg[4];
 	UINT8     *m_backupram;
 	UINT32    *m_scu_regs;
 	UINT16    *m_scsp_regs;
@@ -132,6 +143,8 @@ public:
 	struct {
 		UINT8 status;
 		UINT8 data;
+		UINT8 prev_data;
+		UINT16 repeat_count;
 	}m_keyb;
 
 	/* Saturn specific*/
@@ -152,8 +165,14 @@ public:
 	required_device<m68000_base_device> m_audiocpu;
 	required_device<scudsp_cpu_device> m_scudsp;
 	optional_device<eeprom_serial_93cxx_device> m_eeprom;
+	optional_device<generic_slot_device> m_cart1;
+	optional_device<generic_slot_device> m_cart2;
+	optional_device<generic_slot_device> m_cart3;
+	optional_device<generic_slot_device> m_cart4;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
+
+
 
 	bitmap_rgb32 m_tmpbitmap;
 	DECLARE_VIDEO_START(stv_vdp2);
@@ -649,7 +668,6 @@ public:
 	DECLARE_WRITE16_MEMBER(scudsp_dma_w);
 
 	// FROM smpc.c
-	TIMER_CALLBACK_MEMBER( stv_bankswitch_state );
 	void stv_select_game(int gameno);
 	void smpc_master_on();
 	TIMER_CALLBACK_MEMBER( smpc_slave_enable );
@@ -683,7 +701,9 @@ public:
 	stv_state(const machine_config &mconfig, device_type type, const char *tag)
 		: saturn_state(mconfig, type, tag),
 		m_adsp(*this, "adsp"),
-		m_adsp_pram(*this, "adsp_pram")
+		m_adsp_pram(*this, "adsp_pram"),
+		m_cryptdevice(*this, "315_5881"),
+		m_5838crypt(*this, "315_5838")
 	{
 	}
 
@@ -750,7 +770,11 @@ public:
 	DECLARE_READ32_MEMBER(magzun_hef_hack_r);
 	DECLARE_READ32_MEMBER(magzun_rx_hack_r);
 
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( stv_cart );
+	int load_cart(device_image_interface &image, generic_slot_device *slot);
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( stv_cart1 ) { return load_cart(image, m_cart1); }
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( stv_cart2 ) { return load_cart(image, m_cart2); }
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( stv_cart3 ) { return load_cart(image, m_cart3); }
+	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( stv_cart4 ) { return load_cart(image, m_cart4); }
 
 	void install_stvbios_speedups( void );
 
@@ -776,44 +800,23 @@ public:
 
 	// protection specific variables and functions (see machine/stvprot.c)
 	UINT32 m_abus_protenable;
-	UINT32 m_abus_prot_addr;
 	UINT32 m_abus_protkey;
 
 	UINT32 m_a_bus[4];
-	UINT32 m_ctrl_index;
-	UINT32 m_internal_counter;
-	UINT8 m_char_offset; //helper to jump the decoding of the NULL chars.
-
-	UINT32 (*m_prot_readback)(address_space&,int,UINT32);
 
 	DECLARE_READ32_MEMBER( common_prot_r );
 	DECLARE_WRITE32_MEMBER( common_prot_w );
 
 	void install_common_protection();
-
-	void install_twcup98_protection();
-	void install_sss_protection();
-	void install_astrass_protection();
-	void install_rsgun_protection();
-	void install_elandore_protection();
-	void install_ffreveng_protection();
-
 	void stv_register_protection_savestates();
 
-	// Decathlete specific variables and functions (see machine/decathlt.c)
-	UINT32 m_decathlt_protregs[4];
-	UINT32 m_decathlt_lastcount;
-	UINT32 m_decathlt_part;
-	UINT32 m_decathlt_prot_uploadmode;
-	UINT32 m_decathlt_prot_uploadoffset;
-	UINT16 m_decathlt_prottable1[24];
-	UINT16 m_decathlt_prottable2[128];
 
-	DECLARE_READ32_MEMBER( decathlt_prot_r );
-	DECLARE_WRITE32_MEMBER( decathlt_prot1_w );
-	DECLARE_WRITE32_MEMBER( decathlt_prot2_w );
-	void write_prot_data(UINT32 data, UINT32 mem_mask, int offset, int which);
-	void install_decathlt_protection();
+
+	optional_device<sega_315_5881_crypt_device> m_cryptdevice;
+	optional_device<sega_315_5838_comp_device> m_5838crypt;
+	UINT16 crypt_read_callback(UINT32 addr);
+	UINT16 crypt_read_callback_ch1(UINT32 addr);
+	UINT16 crypt_read_callback_ch2(UINT32 addr);
 };
 
 

@@ -1134,6 +1134,7 @@ void i386_device::i386_repeat(int invert_flag)
 		break;
 		case 0x66:
 		m_operand_size ^= 1;
+		m_xmm_operand_size ^= 1;
 		break;
 		case 0x67:
 		m_address_size ^= 1;
@@ -2286,6 +2287,7 @@ void i386_device::i386_operand_size()      // Opcode prefix 0x66
 	if(m_operand_prefix == 0)
 	{
 		m_operand_size ^= 1;
+		m_xmm_operand_size ^= 1;
 		m_operand_prefix = 1;
 	}
 	m_opcode = FETCH();
@@ -2483,7 +2485,7 @@ void i386_device::i386_wait()              // Opcode 0x9B
 void i386_device::i386_lock()              // Opcode 0xf0
 {
 	// lock doesn't depend on iopl on 386
-	// TODO: lock causes UD on unlockable opcodes
+	m_lock = true;
 	CYCLES(CYCLES_LOCK);       // TODO: Determine correct cycle count
 	i386_decode_opcode();
 }

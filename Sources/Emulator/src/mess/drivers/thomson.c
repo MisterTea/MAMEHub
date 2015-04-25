@@ -715,11 +715,10 @@ static MACHINE_CONFIG_START( to7, thomson_state )
 
 
 /* cartridge */
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("m7,rom")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(thomson_state,to7_cartridge)
-	MCFG_CARTSLOT_INTERFACE("to7_cart")
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "to7_cart")
+	MCFG_GENERIC_EXTENSIONS("m7,rom")
+	MCFG_GENERIC_LOAD(thomson_state, to7_cartridge)
+
 	MCFG_SOFTWARE_LIST_ADD("cart_list","to7_cart")
 
 /* internal ram */
@@ -906,8 +905,11 @@ static MACHINE_CONFIG_DERIVED( to770, to7 )
 	MCFG_DEVICE_MODIFY("mc6846")
 	MCFG_MC6846_OUT_PORT_CB(WRITE8(thomson_state, to770_timer_port_out))
 
-	MCFG_CARTSLOT_MODIFY("cart")
-	MCFG_CARTSLOT_INTERFACE("to770_cart")
+	MCFG_DEVICE_REMOVE("cartslot")
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "to770_cart")
+	MCFG_GENERIC_EXTENSIONS("m7,rom")
+	MCFG_GENERIC_LOAD(thomson_state, to7_cartridge)
+
 	MCFG_DEVICE_REMOVE("cart_list")
 	MCFG_SOFTWARE_LIST_ADD("cart_list","to770_cart")
 
@@ -1091,6 +1093,9 @@ static MACHINE_CONFIG_DERIVED( mo5, to7 )
 
 	MCFG_DEVICE_REMOVE( "mc6846" )
 
+		MCFG_PALETTE_MODIFY( "palette" )
+	MCFG_PALETTE_INIT_OWNER(thomson_state, mo5)
+
 	MCFG_DEVICE_MODIFY(THOM_PIA_SYS)
 	MCFG_PIA_READPA_HANDLER(READ8(thomson_state, mo5_sys_porta_in))
 	MCFG_PIA_READPB_HANDLER(READ8(thomson_state, mo5_sys_portb_in))
@@ -1100,10 +1105,10 @@ static MACHINE_CONFIG_DERIVED( mo5, to7 )
 	MCFG_PIA_CB2_HANDLER(NULL)
 	MCFG_PIA_IRQB_HANDLER(WRITELINE(thomson_state, thom_irq_1)) /* WARNING: differs from TO7 ! */
 
-	MCFG_CARTSLOT_MODIFY("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("m5,rom")
-	MCFG_CARTSLOT_LOAD(thomson_state,mo5_cartridge)
-	MCFG_CARTSLOT_INTERFACE("mo5_cart")
+	MCFG_DEVICE_REMOVE("cartslot")
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "mo5_cart")
+	MCFG_GENERIC_EXTENSIONS("m5,rom")
+	MCFG_GENERIC_LOAD(thomson_state, mo5_cartridge)
 
 	MCFG_DEVICE_REMOVE("cart_list")
 	MCFG_SOFTWARE_LIST_ADD("cart_list","mo5_cart")
@@ -1446,7 +1451,7 @@ static MACHINE_CONFIG_DERIVED( to9, to7 )
 	MCFG_DEVICE_MODIFY("mc6846")
 	MCFG_MC6846_OUT_PORT_CB(WRITE8(thomson_state, to9_timer_port_out))
 
-	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
 
 	/* internal ram */
@@ -1665,7 +1670,7 @@ static MACHINE_CONFIG_DERIVED( to8, to7 )
 	MCFG_PIA_CB2_HANDLER(NULL)
 	MCFG_PIA_IRQA_HANDLER(NULL)
 
-	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
 
 	MCFG_DEVICE_MODIFY("mc6846")
@@ -1821,7 +1826,7 @@ static MACHINE_CONFIG_DERIVED( to9p, to7 )
 	MCFG_PIA_IRQA_HANDLER(NULL)
 	MCFG_PIA_IRQB_HANDLER(WRITELINE(thomson_state, thom_firq_1))
 
-	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
 
 	MCFG_DEVICE_MODIFY("mc6846")
@@ -2171,14 +2176,15 @@ static MACHINE_CONFIG_DERIVED( mo6, to7 )
 	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, mo6_game_porta_out))
 	MCFG_PIA_CB2_HANDLER(WRITELINE(thomson_state, mo6_game_cb2_out))
 
-	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
 
 	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
-	MCFG_CARTSLOT_MODIFY("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("m5,rom")
-	MCFG_CARTSLOT_LOAD(thomson_state, mo5_cartridge)
+	MCFG_DEVICE_REMOVE("cartslot")
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "mo5_cart")
+	MCFG_GENERIC_EXTENSIONS("m5,rom")
+	MCFG_GENERIC_LOAD(thomson_state, mo5_cartridge)
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)
@@ -2410,16 +2416,17 @@ static MACHINE_CONFIG_DERIVED( mo5nr, to7 )
 	MCFG_DEVICE_MODIFY(THOM_PIA_GAME)
 	MCFG_PIA_WRITEPA_HANDLER(WRITE8(thomson_state, mo6_game_porta_out))
 
-	MCFG_CENTRONICS_ADD("centronics", centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD("centronics", centronics_devices, "printer")
 	MCFG_CENTRONICS_DATA_INPUT_BUFFER("cent_data_in")
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(thomson_state, write_centronics_busy))
 
 	MCFG_DEVICE_ADD("cent_data_in", INPUT_BUFFER, 0)
 	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 
-	MCFG_CARTSLOT_MODIFY("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("m5,rom")
-	MCFG_CARTSLOT_LOAD(thomson_state, mo5_cartridge)
+	MCFG_DEVICE_REMOVE("cartslot")
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "mo5_cart")
+	MCFG_GENERIC_EXTENSIONS("m5,rom")
+	MCFG_GENERIC_LOAD(thomson_state, mo5_cartridge)
 
 	/* internal ram */
 	MCFG_RAM_MODIFY(RAM_TAG)

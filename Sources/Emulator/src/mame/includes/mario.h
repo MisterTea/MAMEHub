@@ -1,8 +1,16 @@
 #ifndef MARIO_H_
 #define MARIO_H_
 
-#include "sound/discrete.h"
 #include "machine/z80dma.h"
+
+#define OLD_SOUND   (1)
+
+#if !OLD_SOUND
+#include "machine/netlist.h"
+#include "netlist/devices/net_lib.h"
+#else
+#include "sound/discrete.h"
+#endif
 
 /*
  * From the schematics:
@@ -31,25 +39,45 @@
 #define I8035_MASTER_CLOCK      XTAL_11MHz /* verified on pcb: 730Khz */
 #define I8035_CLOCK             (I8035_MASTER_CLOCK)
 
-#define MARIO_PALETTE_LENGTH    (256)
-
 class mario_state : public driver_device
 {
 public:
 	mario_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_spriteram(*this, "spriteram"),
-		m_videoram(*this, "videoram"),
-		m_discrete(*this, "discrete"),
+
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_gfxdecode(*this, "gfxdecode"),
 		m_palette(*this, "palette"),
-		m_z80dma(*this, "z80dma") { }
+		m_z80dma(*this, "z80dma"),
+#if OLD_SOUND
+		m_discrete(*this, "discrete"),
+#else
+		m_audio_snd0(*this, "snd_nl:snd0"),
+		m_audio_snd7(*this, "snd_nl:snd7"),
+		m_audio_dac(*this, "snd_nl:dac"),
+#endif
+		m_spriteram(*this, "spriteram"),
+		m_videoram(*this, "videoram"),
+		m_monitor(0) { }
+
+	/* devices */
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<palette_device> m_palette;
+	optional_device<z80dma_device> m_z80dma;
+#if OLD_SOUND
+	optional_device<discrete_device> m_discrete;
+#else
+	optional_device<netlist_mame_logic_input_t> m_audio_snd0;
+	optional_device<netlist_mame_logic_input_t> m_audio_snd7;
+	optional_device<netlist_mame_logic_input_t> m_audio_dac;
+#endif
 
 	/* memory pointers */
-
-	/* machine states */
+	required_shared_ptr<UINT8> m_spriteram;
+	required_shared_ptr<UINT8> m_videoram;
 
 	/* sound state */
 	UINT8   m_last;
@@ -61,12 +89,6 @@ public:
 	UINT8   m_palette_bank;
 	UINT16  m_gfx_scroll;
 	UINT8   m_flip;
-
-	/* driver general */
-
-	required_shared_ptr<UINT8> m_spriteram;
-	required_shared_ptr<UINT8> m_videoram;
-	optional_device<discrete_device> m_discrete;
 	tilemap_t *m_bg_tilemap;
 	int m_monitor;
 
@@ -76,6 +98,7 @@ public:
 	DECLARE_WRITE8_MEMBER(mario_gfxbank_w);
 	DECLARE_WRITE8_MEMBER(mario_palettebank_w);
 	DECLARE_WRITE8_MEMBER(mario_scroll_w);
+	DECLARE_WRITE8_MEMBER(mariobl_scroll_w);
 	DECLARE_WRITE8_MEMBER(mario_flip_w);
 	DECLARE_READ8_MEMBER(mario_sh_p1_r);
 	DECLARE_READ8_MEMBER(mario_sh_p2_r);
@@ -93,19 +116,16 @@ public:
 	virtual void sound_start();
 	virtual void sound_reset();
 	DECLARE_PALETTE_INIT(mario);
+	UINT32 screen_update_common(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_mario(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+	UINT32 screen_update_mariobl(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	INTERRUPT_GEN_MEMBER(vblank_irq);
 	DECLARE_WRITE8_MEMBER(mario_sh_sound_w);
 	DECLARE_WRITE8_MEMBER(mario_sh1_w);
 	DECLARE_WRITE8_MEMBER(mario_sh2_w);
 	DECLARE_READ8_MEMBER(memory_read_byte);
 	DECLARE_WRITE8_MEMBER(memory_write_byte);
-	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
-	required_device<cpu_device> m_audiocpu;
-	required_device<gfxdecode_device> m_gfxdecode;
-	required_device<palette_device> m_palette;
-	required_device<z80dma_device> m_z80dma;
+	void draw_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int is_bootleg);
 };
 
 /*----------- defined in audio/mario.c -----------*/

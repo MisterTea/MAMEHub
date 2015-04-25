@@ -466,6 +466,8 @@ hardware modification to the security cart.....
 #include "bus/scsi/scsicd.h"
 #include "machine/wd33c93.h"
 
+#include "sfiii2.lh"
+
 #define MASTER_CLOCK    42954500
 
 #define DEBUG_PRINTF 0
@@ -739,9 +741,9 @@ UINT32 cps3_state::cps3_mask(UINT32 address, UINT32 key1, UINT32 key2)
 void cps3_state::cps3_decrypt_bios()
 {
 	int i;
-	UINT32 *coderegion = (UINT32*)memregion("user1")->base();
+	UINT32 *coderegion = (UINT32*)memregion("bios")->base();
 
-	m_decrypted_bios = (UINT32*)memregion("user1")->base();
+	m_decrypted_bios = (UINT32*)memregion("bios")->base();
 
 	for (i=0;i<0x80000;i+=4)
 	{
@@ -1363,7 +1365,7 @@ DIRECT_UPDATE_MEMBER(cps3_state::cps3_direct_handler)
 	/* BIOS ROM */
 	if (address < 0x80000)
 	{
-		direct.explicit_configure(0x00000, 0x7ffff, 0x7ffff, *memregion("user1"));
+		direct.explicit_configure(0x00000, 0x7ffff, 0x7ffff, m_decrypted_bios);
 		return ~0;
 	}
 	/* RAM */
@@ -1766,7 +1768,6 @@ READ32_MEMBER(cps3_state::cps3_eeprom_r)
 	//  if(DEBUG_PRINTF) printf("unk read eeprom addr %04x, mask %08x\n", addr, mem_mask);
 		return 0x00000000;
 	}
-	return 0x00000000;
 }
 
 WRITE32_MEMBER(cps3_state::cps3_eeprom_w)
@@ -2182,7 +2183,7 @@ WRITE32_MEMBER(cps3_state::cps3_colourram_w)
 
 /* there are more unknown writes, but you get the idea */
 static ADDRESS_MAP_START( cps3_map, AS_PROGRAM, 32, cps3_state )
-	AM_RANGE(0x00000000, 0x0007ffff) AM_ROM AM_REGION("user1", 0) // Bios ROM
+	AM_RANGE(0x00000000, 0x0007ffff) AM_ROM AM_REGION("bios", 0) // Bios ROM
 	AM_RANGE(0x02000000, 0x0207ffff) AM_RAM AM_SHARE("mainram") // Main RAM
 
 	AM_RANGE(0x03000000, 0x030003ff) AM_RAM // 'FRAM' (SFIII memory test mode ONLY)
@@ -2641,7 +2642,7 @@ MACHINE_CONFIG_END
 /* CD sets - use CD BIOS roms */
 
 ROM_START( redearth )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "redearth_euro.29f400.u2", 0x000000, 0x080000, CRC(02e0f336) SHA1(acc37e830dfeb9674f5a0fb24f4cc23217ae4ff5) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2649,7 +2650,7 @@ ROM_START( redearth )
 ROM_END
 
 ROM_START( redearthr1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "redearth_euro.29f400.u2", 0x000000, 0x080000, CRC(02e0f336) SHA1(acc37e830dfeb9674f5a0fb24f4cc23217ae4ff5) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2657,7 +2658,7 @@ ROM_START( redearthr1 )
 ROM_END
 
 ROM_START( warzard )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "warzard_japan.29f400.u2", 0x000000, 0x080000, CRC(f8e2f0c6) SHA1(93d6a986f44c211fff014e55681eca4d2a2774d6) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2665,7 +2666,7 @@ ROM_START( warzard )
 ROM_END
 
 ROM_START( warzardr1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "warzard_japan.29f400.u2", 0x000000, 0x080000, CRC(f8e2f0c6) SHA1(93d6a986f44c211fff014e55681eca4d2a2774d6) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2674,7 +2675,7 @@ ROM_END
 
 
 ROM_START( sfiii )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii_euro.29f400.u2", 0x000000, 0x080000, CRC(27699ddc) SHA1(d8b525cd27e584560b129598df31fd2c5b2a682a) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2682,7 +2683,7 @@ ROM_START( sfiii )
 ROM_END
 
 ROM_START( sfiiiu )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii_usa_region_b1.29f400.u2", 0x000000, 0x080000, CRC(fb172a8e) SHA1(48ebf59910f246835f7dc0c588da30f7a908072f) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2690,7 +2691,7 @@ ROM_START( sfiiiu )
 ROM_END
 
 ROM_START( sfiiia )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii_asia_region_bd.29f400.u2", 0x000000, 0x080000,  CRC(cbd28de7) SHA1(9c15ecb73b9587d20850e62e8683930a45caa01b) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2698,7 +2699,7 @@ ROM_START( sfiiia )
 ROM_END
 
 ROM_START( sfiiij )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii_japan.29f400.u2", 0x000000, 0x080000, CRC(74205250) SHA1(c3e83ace7121d32da729162662ec6b5285a31211) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2706,7 +2707,7 @@ ROM_START( sfiiij )
 ROM_END
 
 ROM_START( sfiiih )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii_hispanic.29f400.u2", 0x000000, 0x080000, CRC(d2b3cd48) SHA1(00ebb270c24a66515c97e35331de54ff5358000e) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2715,7 +2716,7 @@ ROM_END
 
 
 ROM_START( sfiii2 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii2_usa.29f400.u2", 0x000000, 0x080000, CRC(75dd72e0) SHA1(5a12d6ea6734df5de00ecee6f9ef470749d2f242) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2723,7 +2724,7 @@ ROM_START( sfiii2 )
 ROM_END
 
 ROM_START( sfiii2j )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii2_japan.29f400.u2", 0x000000, 0x080000, CRC(faea0a3e) SHA1(a03cd63bcf52e4d57f7a598c8bc8e243694624ec) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2732,7 +2733,7 @@ ROM_END
 
 
 ROM_START( jojo )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_usa.29f400.u2", 0x000000, 0x080000, CRC(8d40f7be) SHA1(2a4bd83db2f959c33b071e517941aa55a0f919c0) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2740,7 +2741,7 @@ ROM_START( jojo )
 ROM_END
 
 ROM_START( jojor1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_usa.29f400.u2", 0x000000, 0x080000, CRC(8d40f7be) SHA1(2a4bd83db2f959c33b071e517941aa55a0f919c0) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2748,7 +2749,7 @@ ROM_START( jojor1 )
 ROM_END
 
 ROM_START( jojor2 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_usa.29f400.u2", 0x000000, 0x080000, CRC(8d40f7be) SHA1(2a4bd83db2f959c33b071e517941aa55a0f919c0) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2756,7 +2757,7 @@ ROM_START( jojor2 )
 ROM_END
 
 ROM_START( jojoj )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_japan.29f400.u2", 0x000000, 0x080000, CRC(02778f60) SHA1(a167f9ebe030592a0cdb0c6a3c75835c6a43be4c) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2764,7 +2765,7 @@ ROM_START( jojoj )
 ROM_END
 
 ROM_START( jojojr1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_japan.29f400.u2", 0x000000, 0x080000, CRC(02778f60) SHA1(a167f9ebe030592a0cdb0c6a3c75835c6a43be4c) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2772,7 +2773,7 @@ ROM_START( jojojr1 )
 ROM_END
 
 ROM_START( jojojr2 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_japan.29f400.u2", 0x000000, 0x080000, CRC(02778f60) SHA1(a167f9ebe030592a0cdb0c6a3c75835c6a43be4c) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2781,7 +2782,7 @@ ROM_END
 
 
 ROM_START( sfiii3 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_euro.29f400.u2", 0x000000, 0x080000, CRC(30bbf293) SHA1(f094c2eeaf4f6709060197aca371a4532346bf78) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2789,7 +2790,7 @@ ROM_START( sfiii3 )
 ROM_END
 
 ROM_START( sfiii3r1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_euro.29f400.u2", 0x000000, 0x080000, CRC(30bbf293) SHA1(f094c2eeaf4f6709060197aca371a4532346bf78) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2797,7 +2798,7 @@ ROM_START( sfiii3r1 )
 ROM_END
 
 ROM_START( sfiii3u )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_usa.29f400.u2", 0x000000, 0x080000, CRC(ecc545c1) SHA1(e39083820aae914fd8b80c9765129bedb745ceba) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2805,7 +2806,7 @@ ROM_START( sfiii3u )
 ROM_END
 
 ROM_START( sfiii3ur1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_usa.29f400.u2", 0x000000, 0x080000, CRC(ecc545c1) SHA1(e39083820aae914fd8b80c9765129bedb745ceba) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2814,7 +2815,7 @@ ROM_END
 
 
 ROM_START( jojoba )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojoba_japan.29f400.u2", 0x000000, 0x080000, CRC(3085478c) SHA1(055eab1fc42816f370a44b17fd7e87ffcb10e8b7) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2822,7 +2823,7 @@ ROM_START( jojoba )
 ROM_END
 
 ROM_START( jojobar1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojoba_japan.29f400.u2", 0x000000, 0x080000, CRC(3085478c) SHA1(055eab1fc42816f370a44b17fd7e87ffcb10e8b7) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -2836,8 +2837,8 @@ ROM_END
 /* NO CD sets - use NO CD BIOS roms - don't require the CD image to boot */
 
 ROM_START( sfiiin )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
-	ROM_LOAD( "(__sfiiin)sfiii_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(ca2b715f) SHA1(86319987f9af4afd272a2488e73de8382743cb37) ) // this is a different VERSION of the bios compared to all other sets, not just an alt region code
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
+	ROM_LOAD( "sfiii_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(ca2b715f) SHA1(86319987f9af4afd272a2488e73de8382743cb37) ) // this is a different VERSION of the bios compared to all other sets, not just an alt region code
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
 	ROM_LOAD( "sfiii-simm1.0", 0x00000, 0x200000, CRC(cfc9e45a) SHA1(5d9061f76680642e730373e3ac29b24926dc5c0c) )
@@ -2890,8 +2891,8 @@ ROM_END
 
 
 ROM_START( sfiiina )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
-	ROM_LOAD( "(__sfiiina)sfiii_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(73e32463) SHA1(45d144e533e4b20cc5a744ca4f618e288430c601) )
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
+	ROM_LOAD( "sfiii_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(73e32463) SHA1(45d144e533e4b20cc5a744ca4f618e288430c601) ) // sldh
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
 	ROM_LOAD( "sfiii-simm1.0", 0x00000, 0x200000, CRC(cfc9e45a) SHA1(5d9061f76680642e730373e3ac29b24926dc5c0c) )
@@ -2943,7 +2944,7 @@ ROM_START( sfiiina )
 ROM_END
 
 ROM_START( sfiii2n )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii2_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(fd297c0d) SHA1(4323deda2789f104b53f32a663196ec16de73215) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
@@ -3017,26 +3018,26 @@ ROM_START( sfiii2n )
 ROM_END
 
 ROM_START( jojon )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(05b4f953) SHA1(c746c7bb5359acc9adced817cb4870b1912eaefd) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "jojo(__990128)-simm1.0", 0x00000, 0x200000, CRC(9516948b) SHA1(4d7e6c1eb7d1bebff2a5069bcd186070a9105474) )
+	ROM_LOAD( "jojo-simm1.0", 0x00000, 0x200000, CRC(9516948b) SHA1(4d7e6c1eb7d1bebff2a5069bcd186070a9105474) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "jojo(__990128)-simm1.1", 0x00000, 0x200000, CRC(a847848d) SHA1(4df70309395f1d2a2e8f85bc34e17453d4a76f81) )
+	ROM_LOAD( "jojo-simm1.1", 0x00000, 0x200000, CRC(a847848d) SHA1(4df70309395f1d2a2e8f85bc34e17453d4a76f81) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "jojo(__990128)-simm1.2", 0x00000, 0x200000, CRC(853e8846) SHA1(d120b7e2de9502e3261e8dd101f97589b2ed1c38) )
+	ROM_LOAD( "jojo-simm1.2", 0x00000, 0x200000, CRC(853e8846) SHA1(d120b7e2de9502e3261e8dd101f97589b2ed1c38) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "jojo(__990128)-simm1.3", 0x00000, 0x200000, CRC(c04fe00e) SHA1(d09409b77460d19b56aaaf4a64356f3d37a1ee41) )
+	ROM_LOAD( "jojo-simm1.3", 0x00000, 0x200000, CRC(c04fe00e) SHA1(d09409b77460d19b56aaaf4a64356f3d37a1ee41) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
-	ROM_LOAD( "jojo(__990128)-simm2.0", 0x00000, 0x200000, CRC(e1a4b3c8) SHA1(5dc298431644e1ca470aaab752a7d74f2f9dc7a1) )
+	ROM_LOAD( "jojo-simm2.0", 0x00000, 0x200000, CRC(e1a4b3c8) SHA1(5dc298431644e1ca470aaab752a7d74f2f9dc7a1) ) // sldh
 	ROM_REGION( 0x200000, "simm2.1", 0 )
-	ROM_LOAD( "jojo(__990128)-simm2.1", 0x00000, 0x200000, CRC(189cef95) SHA1(ebe42a019358461557f69fb17d65d84d0f733415) )
+	ROM_LOAD( "jojo-simm2.1", 0x00000, 0x200000, CRC(189cef95) SHA1(ebe42a019358461557f69fb17d65d84d0f733415) ) // sldh
 	ROM_REGION( 0x200000, "simm2.2", 0 )
-	ROM_LOAD( "jojo(__990128)-simm2.2", 0x00000, 0x200000, CRC(47db5ec6) SHA1(e80271e4013e4391c2cc4229ff1fbd4a2b7c6f04) )
+	ROM_LOAD( "jojo-simm2.2", 0x00000, 0x200000, CRC(47db5ec6) SHA1(e80271e4013e4391c2cc4229ff1fbd4a2b7c6f04) ) // sldh
 	ROM_REGION( 0x200000, "simm2.3", 0 )
-	ROM_LOAD( "jojo(__990128)-simm2.3", 0x00000, 0x200000, CRC(e3d3a155) SHA1(75e9b5da93dd8894cf70fa4dac56f3958be4c766) )
+	ROM_LOAD( "jojo-simm2.3", 0x00000, 0x200000, CRC(e3d3a155) SHA1(75e9b5da93dd8894cf70fa4dac56f3958be4c766) ) // sldh
 
 	ROM_REGION( 0x200000, "simm3.0", 0 )
 	ROM_LOAD( "jojo-simm3.0", 0x00000, 0x200000, CRC(de7fc9c1) SHA1(662b85a990b04c855773506c936317e62fab4a05) )
@@ -3079,26 +3080,26 @@ ROM_START( jojon )
 ROM_END
 
 ROM_START( jojonr1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(05b4f953) SHA1(c746c7bb5359acc9adced817cb4870b1912eaefd) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "jojo(__990108)-simm1.0", 0x00000, 0x200000, CRC(cfbc38d6) SHA1(c33e3a51fe8ab54e0912a1d6e662fe1ade73cee7) )
+	ROM_LOAD( "jojo-simm1.0", 0x00000, 0x200000, CRC(cfbc38d6) SHA1(c33e3a51fe8ab54e0912a1d6e662fe1ade73cee7) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "jojo(__990108)-simm1.1", 0x00000, 0x200000, CRC(42578d94) SHA1(fa46f92ac1a6716430adec9ab27214a11fa61749) )
+	ROM_LOAD( "jojo-simm1.1", 0x00000, 0x200000, CRC(42578d94) SHA1(fa46f92ac1a6716430adec9ab27214a11fa61749) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "jojo(__990108)-simm1.2", 0x00000, 0x200000, CRC(1b40c566) SHA1(9833799e9b4fecf7f9ce14bca64936646b3fdbde) )
+	ROM_LOAD( "jojo-simm1.2", 0x00000, 0x200000, CRC(1b40c566) SHA1(9833799e9b4fecf7f9ce14bca64936646b3fdbde) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "jojo(__990108)-simm1.3", 0x00000, 0x200000, CRC(bba709b4) SHA1(0dd71e575f2193505f2ab960568ac1eccf40d53f) )
+	ROM_LOAD( "jojo-simm1.3", 0x00000, 0x200000, CRC(bba709b4) SHA1(0dd71e575f2193505f2ab960568ac1eccf40d53f) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
-	ROM_LOAD( "jojo(__990108)-simm2.0", 0x00000, 0x200000, CRC(417e5dc1) SHA1(54ee9596c1c51811f3bdef7dbe77b44b34f230ca) )
+	ROM_LOAD( "jojo-simm2.0", 0x00000, 0x200000, CRC(417e5dc1) SHA1(54ee9596c1c51811f3bdef7dbe77b44b34f230ca) ) // sldh
 	ROM_REGION( 0x200000, "simm2.1", 0 )
-	ROM_LOAD( "jojo(__990108)-simm2.1", 0x00000, 0x200000, CRC(d3b3267d) SHA1(eb2cff347880f1489fb5b1b8bd16df8f50c7f494) )
+	ROM_LOAD( "jojo-simm2.1", 0x00000, 0x200000, CRC(d3b3267d) SHA1(eb2cff347880f1489fb5b1b8bd16df8f50c7f494) ) // sldh
 	ROM_REGION( 0x200000, "simm2.2", 0 )
-	ROM_LOAD( "jojo(__990108)-simm2.2", 0x00000, 0x200000, CRC(c66d96b1) SHA1(909d5aac165748b549b6056a6091c41df012f5df) )
+	ROM_LOAD( "jojo-simm2.2", 0x00000, 0x200000, CRC(c66d96b1) SHA1(909d5aac165748b549b6056a6091c41df012f5df) ) // sldh
 	ROM_REGION( 0x200000, "simm2.3", 0 )
-	ROM_LOAD( "jojo(__990108)-simm2.3", 0x00000, 0x200000, CRC(aa34cc85) SHA1(7677cc6fa913755fc699691b350698bbe8904118) )
+	ROM_LOAD( "jojo-simm2.3", 0x00000, 0x200000, CRC(aa34cc85) SHA1(7677cc6fa913755fc699691b350698bbe8904118) ) // sldh
 
 	ROM_REGION( 0x200000, "simm3.0", 0 )
 	ROM_LOAD( "jojo-simm3.0", 0x00000, 0x200000, CRC(de7fc9c1) SHA1(662b85a990b04c855773506c936317e62fab4a05) )
@@ -3141,26 +3142,26 @@ ROM_START( jojonr1 )
 ROM_END
 
 ROM_START( jojonr2 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojo_asia_nocd.29f400.u2", 0x000000, 0x080000, CRC(05b4f953) SHA1(c746c7bb5359acc9adced817cb4870b1912eaefd) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "jojo(__981202)-simm1.0", 0x00000, 0x200000, CRC(e06ba886) SHA1(4defd5e8e1e6d0c439fed8a6454e89a59e24ea4c) )
+	ROM_LOAD( "jojo-simm1.0", 0x00000, 0x200000, CRC(e06ba886) SHA1(4defd5e8e1e6d0c439fed8a6454e89a59e24ea4c) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "jojo(__981202)-simm1.1", 0x00000, 0x200000, CRC(6dd177c8) SHA1(c39db980f6fcca9c221e9be6f777eaf38f1b136b) )
+	ROM_LOAD( "jojo-simm1.1", 0x00000, 0x200000, CRC(6dd177c8) SHA1(c39db980f6fcca9c221e9be6f777eaf38f1b136b) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "jojo(__981202)-simm1.2", 0x00000, 0x200000, CRC(d35a15e0) SHA1(576b92a94505764a10b9bcf82c02335e7ef62014) )
+	ROM_LOAD( "jojo-simm1.2", 0x00000, 0x200000, CRC(d35a15e0) SHA1(576b92a94505764a10b9bcf82c02335e7ef62014) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "jojo(__981202)-simm1.3", 0x00000, 0x200000, CRC(66d865ac) SHA1(5248c3f124af62b4a672d954ef15f86629feeacb) )
+	ROM_LOAD( "jojo-simm1.3", 0x00000, 0x200000, CRC(66d865ac) SHA1(5248c3f124af62b4a672d954ef15f86629feeacb) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
-	ROM_LOAD( "jojo(__981202)-simm2.0", 0x00000, 0x200000, CRC(417e5dc1) SHA1(54ee9596c1c51811f3bdef7dbe77b44b34f230ca) )
+	ROM_LOAD( "jojo-simm2.0", 0x00000, 0x200000, CRC(417e5dc1) SHA1(54ee9596c1c51811f3bdef7dbe77b44b34f230ca) ) // sldh
 	ROM_REGION( 0x200000, "simm2.1", 0 )
-	ROM_LOAD( "jojo(__981202)-simm2.1", 0x00000, 0x200000, CRC(c891c887) SHA1(42e84f774ee655e9a39b016a3cfe94262ed2e9f1) )
+	ROM_LOAD( "jojo-simm2.1", 0x00000, 0x200000, CRC(c891c887) SHA1(42e84f774ee655e9a39b016a3cfe94262ed2e9f1) ) // sldh
 	ROM_REGION( 0x200000, "simm2.2", 0 )
-	ROM_LOAD( "jojo(__981202)-simm2.2", 0x00000, 0x200000, CRC(1e101f30) SHA1(56518c1646bb9452334856bb8bcc58892f9f93b9) )
+	ROM_LOAD( "jojo-simm2.2", 0x00000, 0x200000, CRC(1e101f30) SHA1(56518c1646bb9452334856bb8bcc58892f9f93b9) ) // sldh
 	ROM_REGION( 0x200000, "simm2.3", 0 )
-	ROM_LOAD( "jojo(__981202)-simm2.3", 0x00000, 0x200000, CRC(1fd1d3e4) SHA1(bed2b77d58f1fdf7ba5ca7126d3db1dd0f8c80b4) )
+	ROM_LOAD( "jojo-simm2.3", 0x00000, 0x200000, CRC(1fd1d3e4) SHA1(bed2b77d58f1fdf7ba5ca7126d3db1dd0f8c80b4) ) // sldh
 
 	ROM_REGION( 0x200000, "simm3.0", 0 )
 	ROM_LOAD( "jojo-simm3.0",  0x00000, 0x200000, CRC(de7fc9c1) SHA1(662b85a990b04c855773506c936317e62fab4a05) )
@@ -3203,17 +3204,17 @@ ROM_START( jojonr2 )
 ROM_END
 
 ROM_START( sfiii3n )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_japan_nocd.29f400.u2", 0x000000, 0x080000, CRC(1edc6366) SHA1(60b4b9adeb030a33059d74fdf03873029e465b52) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "sfiii3(__990608)-simm1.0", 0x00000, 0x200000, CRC(11dfd3cd) SHA1(dba1f77c46e80317e3279298411154dfb6db2309) )
+	ROM_LOAD( "sfiii3-simm1.0", 0x00000, 0x200000, CRC(11dfd3cd) SHA1(dba1f77c46e80317e3279298411154dfb6db2309) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "sfiii3(__990608)-simm1.1", 0x00000, 0x200000, CRC(c50585e6) SHA1(a289237957ea1c7f58b1c65e24c54ceb34cb1712) )
+	ROM_LOAD( "sfiii3-simm1.1", 0x00000, 0x200000, CRC(c50585e6) SHA1(a289237957ea1c7f58b1c65e24c54ceb34cb1712) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "sfiii3(__990608)-simm1.2", 0x00000, 0x200000, CRC(8e011d9b) SHA1(e0861bcd3c4f865474d7ce47aa9eeec7b3d28da6) )
+	ROM_LOAD( "sfiii3-simm1.2", 0x00000, 0x200000, CRC(8e011d9b) SHA1(e0861bcd3c4f865474d7ce47aa9eeec7b3d28da6) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "sfiii3(__990608)-simm1.3", 0x00000, 0x200000, CRC(dca8d92f) SHA1(7cd241641c943df446e2c75b88b5cf2d2ebf7b2e) )
+	ROM_LOAD( "sfiii3-simm1.3", 0x00000, 0x200000, CRC(dca8d92f) SHA1(7cd241641c943df446e2c75b88b5cf2d2ebf7b2e) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
 	ROM_LOAD( "sfiii3-simm2.0", 0x00000, 0x200000, CRC(06eb969e) SHA1(d89f6a6585b76692d57d337f0f8186398fb056da) )
@@ -3294,17 +3295,17 @@ ROM_START( sfiii3n )
 ROM_END
 
 ROM_START( sfiii3nr1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "sfiii3_japan_nocd.29f400.u2", 0x000000, 0x080000, CRC(1edc6366) SHA1(60b4b9adeb030a33059d74fdf03873029e465b52) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "sfiii3(__990512)-simm1.0", 0x00000, 0x200000, CRC(66e66235) SHA1(0a98038721d176458d4f85dbd76c5edb93a65322) )
+	ROM_LOAD( "sfiii3-simm1.0", 0x00000, 0x200000, CRC(66e66235) SHA1(0a98038721d176458d4f85dbd76c5edb93a65322) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "sfiii3(__990512)-simm1.1", 0x00000, 0x200000, CRC(186e8c5f) SHA1(a63040201a660b56217a8cbab32f5c2c466ee5dd) )
+	ROM_LOAD( "sfiii3-simm1.1", 0x00000, 0x200000, CRC(186e8c5f) SHA1(a63040201a660b56217a8cbab32f5c2c466ee5dd) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "sfiii3(__990512)-simm1.2", 0x00000, 0x200000, CRC(bce18cab) SHA1(a5c28063d98c22403756fc926a20631456fb7dcc) )
+	ROM_LOAD( "sfiii3-simm1.2", 0x00000, 0x200000, CRC(bce18cab) SHA1(a5c28063d98c22403756fc926a20631456fb7dcc) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "sfiii3(__990512)-simm1.3", 0x00000, 0x200000, CRC(129dc2c9) SHA1(c1e634d94b1c8f7f02a47703622de5cab3d0da3f) )
+	ROM_LOAD( "sfiii3-simm1.3", 0x00000, 0x200000, CRC(129dc2c9) SHA1(c1e634d94b1c8f7f02a47703622de5cab3d0da3f) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
 	ROM_LOAD( "sfiii3-simm2.0",  0x00000, 0x200000, CRC(06eb969e) SHA1(d89f6a6585b76692d57d337f0f8186398fb056da) )
@@ -3385,26 +3386,26 @@ ROM_START( sfiii3nr1 )
 ROM_END
 
 ROM_START( jojoban )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojoba_japan_nocd.29f400.u2", 0x000000, 0x080000, CRC(4dab19f5) SHA1(ba07190e7662937fc267f07285c51e99a45c061e) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm1.0", 0x00000, 0x200000, CRC(adcd8377) SHA1(f1aacbe061e3bcade5cca34435c3f86aec5f1499) )
+	ROM_LOAD( "jojoba-simm1.0", 0x00000, 0x200000, CRC(adcd8377) SHA1(f1aacbe061e3bcade5cca34435c3f86aec5f1499) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm1.1", 0x00000, 0x200000, CRC(d7590b59) SHA1(bfee627ebb7cb7b28216527b17e1b06a4e6f19f4) )
+	ROM_LOAD( "jojoba-simm1.1", 0x00000, 0x200000, CRC(d7590b59) SHA1(bfee627ebb7cb7b28216527b17e1b06a4e6f19f4) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm1.2", 0x00000, 0x200000, CRC(e62e240b) SHA1(70468cae67c009a80b45954c2a30794577343c77) )
+	ROM_LOAD( "jojoba-simm1.2", 0x00000, 0x200000, CRC(e62e240b) SHA1(70468cae67c009a80b45954c2a30794577343c77) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm1.3", 0x00000, 0x200000, CRC(c95450c3) SHA1(55616e009b007180d1ac6290c8da44b0d864a494) )
+	ROM_LOAD( "jojoba-simm1.3", 0x00000, 0x200000, CRC(c95450c3) SHA1(55616e009b007180d1ac6290c8da44b0d864a494) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm2.0", 0x00000, 0x200000, CRC(535f2eba) SHA1(167bec0dccfc2f91cb10cb1e2631ee619b3eb9fe) )
+	ROM_LOAD( "jojoba-simm2.0", 0x00000, 0x200000, CRC(535f2eba) SHA1(167bec0dccfc2f91cb10cb1e2631ee619b3eb9fe) ) // sldh
 	ROM_REGION( 0x200000, "simm2.1", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm2.1", 0x00000, 0x200000, CRC(01dd3a01) SHA1(08c462219796baa3ec28d78d038a18187cd838bb) )
+	ROM_LOAD( "jojoba-simm2.1", 0x00000, 0x200000, CRC(01dd3a01) SHA1(08c462219796baa3ec28d78d038a18187cd838bb) ) // sldh
 	ROM_REGION( 0x200000, "simm2.2", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm2.2", 0x00000, 0x200000, CRC(61432672) SHA1(d0416a75d395926041f90a3d34edb96a080acfd6) )
+	ROM_LOAD( "jojoba-simm2.2", 0x00000, 0x200000, CRC(61432672) SHA1(d0416a75d395926041f90a3d34edb96a080acfd6) ) // sldh
 	ROM_REGION( 0x200000, "simm2.3", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm2.3", 0x00000, 0x200000, CRC(acdc9aca) SHA1(89f77ddd6286709182a676fd9bd6c333a3b16271) )
+	ROM_LOAD( "jojoba-simm2.3", 0x00000, 0x200000, CRC(acdc9aca) SHA1(89f77ddd6286709182a676fd9bd6c333a3b16271) ) // sldh
 
 	ROM_REGION( 0x200000, "simm3.0", 0 )
 	ROM_LOAD( "jojoba-simm3.0", 0x00000, 0x200000, CRC(4d16e111) SHA1(f198007375be65e89856d64ee2b3857a18b4eab8) )
@@ -3459,26 +3460,26 @@ ROM_START( jojoban )
 ROM_END
 
 ROM_START( jojobanr1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojoba_japan_nocd.29f400.u2", 0x000000, 0x080000, CRC(4dab19f5) SHA1(ba07190e7662937fc267f07285c51e99a45c061e) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm1.0", 0x00000, 0x200000, CRC(76976231) SHA1(90adde7e5983ec6a4e02789d5cefe9e85c9c52d5) )
+	ROM_LOAD( "jojoba-simm1.0", 0x00000, 0x200000, CRC(76976231) SHA1(90adde7e5983ec6a4e02789d5cefe9e85c9c52d5) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm1.1", 0x00000, 0x200000, CRC(cedd78e7) SHA1(964988b90a2f14c1da2cfc48d943e16e54da3fd3) )
+	ROM_LOAD( "jojoba-simm1.1", 0x00000, 0x200000, CRC(cedd78e7) SHA1(964988b90a2f14c1da2cfc48d943e16e54da3fd3) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm1.2", 0x00000, 0x200000, CRC(2955b77f) SHA1(2a907a5cd91448bfc420c318584e5ef4bbe55a91) )
+	ROM_LOAD( "jojoba-simm1.2", 0x00000, 0x200000, CRC(2955b77f) SHA1(2a907a5cd91448bfc420c318584e5ef4bbe55a91) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm1.3", 0x00000, 0x200000, CRC(280139d7) SHA1(b7c28f6f0218688fb873a3106d2f95ea2e1e927c) )
+	ROM_LOAD( "jojoba-simm1.3", 0x00000, 0x200000, CRC(280139d7) SHA1(b7c28f6f0218688fb873a3106d2f95ea2e1e927c) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm2.0", 0x00000, 0x200000, CRC(305c4914) SHA1(c3a73ffe58f61ab8f1cd9e3f0891037638dc5a9b) )
+	ROM_LOAD( "jojoba-simm2.0", 0x00000, 0x200000, CRC(305c4914) SHA1(c3a73ffe58f61ab8f1cd9e3f0891037638dc5a9b) ) // sldh
 	ROM_REGION( 0x200000, "simm2.1", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm2.1", 0x00000, 0x200000, CRC(18af4f3b) SHA1(04b8fdf23a782b10c203b111cc634a6d3474044a) )
+	ROM_LOAD( "jojoba-simm2.1", 0x00000, 0x200000, CRC(18af4f3b) SHA1(04b8fdf23a782b10c203b111cc634a6d3474044a) ) // sldh
 	ROM_REGION( 0x200000, "simm2.2", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm2.2", 0x00000, 0x200000, CRC(397e5c9e) SHA1(021d86ee66bf951fb6a1dd90fb7007c6865cbb8b) )
+	ROM_LOAD( "jojoba-simm2.2", 0x00000, 0x200000, CRC(397e5c9e) SHA1(021d86ee66bf951fb6a1dd90fb7007c6865cbb8b) ) // sldh
 	ROM_REGION( 0x200000, "simm2.3", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm2.3", 0x00000, 0x200000, CRC(a9d0a7d7) SHA1(b2cfc0661f8903ddbeea8a604ee8b42097e10ab8) )
+	ROM_LOAD( "jojoba-simm2.3", 0x00000, 0x200000, CRC(a9d0a7d7) SHA1(b2cfc0661f8903ddbeea8a604ee8b42097e10ab8) ) // sldh
 
 	ROM_REGION( 0x200000, "simm3.0", 0 )
 	ROM_LOAD( "jojoba-simm3.0",  0x00000, 0x200000, CRC(4d16e111) SHA1(f198007375be65e89856d64ee2b3857a18b4eab8) )
@@ -3533,26 +3534,26 @@ ROM_START( jojobanr1 )
 ROM_END
 
 ROM_START( jojobane )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojoba_euro_nocd.29f400.u2", 0x000000, 0x080000, CRC(1ee2d679) SHA1(9e129b454a376606b3f7e8aec64de425cf9c635c) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm1.0", 0x00000, 0x200000, CRC(adcd8377) SHA1(f1aacbe061e3bcade5cca34435c3f86aec5f1499) )
+	ROM_LOAD( "jojoba-simm1.0", 0x00000, 0x200000, CRC(adcd8377) SHA1(f1aacbe061e3bcade5cca34435c3f86aec5f1499) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm1.1", 0x00000, 0x200000, CRC(d7590b59) SHA1(bfee627ebb7cb7b28216527b17e1b06a4e6f19f4) )
+	ROM_LOAD( "jojoba-simm1.1", 0x00000, 0x200000, CRC(d7590b59) SHA1(bfee627ebb7cb7b28216527b17e1b06a4e6f19f4) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm1.2", 0x00000, 0x200000, CRC(e62e240b) SHA1(70468cae67c009a80b45954c2a30794577343c77) )
+	ROM_LOAD( "jojoba-simm1.2", 0x00000, 0x200000, CRC(e62e240b) SHA1(70468cae67c009a80b45954c2a30794577343c77) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm1.3", 0x00000, 0x200000, CRC(c95450c3) SHA1(55616e009b007180d1ac6290c8da44b0d864a494) )
+	ROM_LOAD( "jojoba-simm1.3", 0x00000, 0x200000, CRC(c95450c3) SHA1(55616e009b007180d1ac6290c8da44b0d864a494) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm2.0", 0x00000, 0x200000, CRC(535f2eba) SHA1(167bec0dccfc2f91cb10cb1e2631ee619b3eb9fe) )
+	ROM_LOAD( "jojoba-simm2.0", 0x00000, 0x200000, CRC(535f2eba) SHA1(167bec0dccfc2f91cb10cb1e2631ee619b3eb9fe) ) // sldh
 	ROM_REGION( 0x200000, "simm2.1", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm2.1", 0x00000, 0x200000, CRC(01dd3a01) SHA1(08c462219796baa3ec28d78d038a18187cd838bb) )
+	ROM_LOAD( "jojoba-simm2.1", 0x00000, 0x200000, CRC(01dd3a01) SHA1(08c462219796baa3ec28d78d038a18187cd838bb) ) // sldh
 	ROM_REGION( 0x200000, "simm2.2", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm2.2", 0x00000, 0x200000, CRC(61432672) SHA1(d0416a75d395926041f90a3d34edb96a080acfd6) )
+	ROM_LOAD( "jojoba-simm2.2", 0x00000, 0x200000, CRC(61432672) SHA1(d0416a75d395926041f90a3d34edb96a080acfd6) ) // sldh
 	ROM_REGION( 0x200000, "simm2.3", 0 )
-	ROM_LOAD( "jojoba(__990927)-simm2.3", 0x00000, 0x200000, CRC(acdc9aca) SHA1(89f77ddd6286709182a676fd9bd6c333a3b16271) )
+	ROM_LOAD( "jojoba-simm2.3", 0x00000, 0x200000, CRC(acdc9aca) SHA1(89f77ddd6286709182a676fd9bd6c333a3b16271) ) // sldh
 
 	ROM_REGION( 0x200000, "simm3.0", 0 )
 	ROM_LOAD( "jojoba-simm3.0", 0x00000, 0x200000, CRC(4d16e111) SHA1(f198007375be65e89856d64ee2b3857a18b4eab8) )
@@ -3607,26 +3608,26 @@ ROM_START( jojobane )
 ROM_END
 
 ROM_START( jojobaner1 )
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "jojoba_euro_nocd.29f400.u2", 0x000000, 0x080000, CRC(1ee2d679) SHA1(9e129b454a376606b3f7e8aec64de425cf9c635c) )
 
 	ROM_REGION( 0x200000, "simm1.0", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm1.0", 0x00000, 0x200000, CRC(76976231) SHA1(90adde7e5983ec6a4e02789d5cefe9e85c9c52d5) )
+	ROM_LOAD( "jojoba-simm1.0", 0x00000, 0x200000, CRC(76976231) SHA1(90adde7e5983ec6a4e02789d5cefe9e85c9c52d5) ) // sldh
 	ROM_REGION( 0x200000, "simm1.1", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm1.1", 0x00000, 0x200000, CRC(cedd78e7) SHA1(964988b90a2f14c1da2cfc48d943e16e54da3fd3) )
+	ROM_LOAD( "jojoba-simm1.1", 0x00000, 0x200000, CRC(cedd78e7) SHA1(964988b90a2f14c1da2cfc48d943e16e54da3fd3) ) // sldh
 	ROM_REGION( 0x200000, "simm1.2", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm1.2", 0x00000, 0x200000, CRC(2955b77f) SHA1(2a907a5cd91448bfc420c318584e5ef4bbe55a91) )
+	ROM_LOAD( "jojoba-simm1.2", 0x00000, 0x200000, CRC(2955b77f) SHA1(2a907a5cd91448bfc420c318584e5ef4bbe55a91) ) // sldh
 	ROM_REGION( 0x200000, "simm1.3", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm1.3", 0x00000, 0x200000, CRC(280139d7) SHA1(b7c28f6f0218688fb873a3106d2f95ea2e1e927c) )
+	ROM_LOAD( "jojoba-simm1.3", 0x00000, 0x200000, CRC(280139d7) SHA1(b7c28f6f0218688fb873a3106d2f95ea2e1e927c) ) // sldh
 
 	ROM_REGION( 0x200000, "simm2.0", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm2.0", 0x00000, 0x200000, CRC(305c4914) SHA1(c3a73ffe58f61ab8f1cd9e3f0891037638dc5a9b) )
+	ROM_LOAD( "jojoba-simm2.0", 0x00000, 0x200000, CRC(305c4914) SHA1(c3a73ffe58f61ab8f1cd9e3f0891037638dc5a9b) ) // sldh
 	ROM_REGION( 0x200000, "simm2.1", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm2.1", 0x00000, 0x200000, CRC(18af4f3b) SHA1(04b8fdf23a782b10c203b111cc634a6d3474044a) )
+	ROM_LOAD( "jojoba-simm2.1", 0x00000, 0x200000, CRC(18af4f3b) SHA1(04b8fdf23a782b10c203b111cc634a6d3474044a) ) // sldh
 	ROM_REGION( 0x200000, "simm2.2", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm2.2", 0x00000, 0x200000, CRC(397e5c9e) SHA1(021d86ee66bf951fb6a1dd90fb7007c6865cbb8b) )
+	ROM_LOAD( "jojoba-simm2.2", 0x00000, 0x200000, CRC(397e5c9e) SHA1(021d86ee66bf951fb6a1dd90fb7007c6865cbb8b) ) // sldh
 	ROM_REGION( 0x200000, "simm2.3", 0 )
-	ROM_LOAD( "jojoba(__990913)-simm2.3", 0x00000, 0x200000, CRC(a9d0a7d7) SHA1(b2cfc0661f8903ddbeea8a604ee8b42097e10ab8) )
+	ROM_LOAD( "jojoba-simm2.3", 0x00000, 0x200000, CRC(a9d0a7d7) SHA1(b2cfc0661f8903ddbeea8a604ee8b42097e10ab8) ) // sldh
 
 	ROM_REGION( 0x200000, "simm3.0", 0 )
 	ROM_LOAD( "jojoba-simm3.0",  0x00000, 0x200000, CRC(4d16e111) SHA1(f198007375be65e89856d64ee2b3857a18b4eab8) )
@@ -3683,7 +3684,7 @@ ROM_END
 /* Bootlegs for use with modified security carts */
 
 ROM_START( cps3boot ) // for cart with standard SH2
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "no-battery_bios_29f400_for_hd6417095_sh2.u2", 0x000000, 0x080000, CRC(cb9bd5b0) SHA1(ea7ecb3deb69f5307a62d8f0d7d8e68d49013d07))
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -3691,7 +3692,7 @@ ROM_START( cps3boot ) // for cart with standard SH2
 ROM_END
 
 ROM_START( cps3booto ) // for cart with standard SH2
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "no-battery_bios_29f400_for_hd6417095_sh2.u2", 0x000000, 0x080000, CRC(cb9bd5b0) SHA1(ea7ecb3deb69f5307a62d8f0d7d8e68d49013d07))
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -3699,7 +3700,7 @@ ROM_START( cps3booto ) // for cart with standard SH2
 ROM_END
 
 ROM_START( cps3bs32 ) // for cart with standard SH2
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "no-battery_bios_29f400_for_hd6417095_sh2.u2", 0x000000, 0x080000, CRC(cb9bd5b0) SHA1(ea7ecb3deb69f5307a62d8f0d7d8e68d49013d07))
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -3707,7 +3708,7 @@ ROM_START( cps3bs32 ) // for cart with standard SH2
 ROM_END
 
 ROM_START( cps3bs32a ) // for cart with standard SH2
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "no-battery_bios_29f400_for_hd6417095_sh2.u2", 0x000000, 0x080000, CRC(cb9bd5b0) SHA1(ea7ecb3deb69f5307a62d8f0d7d8e68d49013d07))
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -3715,7 +3716,7 @@ ROM_START( cps3bs32a ) // for cart with standard SH2
 ROM_END
 
 ROM_START( cps3boota ) // for cart with dead custom SH2 (or 2nd Impact CPU which is the same as a dead one)
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "no-battery_bios_29f400_for_dead_security_cart.u2", 0x000000, 0x080000, CRC(0fd56fb3) SHA1(5a8bffc07eb7da73cf4bca6718df72e471296bfd) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -3724,7 +3725,7 @@ ROM_END
 
 
 ROM_START( cps3bootoa ) // for cart with dead custom SH2 (or 2nd Impact CPU which is the same as a dead one)
-	ROM_REGION32_BE( 0x080000, "user1", 0 ) /* bios region */
+	ROM_REGION32_BE( 0x080000, "bios", 0 ) /* bios region */
 	ROM_LOAD( "no-battery_bios_29f400_for_dead_security_cart.u2", 0x000000, 0x080000, CRC(0fd56fb3) SHA1(5a8bffc07eb7da73cf4bca6718df72e471296bfd) )
 
 	DISK_REGION( "scsi:" SCSI_PORT_DEVICE1 ":cdrom" )
@@ -3749,7 +3750,7 @@ ROM_END
     OCEANIA 7
     ASIA NCD 8
 
-    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "user1" )->base();
+    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "bios" )->base();
     rom[0x1fed8/4]^=0x00000001; // clear region to 0 (invalid)
     rom[0x1fed8/4]^=0x00000008; // region 8 - ASIA NO CD - doesn't actually skip the CD
                                 // test on startup, only during game, must be another flag
@@ -3774,7 +3775,7 @@ ROM_END
 
     // bios rom also lists korea, but game rom does not.
 
-    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "user1" )->base();
+    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "bios" )->base();
     rom[0x1fec8/4]^=0x00000001; // region (clear region)
     rom[0x1fec8/4]^=0x00000008; // region
     rom[0x1fecc/4]^=0x01000000; // nocd - this ONLY skips the cd check in the bios test
@@ -3796,7 +3797,7 @@ ROM_END
     OCEANIA 7
     ASIA 8
 
-    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "user1" )->base();
+    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "bios" )->base();
     rom[0x1fec8/4]^=0x00000001; // region (clear region)
     rom[0x1fec8/4]^=0x00000008; // region
     rom[0x1fecc/4]^=0x01000000; // nocd - this ONLY skips the cd check in the bios test
@@ -3820,7 +3821,7 @@ ROM_END
 
     DEVELOPMENT VERSION add 0x70 mask!
 
-    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "user1" )->base();
+    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "bios" )->base();
     rom[0x1fec8/4]^=0x00000001; // region hack (clear jpn)
 
     rom[0x1fec8/4]^=0x00000004; // region
@@ -3841,7 +3842,7 @@ ROM_END
     BRAZIL 6
     OCEANIA 7
 
-    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "user1" )->base();
+    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "bios" )->base();
     rom[0x1fec8/4]^=0x00000004; // region (clear region)
     rom[0x1fec8/4]^=0x00000001; // region
     rom[0x1fecc/4]^=0x01000000; // nocd
@@ -3863,7 +3864,7 @@ ROM_END
 
     DEVELOPMENT VERSION add 0x70 mask!
 
-    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "user1" )->base();
+    UINT32 *rom =  (UINT32*)machine.root_device().memregion ( "bios" )->base();
     rom[0x1fec8/4]^=0x00000001; // region (clear jpn)
     rom[0x1fec8/4]^=0x00000002; // region
     rom[0x1fec8/4]^=0x00000070; // DEV mode
@@ -3904,9 +3905,9 @@ GAME( 1997, sfiiina,   sfiii,    sfiii,    cps3, cps3_state,      sfiii,    ROT0
 // not dumped
 
 // 970930
-GAME( 1997, sfiii2,    0,        sfiii2,   cps3, cps3_state,      sfiii2,   ROT0, "Capcom", "Street Fighter III 2nd Impact: Giant Attack (USA 970930)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1997, sfiii2j,   sfiii2,   sfiii2,   cps3, cps3_state,      sfiii2,   ROT0, "Capcom", "Street Fighter III 2nd Impact: Giant Attack (Japan 970930)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1997, sfiii2n,   sfiii2,   sfiii2,   cps3, cps3_state,      sfiii2,   ROT0, "Capcom", "Street Fighter III 2nd Impact: Giant Attack (Asia 970930, NO CD)", GAME_IMPERFECT_GRAPHICS )
+GAMEL(1997, sfiii2,    0,        sfiii2,   cps3, cps3_state,      sfiii2,   ROT0, "Capcom", "Street Fighter III 2nd Impact: Giant Attack (USA 970930)", GAME_IMPERFECT_GRAPHICS, layout_sfiii2 ) // layout is for widescreen support
+GAMEL(1997, sfiii2j,   sfiii2,   sfiii2,   cps3, cps3_state,      sfiii2,   ROT0, "Capcom", "Street Fighter III 2nd Impact: Giant Attack (Japan 970930)", GAME_IMPERFECT_GRAPHICS, layout_sfiii2 )
+GAMEL(1997, sfiii2n,   sfiii2,   sfiii2,   cps3, cps3_state,      sfiii2,   ROT0, "Capcom", "Street Fighter III 2nd Impact: Giant Attack (Asia 970930, NO CD)", GAME_IMPERFECT_GRAPHICS, layout_sfiii2 )
 
 /* JoJo's Venture / JoJo no Kimyou na Bouken */
 

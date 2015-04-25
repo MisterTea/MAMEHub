@@ -29,7 +29,7 @@ static const int DAYS_PER_MONTH[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 
 //-------------------------------------------------
 
 device_rtc_interface::device_rtc_interface(const machine_config &mconfig, device_t &device)
-	: device_interface(device)
+	: device_interface(device, "rtc")
 {
 }
 
@@ -176,6 +176,10 @@ void device_rtc_interface::advance_minutes()
 	{
 		m_register[RTC_HOUR] = 0;
 		advance_days();
+	}
+	else
+	{
+		clock_updated();
 	}
 }
 

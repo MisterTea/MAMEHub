@@ -613,6 +613,12 @@ WRITE8_MEMBER(wecleman_state::multiply_w)
 
 ** sample playing ends when a byte with bit 7 set is reached **/
 
+WRITE8_MEMBER(wecleman_state::wecleman_volume_callback)
+{
+	m_k007232->set_volume(0, (data >> 4) * 0x11, 0);
+	m_k007232->set_volume(1, 0, (data & 0x0f) * 0x11);
+}
+
 WRITE8_MEMBER(wecleman_state::wecleman_K00723216_bank_w)
 {
 	m_k007232->set_bank(0, ~data&1 );  //* (wecleman062gre)
@@ -1078,6 +1084,7 @@ static MACHINE_CONFIG_START( wecleman, wecleman_state )
 	MCFG_SOUND_ROUTE(1, "mono", 0.85)
 
 	MCFG_SOUND_ADD("k007232", K007232, 3579545)
+	MCFG_K007232_PORT_WRITE_HANDLER(WRITE8(wecleman_state, wecleman_volume_callback))
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 MACHINE_CONFIG_END
@@ -1153,14 +1160,17 @@ static MACHINE_CONFIG_START( hotchase, wecleman_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("k007232_1", K007232, 3579545)
+	// SLEV not used, volume control is elsewhere
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 
 	MCFG_SOUND_ADD("k007232_2", K007232, 3579545)
+	// SLEV not used, volume control is elsewhere
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 
 	MCFG_SOUND_ADD("k007232_3", K007232, 3579545)
+	// SLEV not used, volume control is elsewhere
 	MCFG_SOUND_ROUTE(0, "mono", 0.20)
 	MCFG_SOUND_ROUTE(1, "mono", 0.20)
 MACHINE_CONFIG_END
@@ -1222,8 +1232,8 @@ ROM_END
 ROM_START( wecleman2 )
 	ROM_REGION( 0x40000, "maincpu", 0 ) /* Main CPU Code */
 	// I doubt these labels are correct, or one set of roms is bad.
-	ROM_LOAD16_BYTE( "602f08(__wecleman2).17h", 0x00000, 0x10000, CRC(43241265) SHA1(3da1ed0d15b03845c07f07ec6838ce160d81633d) ) // only 17h and 23h differ slightly from parent
-	ROM_LOAD16_BYTE( "602f11(__wecleman2).23h", 0x00001, 0x10000, CRC(3ea7dae0) SHA1(d33d67f4cc65a7680e5f43407136b75512a10230) ) // "
+	ROM_LOAD16_BYTE( "602f08.17h", 0x00000, 0x10000, CRC(43241265) SHA1(3da1ed0d15b03845c07f07ec6838ce160d81633d) ) // only 17h and 23h differ slightly from parent
+	ROM_LOAD16_BYTE( "602f11.23h", 0x00001, 0x10000, CRC(3ea7dae0) SHA1(d33d67f4cc65a7680e5f43407136b75512a10230) ) // "
 	ROM_LOAD16_BYTE( "602a09.18h", 0x20000, 0x10000, CRC(8a9d756f) SHA1(12605e86ce29e6300b5400720baac7b0293d9e66) )
 	ROM_LOAD16_BYTE( "602a10.22h", 0x20001, 0x10000, CRC(569f5001) SHA1(ec2dd331a279083cf847fbbe71c017038a1d562a) )
 

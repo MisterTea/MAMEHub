@@ -27,7 +27,11 @@ $(LIBOCORE_NOMAIN): $(OSDCOREOBJS:$(WINOBJ)/main.o=)
 
 $(UME_WINOBJ)/%.res: $(UME_WINSRC)/%.rc
 	@echo Compiling resources $<...
+ifdef MXE
+	/Users/jgauci/github/mxe//usr/bin/i686-pc-mingw32-windres $(RCDEFS) $(RCFLAGS) --include-dir $(UME_WINOBJ) -o $@ -i $<
+else
 	$(RC) $(RCDEFS) $(RCFLAGS) --include-dir $(UME_WINOBJ) -o $@ -i $<
+endif
 
 
 #-------------------------------------------------
@@ -36,6 +40,6 @@ $(UME_WINOBJ)/%.res: $(UME_WINSRC)/%.rc
 
 $(RESFILE): $(UME_WINSRC)/ume.rc $(UME_WINOBJ)/umevers.rc
 
-$(UME_WINOBJ)/umevers.rc: $(BUILDOUT)/verinfo$(BUILD_EXE) $(SRC)/version.c
+$(UME_WINOBJ)/umevers.rc: $(SRC)/build/verinfo.py $(SRC)/version.c
 	@echo Emitting $@...
-	@"$(BUILDOUT)/verinfo$(BUILD_EXE)" -b ume $(SRC)/version.c > $@
+	$(PYTHON) $(SRC)/build/verinfo.py -b ume -o $@ $(SRC)/version.c

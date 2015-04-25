@@ -40,21 +40,16 @@
 
 #include "emu.h"
 #include "cpu/m6502/m6502.h"
+#include "machine/6821pia.h"
+#include "machine/ram.h"
+#include "sound/dac.h"
+#include "sound/pokey.h"
 #include "includes/atari.h"
 #include "machine/atarifdc.h"
-#include "imagedev/cartslot.h"
-#include "sound/pokey.h"
-#include "machine/6821pia.h"
-#include "video/gtia.h"
-#include "sound/dac.h"
-#include "machine/ram.h"
-#include "hashfile.h"
+#include "bus/a800/a800_slot.h"
+#include "bus/a800/a800_carts.h"
+#include "bus/a8sio/a8sio.h"
 
-#define ATARI_5200  0
-#define ATARI_400   1
-#define ATARI_800   2
-#define ATARI_600XL 3
-#define ATARI_800XL 4
 
 /******************************************************************************
     Atari 800 memory map (preliminary)
@@ -245,124 +240,292 @@
     E000-FFFF ROM     BIOS ROM
 ******************************************************************************/
 
-#define LEFT_CARTSLOT_MOUNTED  1
-#define RIGHT_CARTSLOT_MOUNTED 2
-
-/* PCB */
-enum
-{
-	A800_UNKNOWN = 0,
-	A800_4K, A800_8K, A800_12K, A800_16K,
-	A800_RIGHT_4K, A800_RIGHT_8K,
-	OSS_034M, OSS_M091, PHOENIX_8K, XEGS_32K,
-	BBSB, DIAMOND_64K, WILLIAMS_64K, EXPRESS_64,
-	SPARTADOS_X
-};
-
-
 class a400_state : public atari_common_state
 {
 public:
 	a400_state(const machine_config &mconfig, device_type type, const char *tag)
 		: atari_common_state(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
 		m_ram(*this, RAM_TAG),
 		m_pia(*this, "pia"),
+		m_dac(*this, "dac"),
 		m_region_maincpu(*this, "maincpu"),
-		m_region_lslot(*this, "lslot"),
-		m_region_rslot(*this, "rslot"),
-		m_region_user1(*this, "user1"),
-		m_a000(*this, "a000"),
-		m_b000(*this, "b000"),
 		m_0000(*this, "0000"),
 		m_8000(*this, "8000"),
-		m_9000(*this, "9000"),
-		m_bank0(*this, "bank0"),
-		m_bank1(*this, "bank1"),
-		m_bank2(*this, "bank2"),
-		m_bank3(*this, "bank3"),
-		m_bank4(*this, "bank4"),
-		m_a800_cart_loaded(0),
-		m_atari(0),
-		m_a800_cart_type(A800_UNKNOWN),
-		m_xegs_banks(0),
-		m_xegs_cart(0) { }
+		m_a000(*this, "a000"),
+		m_cart(*this, "cartleft"),
+		m_cart2(*this, "cartright") { }
 
-	DECLARE_DRIVER_INIT(xegs);
-	DECLARE_DRIVER_INIT(a800xl);
-	DECLARE_DRIVER_INIT(a600xl);
-	DECLARE_MACHINE_START(xegs);
 	DECLARE_MACHINE_START(a400);
 	DECLARE_MACHINE_START(a800);
 	DECLARE_MACHINE_START(a800xl);
 	DECLARE_MACHINE_START(a5200);
 	DECLARE_PALETTE_INIT(a400);
-	DECLARE_WRITE8_MEMBER(a1200xl_pia_pb_w);
+
+	DECLARE_MACHINE_RESET(a400);
+
+	DECLARE_WRITE8_MEMBER(gtia_cb);
+
+	DECLARE_WRITE8_MEMBER(a600xl_pia_pb_w);
 	DECLARE_WRITE8_MEMBER(a800xl_pia_pb_w);
-	DECLARE_WRITE8_MEMBER(xegs_pia_pb_w);
-	DECLARE_WRITE8_MEMBER(x32_bank_w);
-	DECLARE_WRITE8_MEMBER(w64_bank_w);
-	DECLARE_WRITE8_MEMBER(ex64_bank_w);
-	DECLARE_WRITE8_MEMBER(bbsb_bankl_w);
-	DECLARE_WRITE8_MEMBER(bbsb_bankh_w);
-	DECLARE_WRITE8_MEMBER(oss_034m_w);
-	DECLARE_WRITE8_MEMBER(oss_m091_w);
-	DECLARE_WRITE8_MEMBER(xegs_bankswitch);
 
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( a800_cart );
-	DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER( a800_cart );
+	DECLARE_READ8_MEMBER(read_d5xx);    // at least one cart type can enable/disable roms when reading
+	DECLARE_WRITE8_MEMBER(disable_cart);
 
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( a800_cart_right );
-	DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER( a800_cart_right );
+	// these are needed to handle carts which can disable ROM without
+	// installing/disinstalling continuously RAM and ROM (with e.g. big
+	// preformance hit in Williams carts)
+	DECLARE_READ8_MEMBER(special_read_8000);
+	DECLARE_WRITE8_MEMBER(special_write_8000);
+	DECLARE_READ8_MEMBER(special_read_a000);
+	DECLARE_WRITE8_MEMBER(special_write_a000);
 
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( a5200_cart );
-	DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER( a5200_cart );
+	DECLARE_READ8_MEMBER(a600xl_low_r);
+	DECLARE_READ8_MEMBER(a1200xl_low_r);
+	DECLARE_READ8_MEMBER(a800xl_low_r);
+	DECLARE_WRITE8_MEMBER(a800xl_low_w);
+	DECLARE_READ8_MEMBER(a800xl_high_r);
+	DECLARE_WRITE8_MEMBER(a800xl_high_w);
+	DECLARE_READ8_MEMBER(a130xe_low_r);
+	DECLARE_WRITE8_MEMBER(a130xe_low_w);
+	DECLARE_READ8_MEMBER(xegs_low_r);
+	DECLARE_WRITE8_MEMBER(xegs_low_w);
+	DECLARE_READ8_MEMBER(xegs_high_r);
+	DECLARE_WRITE8_MEMBER(xegs_high_w);
 
-	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( xegs_cart );
-	DECLARE_DEVICE_IMAGE_UNLOAD_MEMBER( xegs_cart );
-
-	void ms_atari_machine_start(int type, int has_cart);
-	void ms_atari800xl_machine_start(int type, int has_cart);
-
-	DECLARE_WRITE8_MEMBER(a600xl_pia_pb_w) { a600xl_mmu(data); }
-
-	DECLARE_READ8_MEMBER(atari_pia_pa_r);
-	DECLARE_READ8_MEMBER(atari_pia_pb_r);
+	TIMER_DEVICE_CALLBACK_MEMBER(a400_interrupt);
+	TIMER_DEVICE_CALLBACK_MEMBER(a800xl_interrupt);
+	TIMER_DEVICE_CALLBACK_MEMBER(a5200_interrupt);
 
 protected:
-	required_device<cpu_device> m_maincpu;
+	//required_device<cpu_device> m_maincpu;    // maincpu is already contained in atari_common_state
 	required_device<ram_device> m_ram;
 	required_device<pia6821_device> m_pia;
+	optional_device<dac_device> m_dac;
 	required_memory_region m_region_maincpu;
-	optional_memory_region m_region_lslot;
-	optional_memory_region m_region_rslot;
-	optional_memory_region m_region_user1;
-	optional_memory_bank m_a000;
-	optional_memory_bank m_b000;
 	optional_memory_bank m_0000;
 	optional_memory_bank m_8000;
-	optional_memory_bank m_9000;
-	optional_memory_bank m_bank0;
-	optional_memory_bank m_bank1;
-	optional_memory_bank m_bank2;
-	optional_memory_bank m_bank3;
-	optional_memory_bank m_bank4;
+	optional_memory_bank m_a000;
+	optional_device<a800_cart_slot_device> m_cart;
+	optional_device<a800_cart_slot_device> m_cart2;
 
-	int m_a800_cart_loaded;
-	int m_atari;
-	int m_a800_cart_type;
-	UINT8 m_xegs_banks;
-	UINT8 m_xegs_cart;
+	int m_cart_disabled, m_cart_helper;
+	int m_last_offs;
+	UINT8 m_mmu, m_ext_bank;
 
-	void a800_setbank(int cart_mounted);
-	void a800xl_mmu(UINT8 new_mmu);
-	void a1200xl_mmu(UINT8 new_mmu);
-	void xegs_mmu(UINT8 new_mmu);
-	void a800_setup_mappers(int type);
-	int a800_get_pcb_id(const char *pcb);
-	int a800_get_type(device_image_interface &image);
-	int a800_check_cart_type(device_image_interface &image);
+	void setup_ram(int bank,UINT32 size);
+	void setup_cart(a800_cart_slot_device *slot);
 };
+
+
+
+/**************************************************************
+ *
+ * Memory handlers
+ *
+ **************************************************************/
+
+READ8_MEMBER(a400_state::a600xl_low_r)
+{
+	if (m_mmu & 0x80)
+		return 0xff;
+	else
+		return m_region_maincpu->base()[0xd000 + (offset & 0x7ff)];
+}
+
+
+READ8_MEMBER(a400_state::a1200xl_low_r)
+{
+	if (offset < 0x5000)    // 0x0000-0x4fff
+		return m_ram->pointer()[offset];
+	else if (offset < 0x5800)   // 0x5000-0x57ff
+	{
+		if (m_mmu & 0x80)
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[0xd000 + (offset & 0x7ff)];
+	}
+	else if (offset < 0xc000)   // 0x5800-0xbfff
+		return m_ram->pointer()[offset];
+	else    // 0xc000-0xcfff
+	{
+		if (!(m_mmu & 0x01))
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[offset];
+	}
+}
+
+READ8_MEMBER(a400_state::a800xl_low_r)
+{
+	if (offset < 0x5000)    // 0x0000-0x4fff
+		return m_ram->pointer()[offset];
+	else if (offset < 0x5800)   // 0x5000-0x57ff
+	{
+		if (m_mmu & 0x80)
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[0xd000 + (offset & 0x7ff)];
+	}
+	else if (offset < 0xa000)   // 0x5800-0x9fff
+		return m_ram->pointer()[offset];
+	else if (offset < 0xc000)   // 0xa000-0xbfff
+	{
+		if (m_mmu & 0x02)
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[(offset & 0x1fff) + 0xa000];
+	}
+	else    // 0xc000-0xcfff
+	{
+		if (!(m_mmu & 0x01))
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[offset];
+	}
+}
+
+WRITE8_MEMBER(a400_state::a800xl_low_w)
+{
+	if (offset < 0x5000)    // 0x0000-0x4fff
+		m_ram->pointer()[offset] = data;
+	else if (offset < 0x5800)   // 0x5000-0x57ff
+	{
+		if (m_mmu & 0x80)
+			m_ram->pointer()[offset] = data;
+	}
+	else if (offset < 0xa000)   // 0x5800-0x7fff
+		m_ram->pointer()[offset] = data;
+	else if (offset < 0xc000)   // 0xa000-0xbfff
+	{
+		if (m_mmu & 0x02)
+			m_ram->pointer()[offset] = data;
+	}
+	else    // 0xc000-0xcfff
+	{
+		if (!(m_mmu & 0x01))
+			m_ram->pointer()[offset] = data;
+	}
+}
+
+READ8_MEMBER(a400_state::a800xl_high_r)
+{
+	if (m_mmu & 0x01)
+		return m_region_maincpu->base()[0xd800 + offset];
+	else
+		return m_ram->pointer()[0xd800 + offset];
+}
+
+WRITE8_MEMBER(a400_state::a800xl_high_w)
+{
+	if (!(m_mmu & 0x01))
+		m_ram->pointer()[0xd800 + offset] = data;
+}
+
+READ8_MEMBER(a400_state::a130xe_low_r)
+{
+	if (offset < 0x4000)    // 0x0000-0x3fff
+		return m_ram->pointer()[offset];
+	else if (offset < 0x8000)   // 0x4000-0x7fff
+	{
+		// NOTE: ANTIC accesses to extra RAM are not supported yet!
+		if (!(m_mmu & 0x80) && offset >= 0x5000 && offset < 0x5800)
+			return m_region_maincpu->base()[0xd000 + (offset & 0x7ff)];
+		if (!(m_mmu & 0x10))
+			return m_ram->pointer()[offset + 0x10000 + (m_ext_bank * 0x4000)];
+		else
+			return m_ram->pointer()[offset];
+	}
+	else if (offset < 0xa000)   // 0x8000-0x9fff
+		return m_ram->pointer()[offset];
+	else if (offset < 0xc000)   // 0xa000-0xbfff
+	{
+		if (m_mmu & 0x02)
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[(offset & 0x1fff) + 0xa000];
+	}
+	else    // 0xc000-0xcfff
+	{
+		if (!(m_mmu & 0x01))
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[offset];
+	}
+}
+
+WRITE8_MEMBER(a400_state::a130xe_low_w)
+{
+	if (offset < 0x4000)    // 0x0000-0x3fff
+		m_ram->pointer()[offset] = data;
+	else if (offset < 0x8000)   // 0x4000-0x7fff
+	{
+		// NOTE: ANTIC accesses to extra RAM are not supported yet!
+		if (!(m_mmu & 0x80) && offset >= 0x5000 && offset < 0x5800)
+			return;
+		if (!(m_mmu & 0x10))
+			m_ram->pointer()[offset + 0x10000 + (m_ext_bank * 0x4000)] = data;
+		else
+			m_ram->pointer()[offset] = data;
+	}
+	else if (offset < 0xa000)   // 0x5800-0x7fff
+		m_ram->pointer()[offset] = data;
+	else if (offset < 0xc000)   // 0xa000-0xbfff
+	{
+		if (m_mmu & 0x02)
+			m_ram->pointer()[offset] = data;
+	}
+	else    // 0xc000-0xcfff
+	{
+		if (!(m_mmu & 0x01))
+			m_ram->pointer()[offset] = data;
+	}
+}
+
+READ8_MEMBER(a400_state::xegs_low_r)
+{
+	if (offset < 0x5000)    // 0x0000-0x4fff
+		return m_ram->pointer()[offset];
+	else if (offset < 0x5800)   // 0x5000-0x57ff
+	{
+		if (m_mmu & 0x80)
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[0xd000 + (offset & 0x7ff)];
+	}
+	else if (offset < 0x8000)   // 0x5800-0x7fff
+		return m_ram->pointer()[offset];
+	else if (offset < 0xa000)   // 0x8000-0x9fff
+		return m_region_maincpu->base()[0x8000 + (offset & 0x1fff)];
+	else if (offset < 0xc000)   // 0xa000-0xbfff
+		return m_region_maincpu->base()[0x8000 + (offset & 0x1fff)];
+	else    // 0xc000-0xcfff
+	{
+		if (!(m_mmu & 0x01))
+			return m_ram->pointer()[offset];
+		else
+			return m_region_maincpu->base()[offset];
+	}
+}
+
+WRITE8_MEMBER(a400_state::xegs_low_w)
+{
+	if (offset < 0x5000)    // 0x0000-0x4fff
+		m_ram->pointer()[offset] = data;
+	else if (offset < 0x5800)   // 0x5000-0x57ff
+	{
+		if (m_mmu & 0x80)
+			m_ram->pointer()[offset] = data;
+	}
+	else if (offset < 0x8000)   // 0x5800-0x7fff
+		m_ram->pointer()[offset] = data;
+	else if (offset < 0xc000)   // 0xa000-0xbfff
+		return;
+	else    // 0xc000-0xcfff
+	{
+		if (!(m_mmu & 0x01))
+			m_ram->pointer()[offset] = data;
+	}
+}
 
 /**************************************************************
  *
@@ -372,29 +535,13 @@ protected:
 
 
 static ADDRESS_MAP_START(a400_mem, AS_PROGRAM, 8, a400_state)
-	AM_RANGE(0x0000, 0x9fff) AM_NOP /* RAM installed at runtime */
-	AM_RANGE(0xa000, 0xbfff) AM_RAMBANK("a000")
+	AM_RANGE(0x0000, 0xbfff) AM_NOP // RAM installed at runtime
 	AM_RANGE(0xc000, 0xcfff) AM_ROM
-	AM_RANGE(0xd000, 0xd0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
+	AM_RANGE(0xd000, 0xd0ff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
 	AM_RANGE(0xd100, 0xd1ff) AM_NOP
 	AM_RANGE(0xd200, 0xd2ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
 	AM_RANGE(0xd300, 0xd3ff) AM_DEVREADWRITE("pia", pia6821_device, read_alt, write_alt)
-	AM_RANGE(0xd400, 0xd4ff) AM_READWRITE(atari_antic_r, atari_antic_w)
-	AM_RANGE(0xd500, 0xd7ff) AM_NOP
-	AM_RANGE(0xd800, 0xffff) AM_ROM
-ADDRESS_MAP_END
-
-
-static ADDRESS_MAP_START(a800_mem, AS_PROGRAM, 8, a400_state)
-	AM_RANGE(0x0000, 0x7fff) AM_RAMBANK("0000")
-	AM_RANGE(0x8000, 0x9fff) AM_RAMBANK("8000")
-	AM_RANGE(0xa000, 0xbfff) AM_RAMBANK("a000")
-	AM_RANGE(0xc000, 0xcfff) AM_ROM
-	AM_RANGE(0xd000, 0xd0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
-	AM_RANGE(0xd100, 0xd1ff) AM_NOP
-	AM_RANGE(0xd200, 0xd2ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
-	AM_RANGE(0xd300, 0xd3ff) AM_DEVREADWRITE("pia", pia6821_device, read_alt, write_alt)
-	AM_RANGE(0xd400, 0xd4ff) AM_READWRITE(atari_antic_r, atari_antic_w)
+	AM_RANGE(0xd400, 0xd4ff) AM_DEVREADWRITE("antic", antic_device, read, write)
 	AM_RANGE(0xd500, 0xd7ff) AM_NOP
 	AM_RANGE(0xd800, 0xffff) AM_ROM
 ADDRESS_MAP_END
@@ -402,58 +549,75 @@ ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(a600xl_mem, AS_PROGRAM, 8, a400_state)
 	AM_RANGE(0x0000, 0x3fff) AM_RAM
-	AM_RANGE(0x5000, 0x57ff) AM_ROM AM_REGION("maincpu", 0x5000)    /* self test */
-	AM_RANGE(0xa000, 0xbfff) AM_ROM /* BASIC */
-	AM_RANGE(0xc000, 0xcfff) AM_ROM /* OS */
-	AM_RANGE(0xd000, 0xd0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
+	AM_RANGE(0x5000, 0x57ff) AM_READ(a600xl_low_r)    // self test or NOP
+	AM_RANGE(0xa000, 0xbfff) AM_ROM // BASIC
+	AM_RANGE(0xc000, 0xcfff) AM_ROM // OS
+	AM_RANGE(0xd000, 0xd0ff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
 	AM_RANGE(0xd100, 0xd1ff) AM_NOP
 	AM_RANGE(0xd200, 0xd2ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
 	AM_RANGE(0xd300, 0xd3ff) AM_DEVREADWRITE("pia", pia6821_device, read_alt, write_alt)
-	AM_RANGE(0xd400, 0xd4ff) AM_READWRITE(atari_antic_r, atari_antic_w)
+	AM_RANGE(0xd400, 0xd4ff) AM_DEVREADWRITE("antic", antic_device, read, write)
 	AM_RANGE(0xd500, 0xd7ff) AM_NOP
-	AM_RANGE(0xd800, 0xffff) AM_ROM /* OS */
+	AM_RANGE(0xd800, 0xffff) AM_ROM // OS
+ADDRESS_MAP_END
+
+
+static ADDRESS_MAP_START(a1200xl_mem, AS_PROGRAM, 8, a400_state)
+	AM_RANGE(0x0000, 0xcfff) AM_READWRITE(a1200xl_low_r, xegs_low_w)
+	AM_RANGE(0xd000, 0xd0ff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
+	AM_RANGE(0xd100, 0xd1ff) AM_NOP
+	AM_RANGE(0xd200, 0xd2ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
+	AM_RANGE(0xd300, 0xd3ff) AM_DEVREADWRITE("pia", pia6821_device, read_alt, write_alt)
+	AM_RANGE(0xd400, 0xd4ff) AM_DEVREADWRITE("antic", antic_device, read, write)
+	AM_RANGE(0xd500, 0xd7ff) AM_NOP
+	AM_RANGE(0xd800, 0xffff) AM_READWRITE(a800xl_high_r, a800xl_high_w)
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START(a800xl_mem, AS_PROGRAM, 8, a400_state)
-	AM_RANGE(0x0000, 0x4fff) AM_RAM
-	AM_RANGE(0x5000, 0x57ff) AM_RAMBANK("bank2")
-	AM_RANGE(0x5800, 0x9fff) AM_RAM
-	AM_RANGE(0xa000, 0xbfff) AM_RAMBANK("bank1")
-	AM_RANGE(0xc000, 0xcfff) AM_RAMBANK("bank3")
-	AM_RANGE(0xd000, 0xd0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
+	AM_RANGE(0x0000, 0xcfff) AM_READWRITE(a800xl_low_r, a800xl_low_w)
+	AM_RANGE(0xd000, 0xd0ff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
 	AM_RANGE(0xd100, 0xd1ff) AM_NOP
 	AM_RANGE(0xd200, 0xd2ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
 	AM_RANGE(0xd300, 0xd3ff) AM_DEVREADWRITE("pia", pia6821_device, read_alt, write_alt)
-	AM_RANGE(0xd400, 0xd4ff) AM_READWRITE(atari_antic_r, atari_antic_w)
+	AM_RANGE(0xd400, 0xd4ff) AM_DEVREADWRITE("antic", antic_device, read, write)
 	AM_RANGE(0xd500, 0xd7ff) AM_NOP
-	AM_RANGE(0xd800, 0xffff) AM_RAMBANK("bank4")
+	AM_RANGE(0xd800, 0xffff) AM_READWRITE(a800xl_high_r, a800xl_high_w)
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START(xegs_mem, AS_PROGRAM, 8, a400_state)
-	AM_RANGE(0x0000, 0x4fff) AM_RAM
-	AM_RANGE(0x5000, 0x57ff) AM_RAMBANK("bank2")
-	AM_RANGE(0x5800, 0x7fff) AM_RAM
-	AM_RANGE(0x8000, 0x9fff) AM_ROMBANK("bank0")
-	AM_RANGE(0xa000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xc000, 0xcfff) AM_RAMBANK("bank3")
-	AM_RANGE(0xd000, 0xd0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
+
+static ADDRESS_MAP_START(a130xe_mem, AS_PROGRAM, 8, a400_state)
+	AM_RANGE(0x0000, 0xcfff) AM_READWRITE(a130xe_low_r, a800xl_low_w)
+	AM_RANGE(0xd000, 0xd0ff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
 	AM_RANGE(0xd100, 0xd1ff) AM_NOP
 	AM_RANGE(0xd200, 0xd2ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
 	AM_RANGE(0xd300, 0xd3ff) AM_DEVREADWRITE("pia", pia6821_device, read_alt, write_alt)
-	AM_RANGE(0xd400, 0xd4ff) AM_READWRITE(atari_antic_r, atari_antic_w)
+	AM_RANGE(0xd400, 0xd4ff) AM_DEVREADWRITE("antic", antic_device, read, write)
 	AM_RANGE(0xd500, 0xd7ff) AM_NOP
-	AM_RANGE(0xd800, 0xffff) AM_RAMBANK("bank4")
+	AM_RANGE(0xd800, 0xffff) AM_READWRITE(a800xl_high_r, a800xl_high_w)
+ADDRESS_MAP_END
+
+
+static ADDRESS_MAP_START(xegs_mem, AS_PROGRAM, 8, a400_state)
+	AM_RANGE(0x0000, 0xcfff) AM_READWRITE(xegs_low_r, xegs_low_w)
+	AM_RANGE(0xd000, 0xd0ff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
+	AM_RANGE(0xd100, 0xd1ff) AM_NOP
+	AM_RANGE(0xd200, 0xd2ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
+	AM_RANGE(0xd300, 0xd3ff) AM_DEVREADWRITE("pia", pia6821_device, read_alt, write_alt)
+	AM_RANGE(0xd400, 0xd4ff) AM_DEVREADWRITE("antic", antic_device, read, write)
+	AM_RANGE(0xd500, 0xd7ff) AM_NOP
+	AM_RANGE(0xd800, 0xffff) AM_READWRITE(a800xl_high_r, a800xl_high_w)
 ADDRESS_MAP_END
 
 
 static ADDRESS_MAP_START(a5200_mem, AS_PROGRAM, 8, a400_state)
 	AM_RANGE(0x0000, 0x3fff) AM_RAM
-	AM_RANGE(0x4000, 0xbfff) AM_ROM
-	AM_RANGE(0xc000, 0xc0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
-	AM_RANGE(0xd400, 0xd5ff) AM_READWRITE(atari_antic_r, atari_antic_w)
-	AM_RANGE(0xe800, 0xe8ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
-	AM_RANGE(0xf800, 0xffff) AM_ROM
+	AM_RANGE(0x4000, 0xbfff) AM_NOP // ROM installed at machine start
+	AM_RANGE(0xc000, 0xcfff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
+	AM_RANGE(0xd400, 0xdfff) AM_DEVREADWRITE("antic", antic_device, read, write)
+	// 0xe000-0xe7ff - Expansion?
+	AM_RANGE(0xe800, 0xefff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
+	AM_RANGE(0xf000, 0xffff) AM_ROM
 ADDRESS_MAP_END
 
 
@@ -487,7 +651,7 @@ INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( atari_digital_joystick2 )
-	PORT_START("djoy_0_1")  /* IN1 digital joystick #1 + #2 (PIA port A) */
+	PORT_START("djoy_0_1")
 	PORT_BIT(0x01, 0x01, IPT_JOYSTICK_UP)    PORT_CODE(KEYCODE_8_PAD) PORT_CODE(JOYCODE_Y_UP_SWITCH)    PORT_PLAYER(1)
 	PORT_BIT(0x02, 0x02, IPT_JOYSTICK_DOWN)  PORT_CODE(KEYCODE_2_PAD) PORT_CODE(JOYCODE_Y_DOWN_SWITCH)  PORT_PLAYER(1)
 	PORT_BIT(0x04, 0x04, IPT_JOYSTICK_LEFT)  PORT_CODE(KEYCODE_4_PAD) PORT_CODE(JOYCODE_X_LEFT_SWITCH)  PORT_PLAYER(1)
@@ -497,7 +661,7 @@ static INPUT_PORTS_START( atari_digital_joystick2 )
 	PORT_BIT(0x40, 0x40, IPT_JOYSTICK_LEFT)  PORT_CODE(KEYCODE_4_PAD) PORT_CODE(JOYCODE_X_LEFT_SWITCH)  PORT_PLAYER(2)
 	PORT_BIT(0x80, 0x80, IPT_JOYSTICK_RIGHT) PORT_CODE(KEYCODE_6_PAD) PORT_CODE(JOYCODE_X_RIGHT_SWITCH) PORT_PLAYER(2)
 
-	PORT_START("djoy_2_3")  /* IN2 digital joystick #3 + #4 (PIA port B) */
+	PORT_START("djoy_2_3")
 	PORT_BIT(0x01, 0x01, IPT_UNUSED)
 	PORT_BIT(0x02, 0x02, IPT_UNUSED)
 	PORT_BIT(0x04, 0x04, IPT_UNUSED)
@@ -507,13 +671,13 @@ static INPUT_PORTS_START( atari_digital_joystick2 )
 	PORT_BIT(0x40, 0x40, IPT_UNUSED)
 	PORT_BIT(0x80, 0x80, IPT_UNUSED)
 
-	PORT_START("djoy_b")    /* IN3 digital joystick buttons (GTIA button bits) */
+	PORT_START("djoy_b")
 	PORT_BIT(0x01, 0x01, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(1)
-	PORT_BIT(0x02, 0x02, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(2)
+	PORT_BIT(0x02, 0x02, IPT_BUTTON1) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(2)
 	PORT_BIT(0x04, 0x04, IPT_UNUSED)
 	PORT_BIT(0x08, 0x08, IPT_UNUSED)
-	PORT_BIT(0x10, 0x10, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(1)
-	PORT_BIT(0x20, 0x20, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(2)
+	PORT_BIT(0x10, 0x10, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(1)
+	PORT_BIT(0x20, 0x20, IPT_BUTTON2) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(2)
 	PORT_BIT(0x40, 0x40, IPT_UNUSED)
 	PORT_BIT(0x80, 0x80, IPT_UNUSED)
 INPUT_PORTS_END
@@ -521,7 +685,7 @@ INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( atari_digital_joystick4 )
-	PORT_START("djoy_0_1")  /* digital joystick #1 + #2 (PIA port A) */
+	PORT_START("djoy_0_1")
 	PORT_BIT(0x01, 0x01, IPT_JOYSTICK_UP)    PORT_CODE(KEYCODE_8_PAD) PORT_CODE(JOYCODE_Y_UP_SWITCH)    PORT_PLAYER(1)
 	PORT_BIT(0x02, 0x02, IPT_JOYSTICK_DOWN)  PORT_CODE(KEYCODE_2_PAD) PORT_CODE(JOYCODE_Y_DOWN_SWITCH)  PORT_PLAYER(1)
 	PORT_BIT(0x04, 0x04, IPT_JOYSTICK_LEFT)  PORT_CODE(KEYCODE_4_PAD) PORT_CODE(JOYCODE_X_LEFT_SWITCH)  PORT_PLAYER(1)
@@ -531,7 +695,7 @@ static INPUT_PORTS_START( atari_digital_joystick4 )
 	PORT_BIT(0x40, 0x40, IPT_JOYSTICK_LEFT)  PORT_CODE(KEYCODE_4_PAD) PORT_CODE(JOYCODE_X_LEFT_SWITCH)  PORT_PLAYER(2)
 	PORT_BIT(0x80, 0x80, IPT_JOYSTICK_RIGHT) PORT_CODE(KEYCODE_6_PAD) PORT_CODE(JOYCODE_X_RIGHT_SWITCH) PORT_PLAYER(2)
 
-	PORT_START("djoy_2_3")  /* digital joystick #3 + #4 (PIA port B) */
+	PORT_START("djoy_2_3")
 	PORT_BIT(0x01, 0x01, IPT_JOYSTICK_UP)    PORT_CODE(KEYCODE_8_PAD) PORT_CODE(JOYCODE_Y_UP_SWITCH)    PORT_PLAYER(3)
 	PORT_BIT(0x02, 0x02, IPT_JOYSTICK_DOWN)  PORT_CODE(KEYCODE_2_PAD) PORT_CODE(JOYCODE_Y_DOWN_SWITCH)  PORT_PLAYER(3)
 	PORT_BIT(0x04, 0x04, IPT_JOYSTICK_LEFT)  PORT_CODE(KEYCODE_4_PAD) PORT_CODE(JOYCODE_X_LEFT_SWITCH)  PORT_PLAYER(3)
@@ -541,15 +705,15 @@ static INPUT_PORTS_START( atari_digital_joystick4 )
 	PORT_BIT(0x40, 0x40, IPT_JOYSTICK_LEFT)  PORT_CODE(KEYCODE_4_PAD) PORT_CODE(JOYCODE_X_LEFT_SWITCH)  PORT_PLAYER(4)
 	PORT_BIT(0x80, 0x80, IPT_JOYSTICK_RIGHT) PORT_CODE(KEYCODE_6_PAD) PORT_CODE(JOYCODE_X_RIGHT_SWITCH) PORT_PLAYER(4)
 
-	PORT_START("djoy_b")    /* digital joystick buttons (GTIA button bits) */
+	PORT_START("djoy_b")
 	PORT_BIT(0x01, 0x01, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(1)
-	PORT_BIT(0x02, 0x02, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(2)
-	PORT_BIT(0x04, 0x04, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON3) PORT_PLAYER(3)
-	PORT_BIT(0x08, 0x08, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON4) PORT_PLAYER(4)
-	PORT_BIT(0x10, 0x10, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(1)
+	PORT_BIT(0x02, 0x02, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(2)
+	PORT_BIT(0x04, 0x04, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(3)
+	PORT_BIT(0x08, 0x08, IPT_BUTTON1) PORT_CODE(KEYCODE_0_PAD) PORT_CODE(JOYCODE_BUTTON1) PORT_PLAYER(4)
+	PORT_BIT(0x10, 0x10, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(1)
 	PORT_BIT(0x20, 0x20, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(2)
-	PORT_BIT(0x40, 0x40, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON3) PORT_PLAYER(3)
-	PORT_BIT(0x80, 0x80, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON4) PORT_PLAYER(4)
+	PORT_BIT(0x40, 0x40, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(3)
+	PORT_BIT(0x80, 0x80, IPT_BUTTON2) PORT_CODE(KEYCODE_DEL_PAD) PORT_CODE(JOYCODE_BUTTON2) PORT_PLAYER(4)
 INPUT_PORTS_END
 
 
@@ -561,7 +725,7 @@ Small note about natural keyboard support: currently,
 - "Atari" is mapped to 'F3'                         */
 
 static INPUT_PORTS_START( atari_keyboard )
-	PORT_START("keyboard_0")
+	PORT_START("keyboard.0")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_L) PORT_CHAR('l') PORT_CHAR('L')
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_J) PORT_CHAR('j') PORT_CHAR('J')
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_COLON) PORT_CHAR(';') PORT_CHAR(':')
@@ -571,7 +735,7 @@ static INPUT_PORTS_START( atari_keyboard )
 	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_QUOTE) PORT_CHAR('+') PORT_CHAR('\\')
 	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_BACKSLASH) PORT_CHAR('*') PORT_CHAR('^')
 
-	PORT_START("keyboard_1")
+	PORT_START("keyboard.1")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_O) PORT_CHAR('o') PORT_CHAR('O')
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) // None!
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_P) PORT_CHAR('p') PORT_CHAR('P')
@@ -581,7 +745,7 @@ static INPUT_PORTS_START( atari_keyboard )
 	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_OPENBRACE) PORT_CHAR('-') PORT_CHAR('_')
 	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_CLOSEBRACE) PORT_CHAR('=') PORT_CHAR('|')
 
-	PORT_START("keyboard_2")
+	PORT_START("keyboard.2")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_V) PORT_CHAR('v') PORT_CHAR('V')
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_UNUSED)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_C) PORT_CHAR('c') PORT_CHAR('C')
@@ -591,7 +755,7 @@ static INPUT_PORTS_START( atari_keyboard )
 	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_X) PORT_CHAR('x') PORT_CHAR('X')
 	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_Z) PORT_CHAR('z') PORT_CHAR('Z')
 
-	PORT_START("keyboard_3")
+	PORT_START("keyboard.3")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_4) PORT_CHAR('4') PORT_CHAR('$')
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_UNUSED)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_3) PORT_CHAR('3') PORT_CHAR('#')
@@ -601,7 +765,7 @@ static INPUT_PORTS_START( atari_keyboard )
 	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_2) PORT_CHAR('2') PORT_CHAR('\"')
 	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_1) PORT_CHAR('1') PORT_CHAR('!')
 
-	PORT_START("keyboard_4")
+	PORT_START("keyboard.4")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_COMMA) PORT_CHAR(',') PORT_CHAR('[')
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_SPACE) PORT_CHAR(' ')
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_STOP) PORT_CHAR('.') PORT_CHAR(']')
@@ -611,7 +775,7 @@ static INPUT_PORTS_START( atari_keyboard )
 	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_SLASH) PORT_CHAR('/') PORT_CHAR('?')
 	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("Atari") PORT_CODE(KEYCODE_RCONTROL) PORT_CHAR(UCHAR_MAMEKEY(F3))
 
-	PORT_START("keyboard_5")
+	PORT_START("keyboard.5")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_R) PORT_CHAR('r') PORT_CHAR('R')
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_UNUSED)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_E) PORT_CHAR('e') PORT_CHAR('E')
@@ -621,7 +785,7 @@ static INPUT_PORTS_START( atari_keyboard )
 	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_W) PORT_CHAR('w') PORT_CHAR('W')
 	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_Q) PORT_CHAR('q') PORT_CHAR('Q')
 
-	PORT_START("keyboard_6")
+	PORT_START("keyboard.6")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_9) PORT_CHAR('9') PORT_CHAR('(')
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_UNUSED)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_0) PORT_CHAR('0') PORT_CHAR(')')
@@ -631,7 +795,7 @@ static INPUT_PORTS_START( atari_keyboard )
 	PORT_BIT(0x40, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME("<  Clear") PORT_CODE(KEYCODE_MINUS) PORT_CHAR('<') PORT_CHAR(UCHAR_MAMEKEY(F2))
 	PORT_BIT(0x80, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_NAME(">  Insert") PORT_CODE(KEYCODE_EQUALS) PORT_CHAR('>') PORT_CHAR(UCHAR_MAMEKEY(INSERT))
 
-	PORT_START("keyboard_7")
+	PORT_START("keyboard.7")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_F) PORT_CHAR('f') PORT_CHAR('F')
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_H) PORT_CHAR('h') PORT_CHAR('H')
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYBOARD) PORT_CODE(KEYCODE_D) PORT_CHAR('d') PORT_CHAR('D')
@@ -648,28 +812,28 @@ INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( atari_analog_paddles )
-	PORT_START("analog_0") /* IN8 analog in #1 */
+	PORT_START("analog_0")
 	PORT_BIT(0xff, 0x74, IPT_PADDLE) PORT_SENSITIVITY(JOYSTICK_SENSITIVITY) PORT_KEYDELTA(JOYSTICK_DELTA) PORT_MINMAX(0x00,0xe4) PORT_PLAYER(1) PORT_REVERSE
 
-	PORT_START("analog_1") /* IN9 analog in #2 */
+	PORT_START("analog_1")
 	PORT_BIT(0xff, 0x74, IPT_PADDLE) PORT_SENSITIVITY(JOYSTICK_SENSITIVITY) PORT_KEYDELTA(JOYSTICK_DELTA) PORT_MINMAX(0x00,0xe4) PORT_PLAYER(2) PORT_REVERSE
 
-	PORT_START("analog_2") /* IN10 analog in #3 */
+	PORT_START("analog_2")
 	PORT_BIT(0xff, 0x74, IPT_PADDLE) PORT_SENSITIVITY(JOYSTICK_SENSITIVITY) PORT_KEYDELTA(JOYSTICK_DELTA) PORT_MINMAX(0x00,0xe4) PORT_PLAYER(3) PORT_REVERSE
 
-	PORT_START("analog_3") /* IN11 analog in #4 */
+	PORT_START("analog_3")
 	PORT_BIT(0xff, 0x74, IPT_PADDLE) PORT_SENSITIVITY(JOYSTICK_SENSITIVITY) PORT_KEYDELTA(JOYSTICK_DELTA) PORT_MINMAX(0x00,0xe4) PORT_PLAYER(4) PORT_REVERSE
 
-	PORT_START("analog_4") /* IN12 analog in #5 */
+	PORT_START("analog_4")
 	PORT_BIT(0xff, 0x74, IPT_PADDLE) PORT_SENSITIVITY(JOYSTICK_SENSITIVITY) PORT_KEYDELTA(JOYSTICK_DELTA) PORT_MINMAX(0x00,0xe4) PORT_REVERSE /* PORT_PLAYER(5) */
 
-	PORT_START("analog_5") /* IN13 analog in #6 */
+	PORT_START("analog_5")
 	PORT_BIT(0xff, 0x74, IPT_PADDLE) PORT_SENSITIVITY(JOYSTICK_SENSITIVITY) PORT_KEYDELTA(JOYSTICK_DELTA) PORT_MINMAX(0x00,0xe4) PORT_REVERSE /* PORT_PLAYER(6) */
 
-	PORT_START("analog_6") /* IN14 analog in #7 */
+	PORT_START("analog_6")
 	PORT_BIT(0xff, 0x74, IPT_PADDLE) PORT_SENSITIVITY(JOYSTICK_SENSITIVITY) PORT_KEYDELTA(JOYSTICK_DELTA) PORT_MINMAX(0x00,0xe4) PORT_REVERSE /* PORT_PLAYER(7) */
 
-	PORT_START("analog_7") /* IN15 analog in #8 */
+	PORT_START("analog_7")
 	PORT_BIT(0xff, 0x74, IPT_PADDLE) PORT_SENSITIVITY(JOYSTICK_SENSITIVITY) PORT_KEYDELTA(JOYSTICK_DELTA) PORT_MINMAX(0x00,0xe4) PORT_REVERSE /* PORT_PLAYER(8) */
 INPUT_PORTS_END
 
@@ -708,28 +872,28 @@ static INPUT_PORTS_START( a5200 )
 	PORT_BIT(0x40, 0x40, IPT_BUTTON2) PORT_PLAYER(3)
 	PORT_BIT(0x80, 0x80, IPT_BUTTON2) PORT_PLAYER(4)
 
-	PORT_START("keypad_0")
+	PORT_START("keypad.0")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("(Break)") PORT_CODE(KEYCODE_PAUSE)    // is this correct?
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[#]") PORT_CODE(KEYCODE_ENTER_PAD)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[0]") PORT_CODE(KEYCODE_0_PAD)
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[*]") PORT_CODE(KEYCODE_PLUS_PAD)
 	PORT_BIT(0xf0, IP_ACTIVE_HIGH, IPT_UNUSED)
 
-	PORT_START("keypad_1")
+	PORT_START("keypad.1")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("Reset") PORT_CODE(KEYCODE_F3)
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[9]") PORT_CODE(KEYCODE_9_PAD)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[8]") PORT_CODE(KEYCODE_8_PAD)
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[7]") PORT_CODE(KEYCODE_7_PAD)
 	PORT_BIT(0xf0, IP_ACTIVE_HIGH, IPT_UNUSED)
 
-	PORT_START("keypad_2")
+	PORT_START("keypad.2")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME(DEF_STR(Pause)) PORT_CODE(KEYCODE_F2)
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[6]") PORT_CODE(KEYCODE_6_PAD)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[5]") PORT_CODE(KEYCODE_5_PAD)
 	PORT_BIT(0x08, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[4]") PORT_CODE(KEYCODE_4_PAD)
 	PORT_BIT(0xf0, IP_ACTIVE_HIGH, IPT_UNUSED)
 
-	PORT_START("keypad_3")
+	PORT_START("keypad.3")
 	PORT_BIT(0x01, IP_ACTIVE_HIGH, IPT_START)    PORT_NAME("Start")
 	PORT_BIT(0x02, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[3]") PORT_CODE(KEYCODE_3_PAD)
 	PORT_BIT(0x04, IP_ACTIVE_HIGH, IPT_KEYPAD) PORT_NAME("[2]") PORT_CODE(KEYCODE_2_PAD)
@@ -925,9 +1089,7 @@ static const UINT8 atari_palette[256*3] =
 /* Initialise the palette */
 PALETTE_INIT_MEMBER(a400_state, a400)
 {
-	int i;
-
-	for ( i = 0; i < sizeof(atari_palette) / 3; i++ )
+	for (int i = 0; i < sizeof(atari_palette) / 3; i++ )
 	{
 		palette.set_pen_color(i, atari_palette[i*3], atari_palette[i*3+1], atari_palette[i*3+2]);
 	}
@@ -1534,843 +1696,359 @@ LIGHT-ORANGE
 
 /**************************************************************
  *
- * Memory banking
+ *    Memory setup
  *
  **************************************************************/
 
-void a400_state::a800xl_mmu(UINT8 new_mmu)
-{
-	UINT8 *base = m_region_maincpu->base();
-	UINT8 *base1, *base2, *base3, *base4;
-
-	/* check if memory C000-FFFF changed */
-	if( new_mmu & 0x01 )
-	{
-		logerror("%s MMU BIOS ROM\n", machine().system().name);
-		base3 = base + 0x14000;  /* 8K lo BIOS */
-		base4 = base + 0x15800;  /* 4K FP ROM + 8K hi BIOS */
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0xc000, 0xcfff, "bank3");
-		m_maincpu->space(AS_PROGRAM).unmap_write(0xc000, 0xcfff);
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0xd800, 0xffff, "bank4");
-		m_maincpu->space(AS_PROGRAM).unmap_write(0xd800, 0xffff);
-	}
-	else
-	{
-		logerror("%s MMU BIOS RAM\n", machine().system().name);
-		base3 = base + 0x0c000;  /* 8K RAM */
-		base4 = base + 0x0d800;  /* 4K RAM + 8K RAM */
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0xc000, 0xcfff, "bank3");
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0xd800, 0xffff, "bank4");
-	}
-	m_bank3->set_base(base3);
-	m_bank4->set_base(base4);
-
-	/* check if BASIC changed */
-	if( new_mmu & 0x02 )
-	{
-		logerror("%s MMU BASIC RAM\n", machine().system().name);
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0xa000, 0xbfff, "bank1");
-		base1 = base + 0x0a000;  /* 8K RAM */
-	}
-	else
-	{
-		logerror("%s MMU BASIC ROM\n", machine().system().name);
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0xa000, 0xbfff, "bank1");
-		m_maincpu->space(AS_PROGRAM).nop_write(0xa000, 0xbfff);
-		base1 = base + 0x10000;  /* 8K BASIC */
-	}
-
-	m_bank1->set_base(base1);
-
-	/* check if self-test ROM changed */
-	if( new_mmu & 0x80 )
-	{
-		logerror("%s MMU SELFTEST RAM\n", machine().system().name);
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0x5000, 0x57ff, "bank2");
-		base2 = base + 0x05000;  /* 0x0800 bytes */
-	}
-	else
-	{
-		logerror("%s MMU SELFTEST ROM\n", machine().system().name);
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0x5000, 0x57ff, "bank2");
-		m_maincpu->space(AS_PROGRAM).nop_write(0x5000, 0x57ff);
-		base2 = base + 0x15000;  /* 0x0800 bytes */
-	}
-	m_bank2->set_base(base2);
-}
-
-/* BASIC was available in a separate cart, so we don't test it */
-void a400_state::a1200xl_mmu(UINT8 new_mmu)
-{
-	UINT8 *base = m_region_maincpu->base();
-	UINT8 *base2, *base3, *base4;
-
-	/* check if memory C000-FFFF changed */
-	if( new_mmu & 0x01 )
-	{
-		logerror("%s MMU BIOS ROM\n", machine().system().name);
-		base3 = base + 0x14000;  /* 8K lo BIOS */
-		base4 = base + 0x15800;  /* 4K FP ROM + 8K hi BIOS */
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0xc000, 0xcfff, "bank3");
-		m_maincpu->space(AS_PROGRAM).unmap_write(0xc000, 0xcfff);
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0xd800, 0xffff, "bank4");
-		m_maincpu->space(AS_PROGRAM).unmap_write(0xd800, 0xffff);
-	}
-	else
-	{
-		logerror("%s MMU BIOS RAM\n", machine().system().name);
-		base3 = base + 0x0c000;  /* 8K RAM */
-		base4 = base + 0x0d800;  /* 4K RAM + 8K RAM */
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0xc000, 0xcfff, "bank3");
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0xd800, 0xffff, "bank4");
-	}
-	m_bank3->set_base(base3);
-	m_bank4->set_base(base4);
-
-	/* check if self-test ROM changed */
-	if( new_mmu & 0x80 )
-	{
-		logerror("%s MMU SELFTEST RAM\n", machine().system().name);
-		base2 = base + 0x05000;  /* 0x0800 bytes */
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0x5000, 0x57ff, "bank2");
-	}
-	else
-	{
-		logerror("%s MMU SELFTEST ROM\n", machine().system().name);
-		base2 = base + 0x15000;  /* 0x0800 bytes */
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0x5000, 0x57ff, "bank2");
-		m_maincpu->space(AS_PROGRAM).unmap_write(0x5000, 0x57ff);
-	}
-	m_bank2->set_base(base2);
-}
-
-void a400_state::xegs_mmu(UINT8 new_mmu)
-{
-	UINT8 *base = m_region_maincpu->base();
-	UINT8 *base2, *base3, *base4;
-
-	/* check if memory C000-FFFF changed */
-	if( new_mmu & 0x01 )
-	{
-		logerror("%s MMU BIOS ROM\n", machine().system().name);
-		base3 = base + 0x14000;  /* 8K lo BIOS */
-		base4 = base + 0x15800;  /* 4K FP ROM + 8K hi BIOS */
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0xc000, 0xcfff, "bank3");
-		m_maincpu->space(AS_PROGRAM).unmap_write(0xc000, 0xcfff);
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0xd800, 0xffff, "bank4");
-		m_maincpu->space(AS_PROGRAM).unmap_write(0xd800, 0xffff);
-	}
-	else
-	{
-		logerror("%s MMU BIOS RAM\n", machine().system().name);
-		base3 = base + 0x0c000;  /* 8K RAM */
-		base4 = base + 0x0d800;  /* 4K RAM + 8K RAM */
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0xc000, 0xcfff, "bank3");
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0xd800, 0xffff, "bank4");
-	}
-	m_bank3->set_base(base3);
-	m_bank4->set_base(base4);
-
-
-	/* check if self-test ROM changed */
-	if( new_mmu & 0x80 )
-	{
-		logerror("%s MMU SELFTEST RAM\n", machine().system().name);
-		m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0x5000, 0x57ff, "bank2");
-		base2 = base + 0x05000;  /* 0x0800 bytes */
-	}
-	else
-	{
-		logerror("%s MMU SELFTEST ROM\n", machine().system().name);
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0x5000, 0x57ff, "bank2");
-		m_maincpu->space(AS_PROGRAM).nop_write(0x5000, 0x57ff);
-		base2 = base + 0x15000;  /* 0x0800 bytes */
-	}
-	m_bank2->set_base(base2);
-}
-
-
-// Currently, the drivers have fixed 40k RAM, however the function here is ready for different sizes too
-void a400_state::a800_setbank(int cart_mounted)
+void a400_state::setup_ram(int bank, UINT32 size)
 {
 	offs_t ram_top;
-	// take care of 0x0000-0x7fff: RAM or NOP
-	ram_top = MIN(m_ram->size(), 0x8000) - 1;
-	m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0x0000, ram_top, "0000");
-	if ( m_0000 == NULL )
-	{
-		m_0000.findit();
-	}
-	m_0000->set_base(m_ram->pointer());
 
-	// take care of 0x8000-0x9fff: A800 -> either right slot or RAM or NOP, others -> RAM or NOP
-	// is there anything in the right slot?
-	if (cart_mounted & RIGHT_CARTSLOT_MOUNTED)
+	switch (bank)
 	{
-		m_maincpu->space(AS_PROGRAM).install_read_bank(0x8000, 0x9fff, "8000");
-		if ( m_8000 == NULL )
-		{
-			m_8000.findit();
-		}
-		m_8000->set_base(m_region_rslot->base());
-		m_maincpu->space(AS_PROGRAM).unmap_write(0x8000, 0x9fff);
-	}
-	else if (m_a800_cart_type != BBSB)
-	{
-		ram_top = MIN(m_ram->size(), 0xa000) - 1;
-		if (ram_top > 0x8000)
-		{
-			m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0x8000, ram_top, "8000");
-			if ( m_8000 == NULL )
+		case 0: // 0x0000-0x7fff
+			ram_top = MIN(size, 0x8000) - 1;
+			m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0x0000, ram_top, "0000");
+			if (m_0000 == NULL)
+				m_0000.findit();
+			m_0000->set_base(m_ram->pointer());
+			break;
+		case 1: // 0x8000-0x9fff
+			ram_top = MIN(size, 0xa000) - 1;
+			if (ram_top > 0x8000)
 			{
-				m_8000.findit();
-			}
-			m_8000->set_base(m_ram->pointer() + 0x8000);
-		}
-	}
-
-	// take care of 0xa000-0xbfff: is there anything in the left slot?
-	if (cart_mounted & LEFT_CARTSLOT_MOUNTED)
-	{
-		// FIXME: this is an hack to keep XL working until we clean up its memory map as well!
-		if (m_atari == ATARI_800XL)
-		{
-			if (m_a800_cart_type == A800_16K)
-			{
-				m_maincpu->space(AS_PROGRAM).install_read_bank(0x8000, 0x9fff, "8000");
-				if ( m_8000 == NULL )
-				{
+				m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0x8000, ram_top, "8000");
+				if (m_8000 == NULL)
 					m_8000.findit();
-				}
-				m_8000->set_base(m_region_lslot->base());
-				m_maincpu->space(AS_PROGRAM).unmap_write(0x8000, 0x9fff);
+				m_8000->set_base(m_ram->pointer() + 0x8000);
+			}
+			break;
+		case 2: // 0xa000-0xbfff
+			ram_top = MIN(size, 0xc000) - 1;
+			if (ram_top > 0xa000)
+			{
+				m_maincpu->space(AS_PROGRAM).install_readwrite_bank(0xa000, ram_top, "a000");
+				if (m_a000 == NULL)
+					m_a000.findit();
+				m_a000->set_base(m_ram->pointer() + 0xa000);
+			}
+			break;
+	}
+}
 
-				memcpy(m_region_maincpu->base() + 0xa000, m_region_lslot->base() + 0x2000, 0x2000);
-			}
-			else if (m_a800_cart_type == A800_8K)
-				memcpy(m_region_maincpu->base() + 0xa000, m_region_lslot->base(), 0x2000);
-			else
-				fatalerror("This type of cart is not supported yet in this driver. Please use a400 or a800.\n");
-		}
-		else if (m_a800_cart_type == A800_16K)
-		{
-			m_8000->set_base(m_region_lslot->base());
-			m_a000->set_base(m_region_lslot->base() + 0x2000);
-			m_maincpu->space(AS_PROGRAM).unmap_write(0x8000, 0xbfff);
-		}
-		else if (m_a800_cart_type == BBSB)
-		{
-			// this requires separate banking in 0x8000 & 0x9000!
-			m_maincpu->space(AS_PROGRAM).install_read_bank(0x8000, 0x8fff, "8000");
-			if ( m_8000 == NULL )
-			{
-				m_8000.findit();
-			}
-			m_maincpu->space(AS_PROGRAM).install_read_bank(0x9000, 0x9fff, "9000");
-			if ( m_9000 == NULL )
-			{
-				m_9000.findit();
-			}
-			m_8000->set_base(m_region_lslot->base() + 0x0000);
-			m_9000->set_base(m_region_lslot->base() + 0x4000);
-			m_a000->set_base(m_region_lslot->base() + 0x8000);
-			m_maincpu->space(AS_PROGRAM).unmap_write(0xa000, 0xbfff);
-		}
-		else if (m_a800_cart_type == OSS_034M)
-		{
-			// this requires separate banking in 0xa000 & 0xb000!
-			m_maincpu->space(AS_PROGRAM).install_read_bank(0xa000, 0xafff, "a000");
-			if ( m_a000 == NULL )
-			{
-				m_a000.findit();
-			}
-			m_maincpu->space(AS_PROGRAM).install_read_bank(0xb000, 0xbfff, "b000");
-			if ( m_b000 == NULL )
-			{
-				m_b000.findit();
-			}
-			m_b000->set_base(m_region_lslot->base() + 0x3000);
-			m_maincpu->space(AS_PROGRAM).unmap_write(0xa000, 0xbfff);
-		}
-		else if (m_a800_cart_type == OSS_M091)
-		{
-			// this requires separate banking in 0xa000 & 0xb000!
-			m_maincpu->space(AS_PROGRAM).install_read_bank(0xa000, 0xafff, "a000");
-			if ( m_a000 == NULL )
-			{
-				m_a000.findit();
-			}
-			m_maincpu->space(AS_PROGRAM).install_read_bank(0xb000, 0xbfff, "b000");
-			if ( m_b000 == NULL )
-			{
-				m_b000.findit();
-			}
-			m_b000->set_base(m_region_lslot->base());
-			m_maincpu->space(AS_PROGRAM).unmap_write(0xa000, 0xbfff);
-		}
-		else if (m_a800_cart_type == XEGS_32K)
-		{
-			m_8000->set_base(m_region_lslot->base());
-			m_a000->set_base(m_region_lslot->base() + 0x6000);
-			m_maincpu->space(AS_PROGRAM).unmap_write(0x8000, 0xbfff);
-		}
+
+// these handle cart enable/disable without calling setup_ram thousands of times
+READ8_MEMBER(a400_state::special_read_8000)
+{
+	if (!m_cart_disabled)
+		return m_cart->read_80xx(space, offset);
+	else
+	{
+		offset += 0x8000;
+		if (m_ram->size() < offset)
+			return 0;
 		else
+			return m_ram->pointer()[offset];
+	}
+}
+
+WRITE8_MEMBER(a400_state::special_write_8000)
+{
+	if (m_cart_disabled)
+	{
+		offset += 0x8000;
+		if (m_ram->size() >= offset)
+			m_ram->pointer()[offset] = data;
+	}
+}
+
+READ8_MEMBER(a400_state::special_read_a000)
+{
+	if (!m_cart_disabled)
+		return m_cart->read_80xx(space, offset);
+	else
+	{
+		offset += 0xa000;
+		if (m_ram->size() < offset)
+			return 0;
+		else
+			return m_ram->pointer()[offset];
+	}
+}
+
+WRITE8_MEMBER(a400_state::special_write_a000)
+{
+	if (m_cart_disabled)
+	{
+		offset += 0xa000;
+		if (m_ram->size() >= offset)
+			m_ram->pointer()[offset] = data;
+	}
+}
+
+
+READ8_MEMBER(a400_state::read_d5xx)
+{
+	disable_cart(space, offset, 0);
+	return 0xff;
+}
+
+WRITE8_MEMBER(a400_state::disable_cart)
+{
+	if (m_cart->exists())
+	{
+		switch (m_cart->get_cart_type())
 		{
-			m_a000->set_base(m_region_lslot->base());
-			m_maincpu->space(AS_PROGRAM).unmap_write(0xa000, 0xbfff);
-		}
-	}
-}
+			case A800_PHOENIX:
+			case A800_BLIZZARD:
+				if (!m_cart_disabled)
+					m_cart_disabled = 1;
+				break;
+			case A800_OSS034M:
+			case A800_OSS043M:
+			case A800_EXPRESS:
+			case A800_DIAMOND:
+			case A800_WILLIAMS:
+				// use m_cart_disabled & m_last_offs to avoid continuous remapping of
+				// the memory space in some games (e.g. dropzone)
+				if (offset & 0x8 && !m_cart_disabled)
+					m_cart_disabled = 1;
+				else if (!(offset & 0x8))
+				{
+					if (m_cart_disabled)
+						m_cart_disabled = 0;
 
+					if ((offset & 0x7) != m_last_offs)
+					{
+						// we enter here only if we are writing to a different offset than last time
+						m_last_offs = offset & 0x7;
+						m_cart->write_d5xx(space, offset, data);
+					}
+				}
+				break;
+			case A800_TURBO64:
+			case A800_TURBO128:
+				if (offset & 0x10 && !m_cart_disabled)
+					m_cart_disabled = 1;
+				else if (!(offset & 0x10))
+				{
+					if (m_cart_disabled)
+						m_cart_disabled = 0;
 
-/* MESS specific parts that have to be started */
-void a400_state::ms_atari_machine_start(int type, int has_cart)
-{
-	/* set atari type (temporarily not used) */
-	m_atari = type;
-	a800_setbank(m_a800_cart_loaded);
-}
-
-void a400_state::ms_atari800xl_machine_start(int type, int has_cart)
-{
-	/* set atari type (temporarily not used) */
-	m_atari = type;
-	a800_setbank(m_a800_cart_loaded);
-}
-
-
-struct a800_pcb
-{
-	const char              *pcb_name;
-	int                     pcb_id;
-};
-
-// Here, we take the feature attribute from .xml (i.e. the PCB name) and we assign a unique ID to it
-// WARNING: most of these are still unsupported by the driver
-static const a800_pcb pcb_list[] =
-{
-	{"standard 4k", A800_8K},
-	{"standard 8k", A800_8K},
-	{"standard 12k", A800_16K},
-	{"standard 16k", A800_16K},
-	{"right slot 4k", A800_RIGHT_4K},
-	{"right slot 8k", A800_RIGHT_8K},
-
-	{"oss 034m", OSS_034M},
-	{"oss m091", OSS_M091},
-	{"phoenix 8k", PHOENIX_8K},
-	{"xegs 32k", XEGS_32K},
-	{"bbsb", BBSB},
-	{"diamond 64k", DIAMOND_64K},
-	{"williams 64k", WILLIAMS_64K},
-	{"express 64", EXPRESS_64},
-	{"spartados x", SPARTADOS_X},
-	{"N/A", A800_UNKNOWN}
-};
-
-int a400_state::a800_get_pcb_id(const char *pcb)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_LENGTH(pcb_list); i++)
-	{
-		if (!core_stricmp(pcb_list[i].pcb_name, pcb))
-			return pcb_list[i].pcb_id;
-	}
-
-	return A800_UNKNOWN;
-}
-
-
-WRITE8_MEMBER( a400_state::x32_bank_w )
-{
-	//  printf("written %x\n", data);
-	int bank = data & 0x03;
-	m_8000->set_base(m_region_lslot->base() + bank * 0x2000);
-}
-
-
-WRITE8_MEMBER( a400_state::w64_bank_w )
-{
-//  printf("write to %x\n", offset);
-
-	if (offset < 8)
-		m_a000->set_base(m_region_lslot->base() + offset * 0x2000);
-	else
-		m_a000->set_base(m_region_maincpu->base());
-	// FIXME: writes to 0x8-0xf should disable the cart
-}
-
-
-// this covers Express 64, Diamond 64 and SpartaDOS (same bankswitch, but at different addresses)
-WRITE8_MEMBER( a400_state::ex64_bank_w )
-{
-//  printf("write to %x\n", offset);
-
-	if (offset < 8)
-		m_a000->set_base(m_region_lslot->base() + (7 - offset) * 0x2000);
-	else
-		m_a000->set_base(m_region_maincpu->base());
-	// FIXME: writes to 0x8-0xf should disable the cart
-}
-
-
-WRITE8_MEMBER( a400_state::bbsb_bankl_w )
-{
-//  printf("write to %x\n", 0x8000 + offset);
-	if (offset >= 0xff6 && offset <= 0xff9)
-		m_8000->set_base(m_region_lslot->base() + 0x0000 + (offset - 0xff6) * 0x1000);
-}
-
-
-WRITE8_MEMBER( a400_state::bbsb_bankh_w )
-{
-//  printf("write to %x\n", 0x9000 + offset);
-	if (offset >= 0xff6 && offset <= 0xff9)
-		m_9000->set_base(m_region_lslot->base() + 0x4000 + (offset - 0xff6) * 0x1000);
-}
-
-
-WRITE8_MEMBER( a400_state::oss_034m_w )
-{
-	switch (offset & 0x0f)
-	{
-		case 0:
-		case 1:
-			m_a000->set_base(m_region_lslot->base());
-			m_b000->set_base(m_region_lslot->base() + 0x3000);
-			break;
-		case 2:
-		case 6:
-			// docs says this should put 0xff in the 0xa000 bank -> let's point to the end of the cart
-			m_a000->set_base(m_region_lslot->base() + 0x4000);
-			m_b000->set_base(m_region_lslot->base() + 0x3000);
-			break;
-		case 3:
-		case 7:
-			m_a000->set_base(m_region_lslot->base() + 0x1000);
-			m_b000->set_base(m_region_lslot->base() + 0x3000);
-			break;
-		case 4:
-		case 5:
-			m_a000->set_base(m_region_lslot->base() + 0x2000);
-			m_b000->set_base(m_region_lslot->base() + 0x3000);
-			break;
-		default:
-			m_a000->set_base(m_region_maincpu->base() + 0xa000);
-			m_b000->set_base(m_region_maincpu->base() + 0xb000);
-			break;
-	}
-}
-
-
-WRITE8_MEMBER( a400_state::oss_m091_w )
-{
-	switch (offset & 0x09)
-	{
-		case 0:
-			m_a000->set_base(m_region_lslot->base() + 0x1000);
-			m_b000->set_base(m_region_lslot->base());
-			break;
-		case 1:
-			m_a000->set_base(m_region_lslot->base() + 0x3000);
-			m_b000->set_base(m_region_lslot->base());
-			break;
-		case 8:
-			m_a000->set_base(m_region_maincpu->base() + 0xa000);
-			m_b000->set_base(m_region_maincpu->base() + 0xb000);
-			break;
-		case 9:
-			m_a000->set_base(m_region_lslot->base() + 0x2000);
-			m_b000->set_base(m_region_lslot->base());
-			break;
-	}
-}
-
-
-WRITE8_MEMBER( a400_state::xegs_bankswitch )
-{
-	UINT8 *cart = m_region_user1->base();
-	data &= m_xegs_banks - 1;
-	m_bank0->set_base(cart + data * 0x2000);
-}
-
-MACHINE_START_MEMBER( a400_state, xegs )
-{
-	address_space &space = m_maincpu->space(AS_PROGRAM);
-	UINT8 *cart = m_region_user1->base();
-	UINT8 *cpu  = m_region_maincpu->base();
-
-	atari_machine_start();
-	space.install_write_handler(0xd500, 0xd5ff, write8_delegate(FUNC(a400_state::xegs_bankswitch),this));
-
-	if (m_xegs_cart)
-	{
-		m_bank0->set_base(cart);
-		m_bank1->set_base(cart + (m_xegs_banks - 1) * 0x2000);
-	}
-	else
-	{
-		// point to built-in Missile Command (this does not work well, though... FIXME!!)
-		m_bank0->set_base(cpu + 0x10000);
-		m_bank1->set_base(cpu + 0x10000);
-	}
-}
-
-
-// currently this does nothing, but it will eventually install the memory handlers required by the mappers
-void a400_state::a800_setup_mappers(int type)
-{
-	switch (type)
-	{
-		case A800_4K:
-		case A800_RIGHT_4K:
-		case A800_12K:
-		case A800_8K:
-		case A800_16K:
-		case A800_RIGHT_8K:
-		case PHOENIX_8K:    // as normal 8k cart, but it can be disabled by writing to 0xd500-0xdfff
-			break;
-		case XEGS_32K:
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0xd500, 0xd5ff, write8_delegate(FUNC(a400_state::x32_bank_w),this));
-			break;
-		case OSS_034M:
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0xd500, 0xd5ff, write8_delegate(FUNC(a400_state::oss_034m_w),this));
-			break;
-		case OSS_M091:
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0xd500, 0xd5ff, write8_delegate(FUNC(a400_state::oss_m091_w),this));
-			break;
-		case BBSB:
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0x8000, 0x8fff, write8_delegate(FUNC(a400_state::bbsb_bankl_w),this));
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0x9000, 0x9fff, write8_delegate(FUNC(a400_state::bbsb_bankh_w),this));
-			break;
-		case WILLIAMS_64K:
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0xd500, 0xd50f, write8_delegate(FUNC(a400_state::w64_bank_w),this));
-			break;
-		case DIAMOND_64K:
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0xd5d0, 0xd5df, write8_delegate(FUNC(a400_state::ex64_bank_w),this));
-			break;
-		case EXPRESS_64:
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0xd570, 0xd57f, write8_delegate(FUNC(a400_state::ex64_bank_w),this));
-			break;
-		case SPARTADOS_X:
-			m_maincpu->space(AS_PROGRAM).install_write_handler(0xd5e0, 0xd5ef, write8_delegate(FUNC(a400_state::ex64_bank_w),this));
-			break;
-		default:
-			break;
-	}
-}
-
-
-int a400_state::a800_get_type(device_image_interface &image)
-{
-	UINT8 header[16];
-	image.fread(header, 0x10);
-	int hdr_type, cart_type = A800_UNKNOWN;
-
-	// add check of CART format
-	if (strncmp((const char *)header, "CART", 4))
-		fatalerror("Invalid header detected!\n");
-
-	hdr_type = (header[4] << 24) + (header[5] << 16) +  (header[6] << 8) + (header[7] << 0);
-	switch (hdr_type)
-	{
-		case 1:
-			cart_type = A800_8K;
-			break;
-		case 2:
-			cart_type = A800_16K;
-			break;
-		case 3:
-			cart_type = OSS_034M;
-			break;
-		case 8:
-			cart_type = WILLIAMS_64K;
-			break;
-		case 9:
-			cart_type = DIAMOND_64K;
-			break;
-		case 10:
-			cart_type = EXPRESS_64;
-			break;
-		case 11:
-			cart_type = SPARTADOS_X;
-			break;
-		case 12:
-			cart_type = XEGS_32K;
-			break;
-		case 15:
-			cart_type = OSS_M091;
-			break;
-		case 18:
-			cart_type = BBSB;
-			break;
-		case 21:
-			cart_type = A800_RIGHT_8K;
-			break;
-		case 39:
-			cart_type = PHOENIX_8K;
-			break;
-		case 4:
-		case 6:
-		case 7:
-		case 16:
-		case 19:
-		case 20:
-			fatalerror("Cart type \"%d\" means this is an Atari 5200 cart.\n", hdr_type);
-			break;
-		default:
-			osd_printf_info("Cart type \"%d\" is currently unsupported.\n", hdr_type);
-			break;
-	}
-	return cart_type;
-}
-
-
-int a400_state::a800_check_cart_type(device_image_interface &image)
-{
-	const char  *pcb_name;
-	int type = A800_UNKNOWN;
-
-	if (image.software_entry() == NULL)
-	{
-		UINT32 size = image.length();
-
-		// check if there is an header, if so extract cart_type from it, otherwise
-		// try to guess the cart_type from the file size (notice that after the
-		// a800_get_type call, we point at the start of the data)
-		if ((size % 0x1000) == 0x10)
-			type = a800_get_type(image);
-		else if (size == 0x4000)
-			type = A800_16K;
-		else if (size == 0x2000)
-		{
-			if (strcmp(image.device().tag(),":cart2") == 0)
-				type = A800_RIGHT_8K;
-			else
-				type = A800_8K;
-		}
-	}
-	else
-	{
-		if ((pcb_name = image.get_feature("cart_type")) != NULL)
-			type = a800_get_pcb_id(pcb_name);
-
-		switch (type)
-		{
-			case A800_UNKNOWN:
-			case A800_4K:
-			case A800_RIGHT_4K:
-			case A800_12K:
-			case A800_8K:
-			case A800_16K:
-			case A800_RIGHT_8K:
+					if ((offset & 0x0f) != m_last_offs)
+					{
+						// we enter here only if we are writing to a different offset than last time
+						m_last_offs = offset & 0x0f;
+						m_cart->write_d5xx(space, offset & 0x0f, data);
+					}
+				}
+				break;
+			case A800_SPARTADOS:
+				// writes with offset & 8 are also used to enable/disable the subcart, so they go through!
+				m_cart->write_d5xx(space, offset, data);
+				break;
+			case A800_OSSM091:
+			case A800_OSS8K:
+				if ((offset & 0x9) == 0x08)
+					m_cart_disabled = 1;
+				else
+				{
+					m_cart_disabled = 0;
+					m_cart->write_d5xx(space, offset, data);
+				}
+				break;
+			case A800_MICROCALC:
+				m_cart_helper = (m_cart_helper + 1) % 5;
+				if (m_cart_helper == 4)
+					m_cart_disabled = 1;
+				else
+				{
+					m_cart_disabled = 0;
+					m_cart->write_d5xx(space, offset, m_cart_helper);
+				}
 				break;
 			default:
-				osd_printf_info("Cart type \"%s\" currently unsupported.\n", pcb_name);
 				break;
 		}
 	}
-
-	if ((strcmp(image.device().tag(),":cart2") == 0) && (type != A800_RIGHT_8K))
-		fatalerror("You cannot load this image '%s' in the right slot\n", image.filename());
-
-	return type;
 }
 
-
-DEVICE_IMAGE_LOAD_MEMBER( a400_state, a800_cart )
+void a400_state::setup_cart(a800_cart_slot_device *slot)
 {
-	UINT32 size, start = 0;
+	m_cart_disabled = 0;
+	m_last_offs = -1;
 
-	m_a800_cart_loaded = m_a800_cart_loaded & ~LEFT_CARTSLOT_MOUNTED;
-	m_a800_cart_type = a800_check_cart_type(image);
-
-	a800_setup_mappers(m_a800_cart_type);
-
-	if (image.software_entry() == NULL)
+	if (slot->exists())
 	{
-		size = image.length();
-		// if there is an header, skip it
-		if ((size % 0x1000) == 0x10)
+		switch (slot->get_cart_type())
 		{
-			size -= 0x10;
-			start = 0x10;
-		}
-		image.fread(m_region_lslot->base(), size - start);
-	}
-	else
-	{
-		size = image.get_software_region_length("rom");
-		memcpy(m_region_lslot->base(), image.get_software_region("rom"), size);
-	}
-
-	m_a800_cart_loaded |= (size > 0x0000) ? 1 : 0;
-
-	logerror("%s loaded left cartridge '%s' size %dK\n", machine().system().name, image.filename(), size/1024);
-	return IMAGE_INIT_PASS;
-}
-
-
-DEVICE_IMAGE_LOAD_MEMBER( a400_state, a800_cart_right )
-{
-	UINT32 size, start = 0;
-
-	m_a800_cart_loaded = m_a800_cart_loaded & ~RIGHT_CARTSLOT_MOUNTED;
-	m_a800_cart_type = a800_check_cart_type(image);
-
-	a800_setup_mappers(m_a800_cart_type);
-
-	if (image.software_entry() == NULL)
-	{
-		size = image.length();
-		// if there is an header, skip it
-		if ((size % 0x1000) == 0x10)
-		{
-			size -= 0x10;
-			start = 0x10;
-		}
-		image.fread(m_region_rslot->base(), size - start);
-	}
-	else
-	{
-		size = image.get_software_region_length("rom");
-		memcpy(m_region_rslot->base(), image.get_software_region("rom"), size);
-	}
-
-	m_a800_cart_loaded |= (size > 0x0000) ? 2 : 0;
-
-	logerror("%s loaded right cartridge '%s' size 8K\n", machine().system().name, image.filename());
-	return IMAGE_INIT_PASS;
-}
-
-
-DEVICE_IMAGE_UNLOAD_MEMBER( a400_state, a800_cart )
-{
-	m_a800_cart_loaded = m_a800_cart_loaded & ~LEFT_CARTSLOT_MOUNTED;
-	m_a800_cart_type = A800_UNKNOWN;
-	a800_setbank(m_a800_cart_loaded);
-}
-
-
-DEVICE_IMAGE_UNLOAD_MEMBER( a400_state, a800_cart_right )
-{
-	m_a800_cart_loaded = m_a800_cart_loaded & ~RIGHT_CARTSLOT_MOUNTED;
-	m_a800_cart_type = A800_UNKNOWN;
-	a800_setbank(m_a800_cart_loaded);
-}
-
-
-DEVICE_IMAGE_LOAD_MEMBER( a400_state, a5200_cart )
-{
-	UINT8 *mem = m_region_maincpu->base();
-	UINT32 size;
-	bool A13_mirr = FALSE;
-
-	if (image.software_entry() == NULL)
-	{
-		/* load an optional (dual) cartidge */
-		size = image.fread(&mem[0x4000], 0x8000);
-		astring info;
-		if (hashfile_extrainfo(image, info) && info == "A13MIRRORING")
-			A13_mirr = TRUE;
-	}
-	else
-	{
-		size = image.get_software_region_length("rom");
-		memcpy(mem + 0x4000, image.get_software_region("rom"), size);
-		const char *pcb_name = image.get_feature("cart_type");
-		if (pcb_name && !strcmp(pcb_name, "A13MIRRORING"))
-			A13_mirr = TRUE;
-	}
-
-	if (size<0x8000) memmove(mem+0x4000+0x8000-size, mem+0x4000, size);
-	// mirroring of smaller cartridges
-	if (size <= 0x1000) memcpy(mem+0xa000, mem+0xb000, 0x1000);
-	if (size <= 0x2000) memcpy(mem+0x8000, mem+0xa000, 0x2000);
-	if (size <= 0x4000)
-	{
-		memcpy(&mem[0x4000], &mem[0x8000], 0x4000);
-		if (A13_mirr)
-		{
-			memcpy(&mem[0x8000], &mem[0xa000], 0x2000);
-			memcpy(&mem[0x6000], &mem[0x4000], 0x2000);
+			case A800_8K:
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0xa000, 0xbfff, read8_delegate(FUNC(a800_cart_slot_device::read_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).unmap_write(0xa000, 0xbfff);
+				break;
+			case A800_8K_RIGHT:
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0x8000, 0x9fff, read8_delegate(FUNC(a800_cart_slot_device::read_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).unmap_write(0x8000, 0x9fff);
+				break;
+			case A800_16K:
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0x8000, 0xbfff, read8_delegate(FUNC(a800_cart_slot_device::read_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).unmap_write(0x8000, 0xbfff);
+				break;
+			case A800_BBSB:
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0x8000, 0xbfff, read8_delegate(FUNC(a800_cart_slot_device::read_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0x8000, 0x9fff, write8_delegate(FUNC(a800_cart_slot_device::write_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).unmap_write(0xa000, 0xbfff);
+				break;
+			case A800_OSS034M:
+			case A800_OSS043M:
+			case A800_OSSM091:
+			case A800_OSS8K:
+			case A800_TURBO64:
+			case A800_TURBO128:
+			case A800_PHOENIX:
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa000, 0xbfff, read8_delegate(FUNC(a400_state::special_read_a000), this), write8_delegate(FUNC(a400_state::special_write_a000), this));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd500, 0xd5ff, write8_delegate(FUNC(a400_state::disable_cart), this));
+				break;
+			case A800_EXPRESS:
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa000, 0xbfff, read8_delegate(FUNC(a400_state::special_read_a000), this), write8_delegate(FUNC(a400_state::special_write_a000), this));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd570, 0xd57f, write8_delegate(FUNC(a400_state::disable_cart), this));
+				break;
+			case A800_DIAMOND:
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa000, 0xbfff, read8_delegate(FUNC(a400_state::special_read_a000), this), write8_delegate(FUNC(a400_state::special_write_a000), this));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd5d0, 0xd5df, write8_delegate(FUNC(a400_state::disable_cart), this));
+				break;
+			case A800_WILLIAMS:
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa000, 0xbfff, read8_delegate(FUNC(a400_state::special_read_a000), this), write8_delegate(FUNC(a400_state::special_write_a000), this));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd500, 0xd50f, write8_delegate(FUNC(a400_state::disable_cart), this));
+				break;
+			case A800_SPARTADOS:
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa000, 0xbfff, read8_delegate(FUNC(a400_state::special_read_a000), this), write8_delegate(FUNC(a400_state::special_write_a000), this));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd5e0, 0xd5ef, write8_delegate(FUNC(a400_state::disable_cart), this));
+				break;
+			case A800_BLIZZARD:
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x8000, 0xbfff, read8_delegate(FUNC(a400_state::special_read_8000), this), write8_delegate(FUNC(a400_state::special_write_8000), this));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd500, 0xd5ff, write8_delegate(FUNC(a400_state::disable_cart), this));
+				break;
+			case A800_MICROCALC:
+				// this can also disable ROM when reading in 0xd500-0xd5ff
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xa000, 0xbfff, read8_delegate(FUNC(a400_state::special_read_a000), this), write8_delegate(FUNC(a400_state::special_write_a000), this));
+				m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xd500, 0xd5ff, read8_delegate(FUNC(a400_state::read_d5xx), this), write8_delegate(FUNC(a400_state::disable_cart), this));
+				break;
+			case A800_TELELINK2:
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0x8000, 0xbfff, read8_delegate(FUNC(a800_cart_slot_device::read_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0x9000, 0x90ff, write8_delegate(FUNC(a800_cart_slot_device::write_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).unmap_write(0xa000, 0xbfff);
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0xd501, 0xd501, read8_delegate(FUNC(a800_cart_slot_device::read_d5xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd502, 0xd502, write8_delegate(FUNC(a800_cart_slot_device::write_d5xx),(a800_cart_slot_device*)slot));
+				break;
+			case A800_XEGS:
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0x8000, 0xbfff, read8_delegate(FUNC(a800_cart_slot_device::read_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).unmap_write(0x8000, 0xbfff);
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0xd500, 0xd5ff, write8_delegate(FUNC(a800_cart_slot_device::write_d5xx),(a800_cart_slot_device*)slot));
+				break;
+			case A5200_4K:
+			case A5200_8K:
+			case A5200_16K:
+			case A5200_32K:
+			case A5200_16K_2CHIPS:
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0x4000, 0xbfff, read8_delegate(FUNC(a800_cart_slot_device::read_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).unmap_write(0x4000, 0xbfff);
+				break;
+			case A5200_BBSB:
+				m_maincpu->space(AS_PROGRAM).install_read_handler(0x4000, 0xbfff, read8_delegate(FUNC(a800_cart_slot_device::read_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).install_write_handler(0x4000, 0x5fff, write8_delegate(FUNC(a800_cart_slot_device::write_80xx),(a800_cart_slot_device*)slot));
+				m_maincpu->space(AS_PROGRAM).unmap_write(0x6000, 0xbfff);
+				break;
 		}
 	}
-	logerror("A5200 loaded cartridge '%s' size %dK\n", image.filename() , size/1024);
-	return IMAGE_INIT_PASS;
 }
 
 
-DEVICE_IMAGE_UNLOAD_MEMBER( a400_state, a5200_cart )
+TIMER_DEVICE_CALLBACK_MEMBER( a400_state::a400_interrupt )
 {
-	UINT8 *mem = m_region_maincpu->base();
-	/* zap the cartridge memory (again) */
-	memset(&mem[0x4000], 0x00, 0x8000);
+	m_antic->generic_interrupt(4);
 }
 
-
-DEVICE_IMAGE_LOAD_MEMBER( a400_state, xegs_cart )
+TIMER_DEVICE_CALLBACK_MEMBER( a400_state::a800xl_interrupt )
 {
-	UINT32 size;
-	UINT8 *ptr = m_region_user1->base();
-
-	if (image.software_entry() == NULL)
-	{
-		// skip the header
-		image.fseek(0x10, SEEK_SET);
-		size = image.length() - 0x10;
-		if (image.fread(ptr, size) != size)
-			return IMAGE_INIT_FAIL;
-	}
-	else
-	{
-		size = image.get_software_region_length("rom");
-		memcpy(ptr, image.get_software_region("rom"), size);
-	}
-
-	m_xegs_banks = size / 0x2000;
-	m_xegs_cart = 1;
-
-	return IMAGE_INIT_PASS;
+	m_antic->generic_interrupt(2);
 }
 
-
-DEVICE_IMAGE_UNLOAD_MEMBER( a400_state, xegs_cart )
+TIMER_DEVICE_CALLBACK_MEMBER( a400_state::a5200_interrupt )
 {
-	m_xegs_cart = 0;
-	m_xegs_banks = 0;
+	m_antic->generic_interrupt(4);
+}
+
+MACHINE_RESET_MEMBER( a400_state, a400 )
+{
+	pokey_device *pokey = machine().device<pokey_device>("pokey");
+	pokey->write(15,0);
 }
 
 
 MACHINE_START_MEMBER( a400_state, a400 )
 {
-	atari_machine_start();
-	ms_atari_machine_start(ATARI_400, TRUE);
+	setup_ram(0, m_ram->size());
+	setup_ram(1, m_ram->size());
+	setup_ram(2, m_ram->size());
+	setup_cart(m_cart);
+
+	save_item(NAME(m_cart_disabled));
+	save_item(NAME(m_cart_helper));
+	save_item(NAME(m_last_offs));
 }
 
 
 MACHINE_START_MEMBER( a400_state, a800 )
 {
-	atari_machine_start();
-	ms_atari_machine_start(ATARI_800, TRUE);
-}
+	setup_ram(0, m_ram->size());
+	setup_ram(1, m_ram->size());
+	setup_ram(2, m_ram->size());
+	setup_cart(m_cart);
+	setup_cart(m_cart2);
 
+	save_item(NAME(m_cart_disabled));
+	save_item(NAME(m_cart_helper));
+	save_item(NAME(m_last_offs));
+}
 
 MACHINE_START_MEMBER( a400_state, a800xl )
 {
-	atari_machine_start();
-	ms_atari800xl_machine_start(ATARI_800XL, TRUE);
+	m_mmu = 0xfd;
+	m_ext_bank = 0x03;  // only used by a130xe
+	setup_cart(m_cart);
+
+	save_item(NAME(m_cart_disabled));
+	save_item(NAME(m_cart_helper));
+	save_item(NAME(m_last_offs));
+	save_item(NAME(m_mmu));
+	save_item(NAME(m_ext_bank));
 }
 
 
 MACHINE_START_MEMBER( a400_state, a5200 )
 {
-	atari_machine_start();
-	ms_atari_machine_start(ATARI_800XL, TRUE);
+	setup_cart(m_cart);
+
+	save_item(NAME(m_cart_disabled));
+	save_item(NAME(m_cart_helper));
+	save_item(NAME(m_last_offs));
 }
 
 
+/**************************************************************
+ *
+ * GTIA interface
+ *
+ **************************************************************/
+
+WRITE8_MEMBER(a400_state::gtia_cb)
+{
+	if (data & 0x08)
+		m_dac->write_unsigned8((UINT8)-120);
+	else
+		m_dac->write_unsigned8(+120);
+}
 
 /**************************************************************
  *
@@ -2378,33 +2056,18 @@ MACHINE_START_MEMBER( a400_state, a5200 )
  *
  **************************************************************/
 
-WRITE8_MEMBER(a400_state::a1200xl_pia_pb_w){ a1200xl_mmu(data); }
+WRITE8_MEMBER(a400_state::a600xl_pia_pb_w)
+{
+	m_mmu = data;
+}
+
 WRITE8_MEMBER(a400_state::a800xl_pia_pb_w)
 {
 	if (m_pia->port_b_z_mask() != 0xff)
-		a800xl_mmu(data);
-}
-
-WRITE8_MEMBER(a400_state::xegs_pia_pb_w)
-{
-	if (m_pia->port_b_z_mask() != 0xff)
-		xegs_mmu(data);
-}
-
-/**************************************************************
- *
- * PIA interface
- *
- **************************************************************/
-
-READ8_MEMBER(a400_state::atari_pia_pa_r)
-{
-	return ioport("djoy_0_1")->read_safe(0);
-}
-
-READ8_MEMBER(a400_state::atari_pia_pb_r)
-{
-	return ioport("djoy_2_3")->read_safe(0);
+	{
+		m_mmu = data;
+		m_ext_bank = (m_mmu & 0x0c) >> 2;
+	}
 }
 
 /**************************************************************
@@ -2413,40 +2076,18 @@ READ8_MEMBER(a400_state::atari_pia_pb_r)
  *
  **************************************************************/
 
-static MACHINE_CONFIG_FRAGMENT( a400_cartslot )
-	MCFG_CARTSLOT_ADD("cart1")
-	MCFG_CARTSLOT_EXTENSION_LIST("rom,bin")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(a400_state,a800_cart)
-	MCFG_CARTSLOT_UNLOAD(a400_state,a800_cart)
-	MCFG_CARTSLOT_INTERFACE("a800_cart")
-MACHINE_CONFIG_END
-
-static MACHINE_CONFIG_FRAGMENT( a800_cartslot )
-	MCFG_CARTSLOT_ADD("cart1")
-	MCFG_CARTSLOT_EXTENSION_LIST("rom,bin")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(a400_state,a800_cart)
-	MCFG_CARTSLOT_UNLOAD(a400_state,a800_cart)
-	MCFG_CARTSLOT_INTERFACE("a800_cart")
-
-	MCFG_CARTSLOT_ADD("cart2")
-	MCFG_CARTSLOT_EXTENSION_LIST("rom,bin")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(a400_state,a800_cart_right)
-	MCFG_CARTSLOT_UNLOAD(a400_state,a800_cart_right)
-	MCFG_CARTSLOT_INTERFACE("a800_cart")
-MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_START( atari_common_nodac, a400_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, FREQ_17_EXACT)
 
+	MCFG_MACHINE_RESET_OVERRIDE( a400_state, a400 )
+
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(1))
 	MCFG_SCREEN_VISIBLE_AREA(MIN_X, MAX_X, MIN_Y, MAX_Y)
-	MCFG_SCREEN_UPDATE_DRIVER(atari_common_state, screen_update_atari)
+	MCFG_SCREEN_UPDATE_DEVICE("antic", antic_device, screen_update)
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_PALETTE_ADD("palette", sizeof(atari_palette) / 3)
@@ -2455,7 +2096,12 @@ static MACHINE_CONFIG_START( atari_common_nodac, a400_state )
 	MCFG_DEVICE_ADD("pia", PIA6821, 0)
 	MCFG_PIA_READPA_HANDLER(IOPORT("djoy_0_1"))
 	MCFG_PIA_READPB_HANDLER(IOPORT("djoy_2_3"))
+	MCFG_PIA_CA2_HANDLER(DEVWRITELINE("a8sio", a8sio_device, motor_w))
 	MCFG_PIA_CB2_HANDLER(DEVWRITELINE("fdc", atari_fdc_device, pia_cb2_w))
+
+	MCFG_DEVICE_ADD("a8sio", A8SIO, 0)
+	MCFG_A8SIO_DATA_IN_CB(DEVWRITELINE("pokey", pokey_device, sid_w))
+	MCFG_A8SIO_SLOT_ADD("a8sio", "sio", NULL)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
@@ -2470,69 +2116,75 @@ static MACHINE_CONFIG_START( atari_common_nodac, a400_state )
 	MCFG_POKEY_POT7_R_CB(IOPORT("analog_7"))
 	MCFG_POKEY_SERIN_R_CB(DEVREAD8("fdc", atari_fdc_device, serin_r))
 	MCFG_POKEY_SEROUT_W_CB(DEVWRITE8("fdc", atari_fdc_device, serout_w))
-	MCFG_POKEY_KEYBOARD_HANDLER(atari_a800_keyboard)
-	MCFG_POKEY_INTERRUPT_HANDLER(atari_interrupt_cb)
+	MCFG_POKEY_KEYBOARD_CB(atari_common_state, a800_keyboard)
+	MCFG_POKEY_INTERRUPT_CB(atari_common_state, interrupt_cb)
 
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
-
-	/* internal ram */
-	MCFG_RAM_ADD(RAM_TAG)
-	MCFG_RAM_DEFAULT_SIZE("40K")
 MACHINE_CONFIG_END
-
 
 static MACHINE_CONFIG_DERIVED( atari_common, atari_common_nodac )
 	MCFG_SOUND_ADD("dac", DAC, 0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 
+	/* internal ram */
+	MCFG_RAM_ADD(RAM_TAG)
+	MCFG_RAM_DEFAULT_SIZE("48K")
+
+	MCFG_DEVICE_ADD("gtia", ATARI_GTIA, 0)
+	MCFG_GTIA_READ_CB(IOPORT("console"))
+	MCFG_GTIA_WRITE_CB(WRITE8(a400_state, gtia_cb))
+
+	MCFG_DEVICE_ADD("antic", ATARI_ANTIC, 0)
+	MCFG_ANTIC_GTIA("gtia")
+
+	/* devices */
 	MCFG_DEVICE_ADD("fdc", ATARI_FDC, 0)
+
+	MCFG_A800_CARTRIDGE_ADD("cartleft", a800_left, NULL)
+
+	/* software lists */
 	MCFG_SOFTWARE_LIST_ADD("flop_list","a800_flop")
+	MCFG_SOFTWARE_LIST_ADD("cart_list","a800")
+	MCFG_SOFTWARE_LIST_ADD("xegs_list","xegs")
 MACHINE_CONFIG_END
 
 
+// memory map A400 + NTSC screen
 static MACHINE_CONFIG_DERIVED( a400, atari_common )
 
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP(a400_mem)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a400_interrupt, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", a400_state, a400_interrupt, "screen", 0, 1)
 
 	MCFG_MACHINE_START_OVERRIDE( a400_state, a400 )
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
-
-	MCFG_FRAGMENT_ADD(a400_cartslot)
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","a800")
 MACHINE_CONFIG_END
 
 
+// memory map A400 + PAL screen
 static MACHINE_CONFIG_DERIVED( a400pal, atari_common )
 
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP(a400_mem)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a400_interrupt, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", a400_state, a400_interrupt, "screen", 0, 1)
 
 	MCFG_MACHINE_START_OVERRIDE( a400_state, a400 )
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_50HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_50HZ)
-
-	MCFG_FRAGMENT_ADD(a400_cartslot)
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","a800")
 MACHINE_CONFIG_END
 
 
+// memory map A800 + NTSC screen + Right cartslot
 static MACHINE_CONFIG_DERIVED( a800, atari_common )
 
 	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_PROGRAM_MAP(a800_mem)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a800_interrupt, "screen", 0, 1)
+	MCFG_CPU_PROGRAM_MAP(a400_mem)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", a400_state, a400_interrupt, "screen", 0, 1)
 
 	MCFG_MACHINE_START_OVERRIDE( a400_state, a800 )
 
@@ -2540,18 +2192,16 @@ static MACHINE_CONFIG_DERIVED( a800, atari_common )
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
 
-	MCFG_FRAGMENT_ADD(a800_cartslot)
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","a800")
+	MCFG_A800_CARTRIDGE_ADD("cartright", a800_right, NULL)
 MACHINE_CONFIG_END
 
 
+// memory map A800 + PAL screen + Right cartslot
 static MACHINE_CONFIG_DERIVED( a800pal, atari_common )
 
 	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_PROGRAM_MAP(a800_mem)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a800_interrupt, "screen", 0, 1)
+	MCFG_CPU_PROGRAM_MAP(a400_mem)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", a400_state, a400_interrupt, "screen", 0, 1)
 
 	MCFG_MACHINE_START_OVERRIDE( a400_state, a800 )
 
@@ -2559,47 +2209,19 @@ static MACHINE_CONFIG_DERIVED( a800pal, atari_common )
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_50HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_50HZ)
 
-	MCFG_FRAGMENT_ADD(a800_cartslot)
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","a800")
+	MCFG_A800_CARTRIDGE_ADD("cartright", a800_right, NULL)
 MACHINE_CONFIG_END
 
 
+// memory map A600XL (same as 800XL but less RAM) + NTSC screen + MMU via PIA portB
 static MACHINE_CONFIG_DERIVED( a600xl, atari_common )
 
 	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_PROGRAM_MAP(a600xl_mem)    // FIXME?
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a800xl_interrupt, "screen", 0, 1)
+	MCFG_CPU_PROGRAM_MAP(a600xl_mem)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", a400_state, a800xl_interrupt, "screen", 0, 1)
 
 	MCFG_DEVICE_MODIFY("pia")
 	MCFG_PIA_WRITEPB_HANDLER(WRITE8(a400_state, a600xl_pia_pb_w))
-
-	MCFG_MACHINE_START_OVERRIDE( a400_state, a800xl )    // FIXME?
-
-	MCFG_SCREEN_MODIFY("screen")
-	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
-	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
-
-	MCFG_FRAGMENT_ADD(a400_cartslot)
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","a800")
-
-	/* internal ram */
-	MCFG_RAM_MODIFY(RAM_TAG)
-	MCFG_RAM_DEFAULT_SIZE("16K")
-MACHINE_CONFIG_END
-
-
-static MACHINE_CONFIG_DERIVED( a800xl, atari_common )
-
-	MCFG_CPU_MODIFY( "maincpu" )
-	MCFG_CPU_PROGRAM_MAP(a800xl_mem)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a800xl_interrupt, "screen", 0, 1)
-
-	MCFG_DEVICE_MODIFY("pia")
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(a400_state, a800xl_pia_pb_w))
 
 	MCFG_MACHINE_START_OVERRIDE( a400_state, a800xl )
 
@@ -2607,12 +2229,33 @@ static MACHINE_CONFIG_DERIVED( a800xl, atari_common )
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
 
-	MCFG_FRAGMENT_ADD(a400_cartslot)
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","a800")
+	MCFG_RAM_MODIFY(RAM_TAG)
+	MCFG_RAM_DEFAULT_SIZE("16K")
 MACHINE_CONFIG_END
 
+
+// memory map A800XL + NTSC screen + MMU via PIA portB
+static MACHINE_CONFIG_DERIVED( a800xl, atari_common )
+
+	MCFG_CPU_MODIFY( "maincpu" )
+	MCFG_CPU_PROGRAM_MAP(a800xl_mem)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", a400_state, a800xl_interrupt, "screen", 0, 1)
+
+	MCFG_DEVICE_MODIFY("pia")
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(a400_state, a800xl_pia_pb_w))
+
+	MCFG_MACHINE_START_OVERRIDE( a400_state, a800xl )
+
+	MCFG_RAM_MODIFY(RAM_TAG)
+	MCFG_RAM_DEFAULT_SIZE("64K")
+
+	MCFG_SCREEN_MODIFY("screen")
+	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
+	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
+MACHINE_CONFIG_END
+
+
+// memory map A800XL + PAL screen + MMU via PIA portB
 static MACHINE_CONFIG_DERIVED( a800xlpal, a800xl )
 
 	MCFG_CPU_MODIFY( "maincpu" )
@@ -2626,52 +2269,62 @@ static MACHINE_CONFIG_DERIVED( a800xlpal, a800xl )
 	MCFG_SOUND_CLOCK(1773000)
 MACHINE_CONFIG_END
 
+
+// memory map A1200XL+ MMU via PIA portB
 static MACHINE_CONFIG_DERIVED( a1200xl, a800xl )
 
-	MCFG_DEVICE_MODIFY("pia")
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(a400_state, a1200xl_pia_pb_w))
+	MCFG_CPU_MODIFY( "maincpu" )
+	MCFG_CPU_PROGRAM_MAP(a1200xl_mem)
 
+	MCFG_DEVICE_MODIFY("pia")
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(a400_state, a800xl_pia_pb_w))
 MACHINE_CONFIG_END
 
+
+// memory map A130XE (extra RAM only partially emulated)
+static MACHINE_CONFIG_DERIVED( a130xe, a800xl )
+
+	MCFG_CPU_MODIFY( "maincpu" )
+	MCFG_CPU_PROGRAM_MAP(a130xe_mem)
+
+	MCFG_RAM_MODIFY(RAM_TAG)
+	MCFG_RAM_DEFAULT_SIZE("128K")
+MACHINE_CONFIG_END
+
+
+// memory map XEGS, only XEGS bankswitch supported
 static MACHINE_CONFIG_DERIVED( xegs, a800xl )
 
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP(xegs_mem)
 
-	MCFG_MACHINE_START_OVERRIDE( a400_state, xegs )
-
-	MCFG_DEVICE_MODIFY("pia")
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(a400_state, xegs_pia_pb_w))
-
-	MCFG_DEVICE_REMOVE("cart1")
+	MCFG_DEVICE_REMOVE("cartleft")
 	MCFG_DEVICE_REMOVE("cart_list")
 
-	MCFG_CARTSLOT_ADD("cart1")
-	MCFG_CARTSLOT_EXTENSION_LIST("rom,bin")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(a400_state,xegs_cart)
-	MCFG_CARTSLOT_UNLOAD(a400_state,xegs_cart)
-	MCFG_CARTSLOT_INTERFACE("xegs_cart")
-
-	/* software lists */
-	MCFG_SOFTWARE_LIST_ADD("cart_list","xegs")
+	MCFG_XEGS_CARTRIDGE_ADD("cartleft", xegs_carts, NULL)
 MACHINE_CONFIG_END
 
 
+// memory map A5200, different ports, less RAM
 static MACHINE_CONFIG_DERIVED( a5200, atari_common_nodac )
 
 	MCFG_CPU_MODIFY( "maincpu" )
 	MCFG_CPU_PROGRAM_MAP(a5200_mem)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a5200_interrupt, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", a400_state, a5200_interrupt, "screen", 0, 1)
 
 	// FIXME: should there be anything connected where other system have the fdc?
 	MCFG_SOUND_MODIFY("pokey")
 	MCFG_POKEY_SERIN_R_CB(NULL)
 	MCFG_POKEY_SEROUT_W_CB(NULL)
-	MCFG_POKEY_KEYBOARD_HANDLER(atari_a5200_keypads)
-	MCFG_POKEY_INTERRUPT_HANDLER(atari_interrupt_cb)
+	MCFG_POKEY_KEYBOARD_CB(atari_common_state, a5200_keypads)
+	MCFG_POKEY_INTERRUPT_CB(atari_common_state, interrupt_cb)
 
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.00)
+
+	MCFG_DEVICE_ADD("gtia", ATARI_GTIA, 0)
+
+	MCFG_DEVICE_ADD("antic", ATARI_ANTIC, 0)
+	MCFG_ANTIC_GTIA("gtia")
 
 	MCFG_DEVICE_MODIFY("pia")
 	MCFG_PIA_READPA_HANDLER(NULL) // FIXME: is there anything connected here
@@ -2684,18 +2337,13 @@ static MACHINE_CONFIG_DERIVED( a5200, atari_common_nodac )
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
 
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("rom,bin,a52")
-	MCFG_CARTSLOT_NOT_MANDATORY
-	MCFG_CARTSLOT_LOAD(a400_state,a5200_cart)
-	MCFG_CARTSLOT_UNLOAD(a400_state,a5200_cart)
-	MCFG_CARTSLOT_INTERFACE("a5200_cart")
+	MCFG_A5200_CARTRIDGE_ADD("cartleft", a5200_carts, NULL)
 
 	/* Software lists */
 	MCFG_SOFTWARE_LIST_ADD("cart_list","a5200")
 
 	/* internal ram */
-	MCFG_RAM_MODIFY(RAM_TAG)
+	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("16K")
 MACHINE_CONFIG_END
 
@@ -2707,7 +2355,7 @@ MACHINE_CONFIG_END
  **************************************************************/
 
 ROM_START(a400)
-	ROM_REGION(0x14000, "maincpu", 0) /* 64K for the CPU + 2 * 8K for cartridges */
+	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD( "co12399b.rom", 0xd800, 0x0800, CRC(6a5d766e) SHA1(01a6044f7a81d409c938e7dfde0a1af5832229d2) )
 	ROM_SYSTEM_BIOS(0, "default", "OS Rev. B")
 	ROMX_LOAD( "co12499b.rom",  0xe000, 0x1000, BAD_DUMP CRC(d818f3e8) SHA1(bcdec2188f6a6a5bfc1df4e383bd828d34b5c4ac), ROM_BIOS(1) )    // CRC and label waiting for confirmation
@@ -2715,21 +2363,17 @@ ROM_START(a400)
 	ROM_SYSTEM_BIOS(1, "reva", "OS Rev. A")
 	ROMX_LOAD( "co12499a.rom",  0xe000, 0x1000, BAD_DUMP CRC(29f64e17) SHA1(abf7ec488c6b600f1b7f30bdc7f8a2bf6a727675), ROM_BIOS(2) )    // CRC and label waiting for confirmation
 	ROMX_LOAD( "co14599a.rom",  0xf000, 0x1000, BAD_DUMP CRC(bc533f0c) SHA1(e217148495fa747fe5488132d8d22533e68c7e58), ROM_BIOS(2) )    // CRC and label waiting for confirmation
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
 ROM_END
 
 ROM_START(a400pal)
-	ROM_REGION(0x14000, "maincpu", 0) /* 64K for the CPU + 2 * 8K for cartridges */
+	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD( "co12399b.rom", 0xd800, 0x0800, CRC(6a5d766e) SHA1(01a6044f7a81d409c938e7dfde0a1af5832229d2) )
 	ROM_LOAD( "co15199.rom", 0xe000, 0x1000, BAD_DUMP CRC(8e547f56) SHA1(1bd746ea798b723bfb18495a7facca113183d713) )    // Rev. A - CRC and label waiting for confirmation
 	ROM_LOAD( "co15299.rom", 0xf000, 0x1000, BAD_DUMP CRC(be55b413) SHA1(d88afae49b08e75943d0258cb580e5d34756414a) )    // Rev. A - CRC and label waiting for confirmation
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
 ROM_END
 
 ROM_START(a800)
-	ROM_REGION(0x14000, "maincpu", 0) /* 64K for the CPU + 2 * 8K for cartridges */
+	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD( "co12399b.rom", 0xd800, 0x0800, CRC(6a5d766e) SHA1(01a6044f7a81d409c938e7dfde0a1af5832229d2) )
 	ROM_SYSTEM_BIOS(0, "default", "OS Rev. B")
 	ROMX_LOAD( "co12499b.rom",  0xe000, 0x1000, BAD_DUMP CRC(d818f3e8) SHA1(bcdec2188f6a6a5bfc1df4e383bd828d34b5c4ac), ROM_BIOS(1) )    // CRC and label waiting for confirmation
@@ -2737,124 +2381,78 @@ ROM_START(a800)
 	ROM_SYSTEM_BIOS(1, "reva", "OS Rev. A")
 	ROMX_LOAD( "co12499a.rom",  0xe000, 0x1000, BAD_DUMP CRC(29f64e17) SHA1(abf7ec488c6b600f1b7f30bdc7f8a2bf6a727675), ROM_BIOS(2) )    // CRC and label waiting for confirmation
 	ROMX_LOAD( "co14599a.rom",  0xf000, 0x1000, BAD_DUMP CRC(bc533f0c) SHA1(e217148495fa747fe5488132d8d22533e68c7e58), ROM_BIOS(2) )    // CRC and label waiting for confirmation
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
-
-	ROM_REGION(0x2000, "rslot", ROMREGION_ERASEFF)
 ROM_END
 
 ROM_START(a800pal)
-	ROM_REGION(0x14000, "maincpu", 0) /* 64K for the CPU + 2 * 8K for cartridges */
+	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD( "co12399b.rom", 0xd800, 0x0800, CRC(6a5d766e) SHA1(01a6044f7a81d409c938e7dfde0a1af5832229d2) )
 	ROM_LOAD( "co15199.rom", 0xe000, 0x1000, BAD_DUMP CRC(8e547f56) SHA1(1bd746ea798b723bfb18495a7facca113183d713) )    // Rev. A - CRC and label waiting for confirmation
 	ROM_LOAD( "co15299.rom", 0xf000, 0x1000, BAD_DUMP CRC(be55b413) SHA1(d88afae49b08e75943d0258cb580e5d34756414a) )    // Rev. A - CRC and label waiting for confirmation
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
-
-	ROM_REGION(0x2000, "rslot", ROMREGION_ERASEFF)
 ROM_END
 
 ROM_START(a1200xl)
-	ROM_REGION(0x18000, "maincpu", 0)
+	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_SYSTEM_BIOS(0, "default", "OS Rev. 11")
-	ROMX_LOAD( "co60616b.rom", 0x14000, 0x2000, BAD_DUMP CRC(6e29ec8d) SHA1(3f9c06d6b4d261f3d5bf4354e3cff0c17b9347b9), ROM_BIOS(1) )    // CRC and label waiting for confirmation
-	ROMX_LOAD( "co60617b.rom", 0x16000, 0x2000, BAD_DUMP CRC(d73ce29a) SHA1(64790242d902643fe0c40dd842749f1fe461831b), ROM_BIOS(1) )    // CRC and label waiting for confirmation
+	ROMX_LOAD( "co60616b.rom", 0xc000, 0x2000, BAD_DUMP CRC(6e29ec8d) SHA1(3f9c06d6b4d261f3d5bf4354e3cff0c17b9347b9), ROM_BIOS(1) )    // CRC and label waiting for confirmation
+	ROMX_LOAD( "co60617b.rom", 0xe000, 0x2000, BAD_DUMP CRC(d73ce29a) SHA1(64790242d902643fe0c40dd842749f1fe461831b), ROM_BIOS(1) )    // CRC and label waiting for confirmation
 	ROM_SYSTEM_BIOS(1, "rev10", "OS Rev. 10")
-	ROMX_LOAD( "co60616a.rom", 0x14000, 0x2000, BAD_DUMP CRC(0391386b) SHA1(7c176657c88b89b8a69bf021fa8e0939efc0dff2), ROM_BIOS(2) )    // CRC and label waiting for confirmation
-	ROMX_LOAD( "co60617a.rom", 0x16000, 0x2000, BAD_DUMP CRC(b502f1e7) SHA1(6688db57d97fa570aef5c15cef3e5fb2688879c2), ROM_BIOS(2) )    // CRC and label waiting for confirmation
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
+	ROMX_LOAD( "co60616a.rom", 0xc000, 0x2000, BAD_DUMP CRC(0391386b) SHA1(7c176657c88b89b8a69bf021fa8e0939efc0dff2), ROM_BIOS(2) )    // CRC and label waiting for confirmation
+	ROMX_LOAD( "co60617a.rom", 0xe000, 0x2000, BAD_DUMP CRC(b502f1e7) SHA1(6688db57d97fa570aef5c15cef3e5fb2688879c2), ROM_BIOS(2) )    // CRC and label waiting for confirmation
 ROM_END
 
 ROM_START(a600xl)
 	ROM_REGION(0x10000, "maincpu", 0)
 	ROM_LOAD( "co60302a.rom", 0xa000, 0x2000, CRC(f0202fb3) SHA1(7ad88dd99ff4a6ee66f6d162074db6f8bef7a9b6) )    // Rev. B
 	ROM_LOAD( "co62024.rom",  0xc000, 0x4000, CRC(643bcc98) SHA1(881d030656b40bbe48f15a696b28f22c0b752ab0) )    // Rev. 1
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
 ROM_END
 
 ROM_START(a800xl)
-	ROM_REGION(0x18000, "maincpu", 0)
-	ROM_FILL( 0, 0x10000, 0x00 )
-	ROM_LOAD( "co60302a.rom", 0x10000, 0x2000, CRC(f0202fb3) SHA1(7ad88dd99ff4a6ee66f6d162074db6f8bef7a9b6) )   // Rev. B
-	ROM_LOAD( "co61598b.rom", 0x14000, 0x4000, CRC(1f9cd270) SHA1(ae4f523ba08b6fd59f3cae515a2b2410bbd98f55) )   // Rev. 2
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD( "co60302a.rom", 0xa000, 0x2000, CRC(f0202fb3) SHA1(7ad88dd99ff4a6ee66f6d162074db6f8bef7a9b6) )   // Rev. B
+	ROM_LOAD( "co61598b.rom", 0xc000, 0x4000, CRC(1f9cd270) SHA1(ae4f523ba08b6fd59f3cae515a2b2410bbd98f55) )   // Rev. 2
 ROM_END
 
 #define rom_a800xlp rom_a800xl
 
 ROM_START(a65xe)
-	ROM_REGION(0x18000, "maincpu", 0)
-	ROM_LOAD( "co24947a.rom", 0x10000, 0x2000, CRC(7d684184) SHA1(3693c9cb9bf3b41bae1150f7a8264992468fc8c0) )   // Rev. C
-	ROM_LOAD( "co61598b.rom", 0x14000, 0x4000, CRC(1f9cd270) SHA1(ae4f523ba08b6fd59f3cae515a2b2410bbd98f55) )   // Rev. 2
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD( "co24947a.rom", 0xa000, 0x2000, CRC(7d684184) SHA1(3693c9cb9bf3b41bae1150f7a8264992468fc8c0) )   // Rev. C
+	ROM_LOAD( "co61598b.rom", 0xc000, 0x4000, CRC(1f9cd270) SHA1(ae4f523ba08b6fd59f3cae515a2b2410bbd98f55) )   // Rev. 2
 ROM_END
 
 ROM_START(a65xea)
-	ROM_REGION(0x18000, "maincpu", 0)
-	ROM_LOAD( "basic_ar.rom", 0x10000, 0x2000, CRC(c899f4d6) SHA1(043df191d1fe402e792266a108e147ffcda35130) )   // is this correct? or shall we use Rev. C?
-//  ROM_LOAD( "c101700.rom",  0x14000, 0x4000, CRC(7f9a76c8) SHA1(57eb6d87850a763f11767f53d4eaede186f831a2) )   // this was from Savetz and has wrong bits!
-	ROM_LOAD( "c101700.rom",  0x14000, 0x4000, CRC(45f47988) SHA1(a36b8b20f657580f172749bb0625c08706ed824c) )   // Rev. 3B ?
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD( "basic_ar.rom", 0xa000, 0x2000, CRC(c899f4d6) SHA1(043df191d1fe402e792266a108e147ffcda35130) )   // is this correct? or shall we use Rev. C?
+//  ROM_LOAD( "c101700.rom",  0xc000, 0x4000, CRC(7f9a76c8) SHA1(57eb6d87850a763f11767f53d4eaede186f831a2) )   // this was from Savetz and has wrong bits!
+	ROM_LOAD( "c101700.rom",  0xc000, 0x4000, CRC(45f47988) SHA1(a36b8b20f657580f172749bb0625c08706ed824c) )   // Rev. 3B ?
 ROM_END
 
 ROM_START(a130xe)
-	ROM_REGION(0x18000, "maincpu", 0)
-	ROM_LOAD( "co24947a.rom", 0x10000, 0x2000, CRC(7d684184) SHA1(3693c9cb9bf3b41bae1150f7a8264992468fc8c0) )   // Rev. C
-	ROM_LOAD( "co61598b.rom", 0x14000, 0x4000, CRC(1f9cd270) SHA1(ae4f523ba08b6fd59f3cae515a2b2410bbd98f55) )   // Rev. 2
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD( "co24947a.rom", 0xa000, 0x2000, CRC(7d684184) SHA1(3693c9cb9bf3b41bae1150f7a8264992468fc8c0) )   // Rev. C
+	ROM_LOAD( "co61598b.rom", 0xc000, 0x4000, CRC(1f9cd270) SHA1(ae4f523ba08b6fd59f3cae515a2b2410bbd98f55) )   // Rev. 2
 ROM_END
 
 ROM_START(a800xe)
-	ROM_REGION(0x18000, "maincpu", 0)
-	ROM_LOAD( "co24947a.rom", 0x10000, 0x2000, CRC(7d684184) SHA1(3693c9cb9bf3b41bae1150f7a8264992468fc8c0) )   // Rev. C
-	ROM_LOAD( "c300717.rom",  0x14000, 0x4000, CRC(29f133f7) SHA1(f03b9b93000ee84abb9cf8d6367241006f172182) )   // Rev. 3
-
-	ROM_REGION(0x10000, "lslot", ROMREGION_ERASEFF)
+	ROM_REGION(0x10000, "maincpu", 0)
+	ROM_LOAD( "co24947a.rom", 0xa000, 0x2000, CRC(7d684184) SHA1(3693c9cb9bf3b41bae1150f7a8264992468fc8c0) )   // Rev. C
+	ROM_LOAD( "c300717.rom",  0xc000, 0x4000, CRC(29f133f7) SHA1(f03b9b93000ee84abb9cf8d6367241006f172182) )   // Rev. 3
 ROM_END
 
 ROM_START(xegs)
-	ROM_REGION(0x1a000, "maincpu", 0)
-	ROM_LOAD( "c101687.rom", 0x10000, 0x8000, CRC(d50260d1) SHA1(0e0625ab2473f8431640df3ac8af61925760b9b9) )    // Rev. C + Rev. 4 + Missile Command
-
-	ROM_REGION(0x20000, "user1", ROMREGION_ERASE00)
+	ROM_REGION(0x10000, "maincpu", ROMREGION_ERASE00)
+	ROM_LOAD( "c101687.rom", 0x8000, 0x8000, CRC(d50260d1) SHA1(0e0625ab2473f8431640df3ac8af61925760b9b9) )    // Rev. C + Rev. 4 + Missile Command
 ROM_END
 
 
 ROM_START(a5200)
-	ROM_REGION(0x14000, "maincpu", 0) /* 64K for the CPU + 16K for cartridges */
+	ROM_REGION(0x10000, "maincpu", ROMREGION_ERASEFF)
 	ROM_SYSTEM_BIOS(0, "default", "a5200")
 	ROMX_LOAD( "5200.rom",  0xf800, 0x0800, CRC(4248d3e3) SHA1(6ad7a1e8c9fad486fbec9498cb48bf5bc3adc530), ROM_BIOS(1) )
 	ROM_SYSTEM_BIOS(1, "alt", "a5200 (alt)")
 	ROMX_LOAD( "5200a.rom", 0xf800, 0x0800, CRC(c2ba2613) SHA1(1d2a3f00109d75d2d79fecb565775eb95b7d04d5), ROM_BIOS(2) )
 ROM_END
 
-/**************************************************************
- *
- * Driver initializations
- *
- **************************************************************/
-
-DRIVER_INIT_MEMBER(a400_state,a800xl)
-{
-	a800xl_mmu(0xff);
-}
-
-DRIVER_INIT_MEMBER(a400_state,xegs)
-{
-	xegs_mmu(0xff);
-}
-
-DRIVER_INIT_MEMBER(a400_state,a600xl)
-{
-	UINT8 *rom = m_region_maincpu->base();
-	memcpy( rom + 0x5000, rom + 0xd000, 0x800 );
-}
 
 /**************************************************************
  *
@@ -2863,18 +2461,18 @@ DRIVER_INIT_MEMBER(a400_state,a600xl)
  **************************************************************/
 
 /*     YEAR  NAME      PARENT    COMPAT MACHINE     INPUT    INIT      COMPANY    FULLNAME */
-COMP ( 1979, a400,     0,        0,     a400,       a800, driver_device,    0,      "Atari",   "Atari 400 (NTSC)", 0)
-COMP ( 1979, a400pal,  a400,     0,     a400pal,    a800, driver_device,    0,      "Atari",   "Atari 400 (PAL)",  0)
-COMP ( 1979, a800,     0,        0,     a800,       a800, driver_device,    0,      "Atari",   "Atari 800 (NTSC)", 0)
-COMP ( 1979, a800pal,  a800,     0,     a800pal,    a800, driver_device,    0,      "Atari",   "Atari 800 (PAL)",  0)
-COMP ( 1982, a1200xl,  a800,     0,     a1200xl,    a800xl, a400_state,  a800xl, "Atari",   "Atari 1200XL",     GAME_NOT_WORKING )      // 64k RAM
-COMP ( 1983, a600xl,   a800xl,   0,     a600xl,     a800xl, a400_state,  a600xl, "Atari",   "Atari 600XL",      GAME_NOT_WORKING )      // 16k RAM
-COMP ( 1983, a800xl,   0,        0,     a800xl,     a800xl, a400_state,  a800xl, "Atari",   "Atari 800XL (NTSC)",GAME_IMPERFECT_GRAPHICS )      // 64k RAM
-COMP ( 1983, a800xlp,  a800xl,   0,     a800xlpal,  a800xl, a400_state,  a800xl, "Atari",   "Atari 800XL (PAL)", GAME_IMPERFECT_GRAPHICS )      // 64k RAM
-COMP ( 1986, a65xe,    a800xl,   0,     a800xl,     a800xl, a400_state,  a800xl, "Atari",   "Atari 65XE",       GAME_NOT_WORKING )      // 64k RAM
-COMP ( 1986, a65xea,   a800xl,   0,     a800xl,     a800xl, a400_state,  a800xl, "Atari",   "Atari 65XE (Arabic)", GAME_NOT_WORKING )
-COMP ( 1986, a130xe,   a800xl,   0,     a800xl,     a800xl, a400_state,  a800xl, "Atari",   "Atari 130XE",      GAME_NOT_WORKING )      // 128k RAM
-COMP ( 1986, a800xe,   a800xl,   0,     a800xl,     a800xl, a400_state,  a800xl, "Atari",   "Atari 800XE",      GAME_NOT_WORKING )      // 64k RAM
-COMP ( 1987, xegs,     0,        0,     xegs,       a800xl, a400_state,  xegs,   "Atari",   "Atari XE Game System", GAME_NOT_WORKING )  // 64k RAM
+COMP ( 1979, a400,     0,        0,     a400,       a800,   driver_device,    0,    "Atari",   "Atari 400 (NTSC)",     0)
+COMP ( 1979, a400pal,  a400,     0,     a400pal,    a800,   driver_device,    0,    "Atari",   "Atari 400 (PAL)",      0)
+COMP ( 1979, a800,     0,        0,     a800,       a800,   driver_device,    0,    "Atari",   "Atari 800 (NTSC)",     0)
+COMP ( 1979, a800pal,  a800,     0,     a800pal,    a800,   driver_device,    0,    "Atari",   "Atari 800 (PAL)",      0)
+COMP ( 1982, a1200xl,  a800,     0,     a1200xl,    a800xl, driver_device,    0,    "Atari",   "Atari 1200XL",         GAME_NOT_WORKING )      // 64k RAM
+COMP ( 1983, a600xl,   a800xl,   0,     a600xl,     a800xl, driver_device,    0,    "Atari",   "Atari 600XL",          GAME_IMPERFECT_GRAPHICS )      // 16k RAM
+COMP ( 1983, a800xl,   0,        0,     a800xl,     a800xl, driver_device,    0,    "Atari",   "Atari 800XL (NTSC)",   GAME_IMPERFECT_GRAPHICS )      // 64k RAM
+COMP ( 1983, a800xlp,  a800xl,   0,     a800xlpal,  a800xl, driver_device,    0,    "Atari",   "Atari 800XL (PAL)",    GAME_IMPERFECT_GRAPHICS )      // 64k RAM
+COMP ( 1986, a65xe,    a800xl,   0,     a800xl,     a800xl, driver_device,    0,    "Atari",   "Atari 65XE",           GAME_IMPERFECT_GRAPHICS )      // 64k RAM
+COMP ( 1986, a65xea,   a800xl,   0,     a800xl,     a800xl, driver_device,    0,    "Atari",   "Atari 65XE (Arabic)",  GAME_NOT_WORKING )
+COMP ( 1986, a130xe,   a800xl,   0,     a130xe,     a800xl, driver_device,    0,    "Atari",   "Atari 130XE",          GAME_NOT_WORKING )      // 128k RAM
+COMP ( 1986, a800xe,   a800xl,   0,     a800xl,     a800xl, driver_device,    0,    "Atari",   "Atari 800XE",          GAME_IMPERFECT_GRAPHICS )      // 64k RAM
+COMP ( 1987, xegs,     0,        0,     xegs,       a800xl, driver_device,    0,    "Atari",   "Atari XE Game System", GAME_IMPERFECT_GRAPHICS )  // 64k RAM
 
-CONS ( 1982, a5200,    0,        0,     a5200,      a5200, driver_device,   0,      "Atari",   "Atari 5200",       0)
+CONS ( 1982, a5200,    0,        0,     a5200,      a5200,  driver_device,    0,    "Atari",   "Atari 5200",           0)

@@ -24,7 +24,7 @@
 
 #include "snap.lh"
 
-
+#include "osdepend.h"
 
 //**************************************************************************
 //  DEBUGGING
@@ -112,7 +112,8 @@ video_manager::video_manager(running_machine &machine)
       m_webmencoder(NULL),
 		m_avi_frame_period(attotime::zero),
 		m_avi_next_frame_time(attotime::zero),
-		m_avi_frame(0)
+		m_avi_frame(0),
+		m_dummy_recording(false)
 {
 	// request a callback upon exiting
 	machine.add_notifier(MACHINE_NOTIFY_EXIT, machine_notify_delegate(FUNC(video_manager::exit), this));
@@ -158,6 +159,10 @@ video_manager::video_manager(running_machine &machine)
 	filename = machine.options().avi_write();
 	if (filename[0] != 0)
 		begin_recording(filename, MF_AVI);
+
+#ifdef MAME_DEBUG
+	m_dummy_recording = machine.options().dummy_write();
+#endif
 
 	// if no screens, create a periodic timer to drive updates
 	if (machine.first_screen() == NULL)
@@ -242,7 +247,7 @@ void video_manager::frame_update(bool debug)
 
 	// ask the OSD to update
 	g_profiler.start(PROFILER_BLIT);
-	machine().osd().update(!debug && (skipped_it || SKIP_OSD));
+	machine().osd().update(!debug && (skipped_it));
 	g_profiler.stop();
 
 	machine().manager().lua()->periodic_check();
@@ -729,6 +734,9 @@ bool video_manager::finish_screen_updates()
 		if (screen->update_quads())
 			anything_changed = true;
 
+	// draw HUD from LUA callback (if any)
+	anything_changed |= machine().manager().lua()->frame_hook();
+
 	// update our movie recording and burn-in state
 	if (!machine().paused())
 	{
@@ -764,7 +772,7 @@ void video_manager::update_throttle(attotime emutime)
 {
   // For mamehub we need to do something different
   const attoseconds_t attoseconds_per_tick = ATTOSECONDS_PER_SECOND / osd_ticks_per_second();
-  {
+	{
     bool printed=false;
 
     while(true) {
@@ -772,7 +780,7 @@ void video_manager::update_throttle(attotime emutime)
       RakNet::Time curTime = RakNet::GetTimeMS() - emulationStartTime;
       if (netClient) {
         curTime = netClient->getCurrentServerTime();
-      }
+		}
       //cout << "Current time is: " << curTime << endl;
       //osd_ticks_t currentTicks = osd_ticks() - realtimeEmulationShift;
 
@@ -787,7 +795,7 @@ void video_manager::update_throttle(attotime emutime)
         if (SKIP_OSD) {
           SKIP_OSD=false;
           cout << "We are caught up " << ((emutime - expectedEmulationTime).attoseconds/ATTOSECONDS_PER_MILLISECOND) << "ms" << endl;
-        }
+		}
         if (!printed) {
           printed=true;
         }
@@ -795,7 +803,7 @@ void video_manager::update_throttle(attotime emutime)
         if ((emutime - expectedEmulationTime) < tolerance) {
           //cout << "Returning " << ((emutime - expectedEmulationTime).attoseconds/ATTOSECONDS_PER_MILLISECOND) << endl;
           return;
-        }
+		}
 
         if (netClient) {
           // Sleep for 15 ms and return
@@ -805,7 +813,7 @@ void video_manager::update_throttle(attotime emutime)
           // Sleep the processor 1ms and check again
           osd_sleep((osd_ticks_per_second()/1000));
           continue;
-        }
+		}
 
       } else {
         attotime diffTime = expectedEmulationTime - emutime;
@@ -817,14 +825,14 @@ void video_manager::update_throttle(attotime emutime)
           if (lastSecondBehind < emutime.seconds) {
             cout << "We are behind " << msBehind << "ms.  Skipping video." << endl;
             lastSecondBehind = emutime.seconds;
-          }
+		}
           SKIP_OSD=true;
         }
-        return;
+			return;
       }
     }
   }
-}
+	}
 
 void video_manager::rollback(attotime rollbackAmount) {
   osd_ticks_t ticks_per_second = osd_ticks_per_second();
@@ -1038,6 +1046,15 @@ void video_manager::recompute_speed(const attotime &emutime)
 	// if we're past the "time-to-execute" requested, signal an exit
 	if (m_seconds_to_run != 0 && emutime.seconds >= m_seconds_to_run)
 	{
+#ifdef MAME_DEBUG
+		if (g_tagmap_counter_enabled)
+		{
+			g_tagmap_counter_enabled = false;
+			if (*(machine().options().command()) == 0)
+				osd_printf_info("%d tagmap lookups\n", g_tagmap_finds);
+		}
+#endif
+
 		if (machine().first_screen() != NULL)
 		{
 			// create a final screenshot
@@ -1046,7 +1063,7 @@ void video_manager::recompute_speed(const attotime &emutime)
 			if (filerr == FILERR_NONE)
 				save_snapshot(machine().first_screen(), file);
 		}
-
+		//printf("Scheduled exit at %f\n", emutime.as_double());
 		// schedule our demise
 		machine().schedule_exit();
 	}
@@ -1058,6 +1075,9 @@ void video_manager::recompute_speed(const attotime &emutime)
 //  bitmap containing the screenshot for the
 //  given screen
 //-------------------------------------------------
+
+typedef software_renderer<UINT32, 0,0,0, 16,8,0, false, true> snap_renderer_bilinear;
+typedef software_renderer<UINT32, 0,0,0, 16,8,0, false, false> snap_renderer;
 
 void video_manager::create_snapshot_bitmap(screen_device *screen)
 {
@@ -1099,7 +1119,10 @@ void video_manager::create_snapshot_bitmap(screen_device *screen)
 	// render the screen there
 	render_primitive_list &primlist = m_snap_target->get_primitives();
 	primlist.acquire_lock();
-	software_renderer<UINT32, 0,0,0, 16,8,0, false, true>::draw_primitives(primlist, &m_snap_bitmap.pix32(0), width, height, m_snap_bitmap.rowpixels());
+	if (machine().options().snap_bilinear())
+		snap_renderer_bilinear::draw_primitives(primlist, &m_snap_bitmap.pix32(0), width, height, m_snap_bitmap.rowpixels());
+	else
+		snap_renderer::draw_primitives(primlist, &m_snap_bitmap.pix32(0), width, height, m_snap_bitmap.rowpixels());
 	primlist.release_lock();
 }
 
@@ -1239,7 +1262,7 @@ file_error video_manager::open_next(emu_file &file, const char *extension)
 void video_manager::record_frame()
 {
 	// ignore if nothing to do
-	if (m_mng_file == NULL && m_avi_file == NULL && m_webmencoder == NULL)
+	if (m_mng_file == NULL && m_avi_file == NULL && m_webmencoder == NULL && !m_dummy_recording)
 		return;
 
 	// start the profiler and get the current time

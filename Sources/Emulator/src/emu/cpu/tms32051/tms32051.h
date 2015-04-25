@@ -4,6 +4,19 @@
 #define __TMS32051_H__
 
 
+enum
+{
+	TMS32051_INT1 = 0,
+	TMS32051_INT2,
+	TMS32051_INT3,
+	TMS32051_TINT,
+	TMS32051_RINT,
+	TMS32051_XINT,
+	TMS32051_TRNT,
+	TMS32051_TXNT,
+	TMS32051_INT4
+};
+
 struct TMS32051_PMST
 {
 	UINT16 iptr;
@@ -121,6 +134,13 @@ private:
 		UINT16 tim;
 		UINT16 prd;
 	} m_timer;
+
+	struct
+	{
+		UINT16 drr;
+		UINT16 dxr;
+		UINT16 spc;
+	} m_serial;
 
 	struct
 	{

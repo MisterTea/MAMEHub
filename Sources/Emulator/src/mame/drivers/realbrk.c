@@ -36,7 +36,7 @@ To Do:
 
 - Priorities (e.g during the intro, there are two black bands in the backround
   that should obscure sprites).
-- Sometimes sprites are shrinked to end up overlapping the background image
+- Sometimes sprites are shrunk to end up overlapping the background image
   in the tilemaps, but they are a few pixels off
 
 ***************************************************************************/
@@ -155,10 +155,10 @@ static ADDRESS_MAP_START( base_mem, AS_PROGRAM, 16, realbrk_state )
 	AM_RANGE(0x000000, 0x0fffff) AM_ROM                                         // ROM
 	AM_RANGE(0x200000, 0x203fff) AM_RAM                   AM_SHARE("spriteram") // Sprites
 	AM_RANGE(0x400000, 0x40ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")   // Palette
-	AM_RANGE(0x600000, 0x601fff) AM_RAM_WRITE(realbrk_vram_0_w) AM_SHARE("vram_0")  // Background   (0)
-	AM_RANGE(0x602000, 0x603fff) AM_RAM_WRITE(realbrk_vram_1_w) AM_SHARE("vram_1")  // Background   (1)
-	AM_RANGE(0x604000, 0x604fff) AM_RAM_WRITE(realbrk_vram_2_w) AM_SHARE("vram_2")  // Text         (2)
-	AM_RANGE(0x606000, 0x60600f) AM_RAM_WRITE(realbrk_vregs_w) AM_SHARE("vregs")    // Scroll + Video Regs
+	AM_RANGE(0x600000, 0x601fff) AM_RAM_WRITE(vram_0_w) AM_SHARE("vram_0")  // Background   (0)
+	AM_RANGE(0x602000, 0x603fff) AM_RAM_WRITE(vram_1_w) AM_SHARE("vram_1")  // Background   (1)
+	AM_RANGE(0x604000, 0x604fff) AM_RAM_WRITE(vram_2_w) AM_SHARE("vram_2")  // Text         (2)
+	AM_RANGE(0x606000, 0x60600f) AM_RAM_WRITE(vregs_w) AM_SHARE("vregs")    // Scroll + Video Regs
 	AM_RANGE(0x605000, 0x61ffff) AM_RAM                                         //
 	AM_RANGE(0x800000, 0x800003) AM_DEVREADWRITE8("ymz", ymz280b_device, read, write, 0xff00)   // YMZ280
 	AM_RANGE(0xfe0000, 0xfeffff) AM_RAM                                         // RAM
@@ -744,7 +744,7 @@ GFXDECODE_END
                         Billiard Academy Real Break
 ***************************************************************************/
 
-INTERRUPT_GEN_MEMBER(realbrk_state::realbrk_interrupt)
+INTERRUPT_GEN_MEMBER(realbrk_state::interrupt)
 {
 	/* VBlank is connected to INT1 (external interrupts pin 1) */
 	m_tmp68301->external_interrupt_1();
@@ -755,7 +755,7 @@ static MACHINE_CONFIG_START( realbrk, realbrk_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu",M68000, XTAL_32MHz / 2)          /* !! TMP68301 !! */
 	MCFG_CPU_PROGRAM_MAP(realbrk_mem)
-	MCFG_CPU_VBLANK_INT_DRIVER("screen", realbrk_state,  realbrk_interrupt)
+	MCFG_CPU_VBLANK_INT_DRIVER("screen", realbrk_state,  interrupt)
 	MCFG_CPU_IRQ_ACKNOWLEDGE_DEVICE("tmp68301",tmp68301_device,irq_callback)
 
 	MCFG_DEVICE_ADD("tmp68301", TMP68301, 0)
@@ -767,7 +767,7 @@ static MACHINE_CONFIG_START( realbrk, realbrk_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(0x140, 0xe0)
 	MCFG_SCREEN_VISIBLE_AREA(0, 0x140-1, 0, 0xe0-1)
-	MCFG_SCREEN_UPDATE_DRIVER(realbrk_state, screen_update_realbrk)
+	MCFG_SCREEN_UPDATE_DRIVER(realbrk_state, screen_update)
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", realbrk)
@@ -1079,6 +1079,36 @@ ROM_START( realbrk )
 	ROM_LOAD( "mm60003.2e", 0x000000, 0x400000, CRC(39512459) SHA1(b5859a7d8f2f87d923e7f86f095cbffd31f9cbfa) )
 ROM_END
 
+ROM_START( realbrko )
+	ROM_REGION( 0x100000, "maincpu", 0 )        /* TMP68301 Code */
+	ROM_LOAD16_BYTE( "52302.1r", 0x000000, 0x080000, CRC(76de5e26) SHA1(d05b48f024053198fb63b1c4e5454ecb8fe302a4) )
+	ROM_LOAD16_BYTE( "52301.2r", 0x000001, 0x080000, CRC(29e979df) SHA1(61b30b2f8f16bb92a3ec1cd7abd157930f1a3f29) )
+
+	// note, the numbering on all the roms is shifted by 1 due to the sample data being split across 2 roms
+	//  this is how the board is labeled, it is not a mistake.
+	ROM_REGION( 0x800000, "gfx1", 0 )   /* Backgrounds */
+	ROM_LOAD32_WORD( "52311.9b", 0x0000000, 0x400000, CRC(07dfd9f5) SHA1(8722a98adc33f56df1e3b194ce923bc987e15cbe) )
+	ROM_LOAD32_WORD( "52312.9a", 0x0000002, 0x400000, CRC(136a93a4) SHA1(b4bd46ba6c2b367aaf362f67d8be4757f1160864) )
+
+	ROM_REGION( 0x40000, "gfx2", 0 )    /* Text Layer */
+	ROM_LOAD16_BYTE( "52306.1a", 0x000000, 0x020000, CRC(56546fb4) SHA1(5e4dc1665ca96bf24b89d92c24f5ff8420cb465e) ) // 1xxxxxxxxxxxxxxxx = 0xFF
+	ROM_LOAD16_BYTE( "52305.1b", 0x000001, 0x020000, CRC(b22b0aac) SHA1(8c62e19071a4031d0dcad621cce0ba550702659b) ) // 1xxxxxxxxxxxxxxxx = 0xFF
+
+	ROM_REGION( 0xc00000, "gfx3", 0 )   /* Sprites (256 colors) */
+	ROM_LOAD32_WORD( "52307.9f",   0x0000000, 0x400000, CRC(5ff0f666) SHA1(e3f1d9dc84fbef73af37cefd90bdf87a35f59e0e) )
+	ROM_LOAD32_WORD( "52309.9d",   0x0000002, 0x400000, CRC(20817051) SHA1(4c9a443b5d6353ce67d5b1fe716f5ac20d194ef0) )
+	ROM_LOAD32_WORD( "52308.9e",   0x0800000, 0x200000, CRC(a1d40934) SHA1(59b85435b13c6617e79b8d995506e585b6c8bedd) )
+	ROM_LOAD32_WORD( "52310.9c",   0x0800002, 0x200000, CRC(58c03a6c) SHA1(ec7ae49bba6ffdba0f79f1e41e14945f6c3acb1d) )
+
+	ROM_REGION( 0x200000, "gfx4", 0 )   /* Sprites (16 colors) */
+	ROM_LOAD( "52313.14f", 0x000000, 0x200000, CRC(2b5ba1ec) SHA1(d548ef8c96b7b868c866dedb314f56583726564d) )
+
+	ROM_REGION( 0x400000, "ymz", 0 )    /* Samples */
+	ROM_LOAD( "52303.2e", 0x000000, 0x200000, CRC(8a8a7d42) SHA1(7108203cf5a6a1603bfcbc5bde40e71ac960fffc) )
+	ROM_LOAD( "52304.1e", 0x200000, 0x200000, CRC(c8c5ef57) SHA1(4f363b36191f9c647fa88f07286bf9d667005553) )
+ROM_END
+
+
 ROM_START( realbrkj )
 	ROM_REGION( 0x100000, "maincpu", 0 )        /* TMP68301 Code */
 	ROM_LOAD16_BYTE( "52302.1r", 0x000000, 0x080000, CRC(ab0379b0) SHA1(67af6670f2b37a7d4d6e03508f291f8ffe64d4cb) )
@@ -1243,9 +1273,13 @@ ROM_START( dai2kaku_alt_rom_size )
 ROM_END
 #endif
 
-GAME( 1998, pkgnsh,   0,       pkgnsh,   pkgnsh, driver_device,   0, ROT0, "Nakanihon / Dynax", "Pachinko Gindama Shoubu (Japan)",      GAME_IMPERFECT_GRAPHICS )
-GAME( 1998, pkgnshdx, 0,       pkgnshdx, pkgnshdx, driver_device, 0, ROT0, "Nakanihon / Dynax", "Pachinko Gindama Shoubu DX (Japan)",   GAME_IMPERFECT_GRAPHICS )
-GAME( 1998, realbrk,  0,       realbrk,  realbrk, driver_device,  0, ROT0, "Nakanihon",         "Billiard Academy Real Break (Europe)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1998, realbrkj, realbrk, realbrk,  realbrk, driver_device,  0, ROT0, "Nakanihon",         "Billiard Academy Real Break (Japan)",  GAME_IMPERFECT_GRAPHICS )
-GAME( 1998, realbrkk, realbrk, realbrk,  realbrk, driver_device,  0, ROT0, "Nakanihon",         "Billiard Academy Real Break (Korea)",  GAME_IMPERFECT_GRAPHICS )
-GAME( 2004, dai2kaku, 0,       dai2kaku, dai2kaku, driver_device, 0, ROT0, "SystemBit",         "Dai-Dai-Kakumei (Japan)",              GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
+GAME( 1998, pkgnsh,   0,       pkgnsh,   pkgnsh, driver_device,   0, ROT0, "Nakanihon / Dynax", "Pachinko Gindama Shoubu (Japan)",      GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1998, pkgnshdx, 0,       pkgnshdx, pkgnshdx, driver_device, 0, ROT0, "Nakanihon / Dynax", "Pachinko Gindama Shoubu DX (Japan)",   GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1998, realbrk,  0,       realbrk,  realbrk, driver_device,  0, ROT0, "Nakanihon",         "Billiard Academy Real Break (Europe)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1998, realbrko, realbrk, realbrk,  realbrk, driver_device,  0, ROT0, "Nakanihon",         "Billiard Academy Real Break (Europe, older)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1998, realbrkj, realbrk, realbrk,  realbrk, driver_device,  0, ROT0, "Nakanihon",         "Billiard Academy Real Break (Japan)",  GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1998, realbrkk, realbrk, realbrk,  realbrk, driver_device,  0, ROT0, "Nakanihon",         "Billiard Academy Real Break (Korea)",  GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 2004, dai2kaku, 0,       dai2kaku, dai2kaku, driver_device, 0, ROT0, "SystemBit",         "Dai-Dai-Kakumei (Japan)",              GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )

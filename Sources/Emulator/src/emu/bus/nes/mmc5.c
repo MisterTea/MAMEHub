@@ -235,7 +235,7 @@ void nes_exrom_device::hblank_irq(int scanline, int vblank, int blanked )
 	if (scanline == m_irq_count)
 	{
 		if (m_irq_enable)
-			machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+			m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
 
 		m_irq_status = 0xff;
 	}
@@ -266,7 +266,6 @@ void nes_exrom_device::set_mirror(int page, int src)
 			break;
 		default:
 			fatalerror("This should never happen\n");
-			break;
 	}
 }
 
@@ -381,19 +380,19 @@ inline UINT8 nes_exrom_device::base_chr_r(int bank, UINT32 offset)
 			break;
 	}
 
-	return m_vrom[helper & (m_vrom.bytes() - 1)];
+	return m_vrom[helper & (m_vrom_size - 1)];
 }
 
 inline UINT8 nes_exrom_device::split_chr_r(UINT32 offset)
 {
 	UINT32 helper = (m_split_bank * 0x1000) + (offset & 0x3f8) + (m_split_yst & 7);
-	return m_vrom[helper & (m_vrom.bytes() - 1)];
+	return m_vrom[helper & (m_vrom_size - 1)];
 }
 
 inline UINT8 nes_exrom_device::bg_ex1_chr_r(UINT32 offset)
 {
 	UINT32 helper = (m_ex1_bank * 0x1000) + (offset & 0xfff);
-	return m_vrom[helper & (m_vrom.bytes() - 1)];
+	return m_vrom[helper & (m_vrom_size - 1)];
 }
 
 READ8_MEMBER(nes_exrom_device::chr_r)
@@ -445,7 +444,7 @@ READ8_MEMBER(nes_exrom_device::read_l)
 		case 0x1204:
 			value = m_irq_status;
 			m_irq_status &= ~0x80;
-			machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+			m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 			return value;
 
 		case 0x1205:

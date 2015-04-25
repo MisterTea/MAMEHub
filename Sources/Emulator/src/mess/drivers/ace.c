@@ -698,6 +698,7 @@ static MACHINE_CONFIG_START( ace, ace_state )
 	MCFG_CASSETTE_ADD("cassette")
 	MCFG_CASSETTE_FORMATS(ace_cassette_formats)
 	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_STOPPED)
+	MCFG_CASSETTE_INTERFACE("jupace_cass")
 
 	MCFG_SNAPSHOT_ADD("snapshot", ace_state, ace, "ace", 1)
 
@@ -711,13 +712,15 @@ static MACHINE_CONFIG_START( ace, ace_state )
 	MCFG_Z80PIO_OUT_PA_CB(WRITE8(ace_state, pio_pa_w))
 	MCFG_Z80PIO_OUT_PB_CB(DEVWRITE8("cent_data_out", output_latch_device, write))
 
-	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_devices, "printer")
 	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
 	MCFG_RAM_DEFAULT_SIZE("1K")
 	MCFG_RAM_EXTRA_OPTIONS("16K,32K,48K")
+
+	MCFG_SOFTWARE_LIST_ADD("cass_list", "jupace_cass")
 MACHINE_CONFIG_END
 
 

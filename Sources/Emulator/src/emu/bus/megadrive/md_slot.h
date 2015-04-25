@@ -78,13 +78,6 @@ enum
 };
 
 
-// ======================> md_cart_interface
-
-struct md_cart_interface
-{
-};
-
-
 // ======================> device_md_cart_interface
 
 class device_md_cart_interface : public device_slot_card_interface
@@ -107,13 +100,15 @@ public:
 	/* this probably should do more, like make Genesis V2 'die' if the SEGA string is not written promptly */
 	virtual DECLARE_WRITE16_MEMBER(write_tmss_bank) { logerror("Write to TMSS bank: offset %x data %x\n", 0xa14000 + (offset << 1), data); };
 
-	virtual void rom_alloc(size_t size);
+	virtual void rom_alloc(size_t size, const char *tag);
 	virtual void nvram_alloc(size_t size);
 	virtual UINT16* get_rom_base() { return m_rom; };
 	virtual UINT16* get_nvram_base() { return m_nvram; };
-	virtual UINT32 get_rom_size() { return m_rom.bytes(); };
+	virtual UINT32 get_rom_size() { return m_rom_size; };
 	virtual UINT32 get_nvram_size() { return m_nvram.bytes(); };
 	virtual void set_bank_to_rom(const char *banktag, UINT32 offset) {};
+
+	void save_nvram() { device().save_item(NAME(m_nvram)); }
 
 	void rom_map_setup(UINT32 size);
 	UINT32 get_padded_size(UINT32 size);
@@ -127,7 +122,8 @@ public:
 	int m_nvram_handlers_installed;
 
 	// internal state
-	dynamic_array<UINT16> m_rom;
+	UINT16  *m_rom;
+	UINT32  m_rom_size;
 	dynamic_array<UINT16> m_nvram;
 
 	UINT8 rom_bank_map[128];    // 64K chunks of rom
@@ -137,7 +133,6 @@ public:
 // ======================> base_md_cart_slot_device
 
 class base_md_cart_slot_device : public device_t,
-								public md_cart_interface,
 								public device_image_interface,
 								public device_slot_interface
 {
@@ -176,6 +171,8 @@ public:
 	void setup_nvram();
 	void set_must_be_loaded(bool _must_be_loaded) { m_must_be_loaded = _must_be_loaded; }
 	void file_logging(UINT8 *ROM, UINT32 rom_len, UINT32 nvram_len);
+
+	void save_nvram() { if (m_cart && m_cart->get_nvram_size()) m_cart->save_nvram(); }
 
 	// reading and writing
 	virtual DECLARE_READ16_MEMBER(read);
@@ -239,6 +236,8 @@ extern const device_type COPERA_CART_SLOT;
 /***************************************************************************
  DEVICE CONFIGURATION MACROS
  ***************************************************************************/
+
+#define MDSLOT_ROM_REGION_TAG ":cart:rom"
 
 #define MCFG_MD_CARTRIDGE_ADD(_tag,_slot_intf,_def_slot) \
 	MCFG_DEVICE_ADD(_tag, MD_CART_SLOT, 0) \

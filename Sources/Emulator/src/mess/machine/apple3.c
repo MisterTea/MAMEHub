@@ -179,7 +179,7 @@ READ8_MEMBER(apple3_state::apple3_c0xx_r)
 
 		case 0x66:  // paddle A/D conversion done (bit 7 = 1 while counting, 0 when done)
 		case 0x6e:
-			return m_ramp_active ? 0x80 : 0x00;
+			result = m_ramp_active ? 0x80 : 0x00;
 			break;
 
 		case 0x70: case 0x71: case 0x72: case 0x73:
@@ -240,14 +240,32 @@ READ8_MEMBER(apple3_state::apple3_c0xx_r)
 			result = 0x00;
 			break;
 
+		case 0xd8: case 0xd9:
+			m_smoothscr = offset & 1;
+			break;
+
 		case 0xDB:
 			apple3_write_charmem();
 			break;
 
-		case 0xE0: case 0xE1: case 0xE2: case 0xE3:
-		case 0xE4: case 0xE5: case 0xE6: case 0xE7:
-		case 0xE8: case 0xE9: case 0xEA: case 0xEB:
-		case 0xEC: case 0xED: case 0xEE: case 0xEF:
+		case 0xE0: case 0xE1:
+			result = m_fdc->read(space, offset&0xf);
+			m_va = offset & 1;
+			break;
+
+		case 0xE2: case 0xE3:
+			result = m_fdc->read(space, offset&0xf);
+			m_vb = offset & 1;
+			break;
+
+		case 0xE4: case 0xE5:
+			result = m_fdc->read(space, offset&0xf);
+			m_vc = offset & 1;
+			break;
+
+		case 0xE6: case 0xE7: case 0xE8: case 0xE9:
+		case 0xEA: case 0xEB: case 0xEC: case 0xED:
+		case 0xEE: case 0xEF:
 			result = m_fdc->read(space, offset&0xf);
 			break;
 
@@ -376,6 +394,10 @@ WRITE8_MEMBER(apple3_state::apple3_c0xx_w)
 			m_fdc->write_c0dx(space, offset&0xf, data);
 			break;
 
+		case 0xd9:
+			popmessage("Smooth scroll enabled, contact MESSdev");
+			break;
+
 		case 0xDB:
 			apple3_write_charmem();
 			break;
@@ -437,7 +459,7 @@ void apple3_state::apple3_update_memory()
 		logerror("apple3_update_memory(): via_0_b=0x%02x via_1_a=0x0x%02x\n", m_via_0_b, m_via_1_a);
 	}
 
-	machine().device("maincpu")->set_unscaled_clock((m_via_0_a & ENV_SLOWSPEED) ? 1000000 : 2000000);
+	machine().device("maincpu")->set_unscaled_clock((m_via_0_a & ENV_SLOWSPEED) ? 1021800 : 2000000);
 
 	/* bank 2 (0100-01FF) */
 	if (!(m_via_0_a & ENV_STACK1XX))
@@ -651,6 +673,10 @@ DRIVER_INIT_MEMBER(apple3_state,apple3)
 	m_via_1_a = ~0;
 	m_via_0_irq = 0;
 	m_via_1_irq = 0;
+	m_va = 0;
+	m_vb = 0;
+	m_vc = 0;
+	m_smoothscr = 0;
 
 	// kludge round +12v pull up resistors, which after conversion will bring this low when nothing is plugged in. issue also affects dcd/dsr but those don't affect booting.
 	m_acia->write_cts(0);
@@ -699,6 +725,10 @@ DRIVER_INIT_MEMBER(apple3_state,apple3)
 	save_item(NAME(m_analog_sel));
 	save_item(NAME(m_ramp_active));
 	save_item(NAME(m_pdl_charge));
+	save_item(NAME(m_va));
+	save_item(NAME(m_vb));
+	save_item(NAME(m_vc));
+	save_item(NAME(m_smoothscr));
 
 	machine().save().register_postload(save_prepost_delegate(FUNC(apple3_state::apple3_postload), this));
 }
@@ -1229,5 +1259,41 @@ TIMER_DEVICE_CALLBACK_MEMBER(apple3_state::paddle_timer)
 	{
 		m_pdl_charge++;
 		m_pdltimer->adjust(attotime::from_hz(1000000.0));
+	}
+}
+
+WRITE_LINE_MEMBER(apple3_state::a2bus_irq_w)
+{
+	UINT8 irq_mask = m_a2bus->get_a2bus_irq_mask();
+
+	m_via_1->write_ca1(state);
+	m_via_1->write_pa7(state);
+
+	if (irq_mask & (1<<4))
+	{
+		m_via_1->write_pa4(ASSERT_LINE);
+	}
+	else
+	{
+		m_via_1->write_pa4(CLEAR_LINE);
+	}
+
+	if (irq_mask & (1<<3))
+	{
+		m_via_1->write_pa5(ASSERT_LINE);
+	}
+	else
+	{
+		m_via_1->write_pa5(CLEAR_LINE);
+	}
+}
+
+WRITE_LINE_MEMBER(apple3_state::a2bus_nmi_w)
+{
+	m_via_1->write_pb7(state);
+
+	if (m_via_0_a & ENV_NMIENABLE)
+	{
+		m_maincpu->set_input_line(INPUT_LINE_NMI, state);
 	}
 }

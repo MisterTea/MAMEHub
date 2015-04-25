@@ -130,6 +130,7 @@ private:
 
 	static inline UINT32 get_texel_palette16(const render_texinfo &texture, INT32 curu, INT32 curv)
 	{
+		const rgb_t *palbase = texture.palette;
 		if (_BilinearFilter)
 		{
 			INT32 u0 = curu >> 16;
@@ -144,16 +145,16 @@ private:
 			const UINT16 *texbase = reinterpret_cast<const UINT16 *>(texture.base);
 			texbase += v0 * texture.rowpixels + u0;
 
-			UINT32 pix00 = texture.palette[texbase[0]];
-			UINT32 pix01 = texture.palette[texbase[u1]];
-			UINT32 pix10 = texture.palette[texbase[v1]];
-			UINT32 pix11 = texture.palette[texbase[u1 + v1]];
+			UINT32 pix00 = palbase[texbase[0]];
+			UINT32 pix01 = palbase[texbase[u1]];
+			UINT32 pix10 = palbase[texbase[v1]];
+			UINT32 pix11 = palbase[texbase[u1 + v1]];
 			return rgb_bilinear_filter(pix00, pix01, pix10, pix11, curu >> 8, curv >> 8);
 		}
 		else
 		{
 			const UINT16 *texbase = reinterpret_cast<const UINT16 *>(texture.base) + (curv >> 16) * texture.rowpixels + (curu >> 16);
-			return texture.palette[texbase[0]];
+			return palbase[texbase[0]];
 		}
 	}
 
@@ -165,6 +166,7 @@ private:
 
 	static inline UINT32 get_texel_palette16a(const render_texinfo &texture, INT32 curu, INT32 curv)
 	{
+		const rgb_t *palbase = texture.palette;
 		if (_BilinearFilter)
 		{
 			INT32 u0 = curu >> 16;
@@ -179,16 +181,16 @@ private:
 			const UINT16 *texbase = reinterpret_cast<const UINT16 *>(texture.base);
 			texbase += v0 * texture.rowpixels + u0;
 
-			UINT32 pix00 = texture.palette[texbase[0]];
-			UINT32 pix01 = texture.palette[texbase[u1]];
-			UINT32 pix10 = texture.palette[texbase[v1]];
-			UINT32 pix11 = texture.palette[texbase[u1 + v1]];
+			UINT32 pix00 = palbase[texbase[0]];
+			UINT32 pix01 = palbase[texbase[u1]];
+			UINT32 pix10 = palbase[texbase[v1]];
+			UINT32 pix11 = palbase[texbase[u1 + v1]];
 			return rgba_bilinear_filter(pix00, pix01, pix10, pix11, curu >> 8, curv >> 8);
 		}
 		else
 		{
 			const UINT16 *texbase = reinterpret_cast<const UINT16 *>(texture.base) + (curv >> 16) * texture.rowpixels + (curu >> 16);
-			return texture.palette[texbase[0]];
+			return palbase[texbase[0]];
 		}
 	}
 

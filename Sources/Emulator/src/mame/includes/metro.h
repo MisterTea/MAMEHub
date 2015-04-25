@@ -63,7 +63,6 @@ public:
 	optional_shared_ptr<UINT16> m_vram_2;
 	required_shared_ptr<UINT16> m_spriteram;
 	optional_shared_ptr<UINT16> m_tiletable;
-	UINT16 *    m_tiletable_old;
 	optional_shared_ptr<UINT16> m_blitter_regs;
 	optional_shared_ptr<UINT16> m_scroll;
 	optional_shared_ptr<UINT16> m_window;
@@ -159,7 +158,7 @@ public:
 	DECLARE_READ16_MEMBER(dokyusp_eeprom_r);
 	DECLARE_WRITE16_MEMBER(dokyusp_eeprom_bit_w);
 	DECLARE_WRITE16_MEMBER(dokyusp_eeprom_reset_w);
-	DECLARE_WRITE16_MEMBER(mouja_sound_rombank_w);
+	DECLARE_WRITE8_MEMBER(mouja_sound_rombank_w);
 	void gakusai_oki_bank_set();
 
 	// vmetal
@@ -178,8 +177,6 @@ public:
 	TILE_GET_INFO_MEMBER(metro_k053936_get_tile_info);
 	TILE_GET_INFO_MEMBER(metro_k053936_gstrik2_get_tile_info);
 	TILEMAP_MAPPER_MEMBER(tilemap_scan_gstrik2);
-	DECLARE_MACHINE_START(metro);
-	DECLARE_MACHINE_RESET(metro);
 	void expand_gfx1();
 	DECLARE_VIDEO_START(metro_i4100);
 	DECLARE_VIDEO_START(metro_i4220);
@@ -206,14 +203,9 @@ public:
 	void metro_common(  );
 	void draw_tilemap( screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 flags, UINT32 pcode,
 					int sx, int sy, int wx, int wy, int big, UINT16 *tilemapram, int layer );
-	DECLARE_WRITE_LINE_MEMBER(blzntrnd_irqhandler);
-	DECLARE_WRITE_LINE_MEMBER(ymf278b_interrupt);
 	DECLARE_READ_LINE_MEMBER(metro_rxd_r);
 
 protected:
+	virtual void machine_start();
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
 };
-
-
-/*----------- defined in video/metro.c -----------*/
-void metro_draw_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect);

@@ -205,10 +205,10 @@ static void init_tmu_shared(tmu_shared_state *s);
 static void init_tmu(voodoo_state *v, tmu_state *t, voodoo_reg *reg, void *memory, int tmem);
 static void soft_reset(voodoo_state *v);
 static void recompute_video_memory(voodoo_state *v);
-static void check_stalled_cpu(voodoo_state *v, const attotime &current_time);
-static void flush_fifos(voodoo_state *v, const attotime &current_time);
+static void check_stalled_cpu(voodoo_state *v, attotime current_time);
+static void flush_fifos(voodoo_state *v, attotime current_time);
 static TIMER_CALLBACK( stall_cpu_callback );
-static void stall_cpu(voodoo_state *v, int state, const attotime &current_time);
+static void stall_cpu(voodoo_state *v, int state, attotime current_time);
 static TIMER_CALLBACK( vblank_callback );
 static INT32 register_w(voodoo_state *v, offs_t offset, UINT32 data);
 static INT32 lfb_w(voodoo_state *v, offs_t offset, UINT32 data, UINT32 mem_mask, int forcefront);
@@ -1654,7 +1654,6 @@ static UINT32 cmdfifo_execute(voodoo_state *v, cmdfifo_info *f)
 				case 2:     /* RET */
 					if (LOG_CMDFIFO) logerror("  RET $%06X\n", target);
 					fatalerror("RET in CMDFIFO!\n");
-					break;
 
 				case 3:     /* JMP LOCAL FRAME BUFFER */
 					if (LOG_CMDFIFO) logerror("  JMP LOCAL FRAMEBUF $%06X\n", target);
@@ -1670,7 +1669,6 @@ static UINT32 cmdfifo_execute(voodoo_state *v, cmdfifo_info *f)
 				default:
 					osd_printf_debug("INVALID JUMP COMMAND!\n");
 					fatalerror("  INVALID JUMP COMMAND\n");
-					break;
 			}
 			break;
 
@@ -2108,7 +2106,7 @@ static TIMER_CALLBACK( stall_cpu_callback )
 }
 
 
-static void check_stalled_cpu(voodoo_state *v, const attotime &current_time)
+static void check_stalled_cpu(voodoo_state *v, attotime current_time)
 {
 	int resume = FALSE;
 
@@ -2162,7 +2160,7 @@ static void check_stalled_cpu(voodoo_state *v, const attotime &current_time)
 }
 
 
-static void stall_cpu(voodoo_state *v, int state, const attotime &current_time)
+static void stall_cpu(voodoo_state *v, int state, attotime current_time)
 {
 	/* sanity check */
 	if (!v->pci.op_pending) fatalerror("FIFOs not empty, no op pending!\n");
@@ -2885,6 +2883,11 @@ static INT32 register_w(voodoo_state *v, offs_t offset, UINT32 data)
 			}
 			break;
 
+		case trexInit1:
+			/* send tmu config data to the frame buffer */
+			v->send_config = (TREXINIT_SEND_TMU_CONFIG(data) > 0);
+			goto default_case;
+
 		/* these registers are referenced in the renderer; we must wait for pending work before changing */
 		case chromaRange:
 		case chromaKey:
@@ -2901,6 +2904,7 @@ static INT32 register_w(voodoo_state *v, offs_t offset, UINT32 data)
 
 		/* by default, just feed the data to the chips */
 		default:
+default_case:
 			if (chips & 1) v->reg[0x000 + regnum].u = data;
 			if (chips & 2) v->reg[0x100 + regnum].u = data;
 			if (chips & 4) v->reg[0x200 + regnum].u = data;
@@ -3421,7 +3425,7 @@ static INT32 texture_w(voodoo_state *v, offs_t offset, UINT32 data)
  *
  *************************************/
 
-static void flush_fifos(voodoo_state *v, const attotime &current_time)
+static void flush_fifos(voodoo_state *v, attotime current_time)
 {
 	static UINT8 in_flush;
 
@@ -4564,7 +4568,6 @@ WRITE32_MEMBER( voodoo_banshee_device::banshee_agp_w )
 
 		case cmdBump0:
 			fatalerror("cmdBump0\n");
-			break;
 
 		case cmdRdPtrL0:
 			v->fbi.cmdfifo[0].rdptr = data;
@@ -4601,7 +4604,6 @@ WRITE32_MEMBER( voodoo_banshee_device::banshee_agp_w )
 
 		case cmdBump1:
 			fatalerror("cmdBump1\n");
-			break;
 
 		case cmdRdPtrL1:
 			v->fbi.cmdfifo[1].rdptr = data;
@@ -4913,6 +4915,8 @@ void voodoo_device::common_start_voodoo(UINT8 type)
 		}
 	}
 
+	v->tmu_config = 0x11;   // revision 1
+
 	/* configure type-specific values */
 	switch (v->type)
 	{
@@ -4928,6 +4932,7 @@ void voodoo_device::common_start_voodoo(UINT8 type)
 			v->regnames = voodoo_reg_name;
 			v->alt_regmap = 0;
 			v->fbi.lfb_stride = 10;
+			v->tmu_config |= 0x800;
 			break;
 
 		case TYPE_VOODOO_BANSHEE:
@@ -4946,7 +4951,6 @@ void voodoo_device::common_start_voodoo(UINT8 type)
 
 		default:
 			fatalerror("Unsupported voodoo card in voodoo_start!\n");
-			break;
 	}
 
 	/* set the type, and initialize the chip mask */
@@ -4963,6 +4967,10 @@ void voodoo_device::common_start_voodoo(UINT8 type)
 	assert_always(v->screen != NULL, "Unable to find screen attached to voodoo");
 	v->cpu = machine().device(m_cputag);
 	assert_always(v->cpu != NULL, "Unable to find CPU attached to voodoo");
+
+	if (m_tmumem1 != 0)
+		v->tmu_config |= 0xc0;  // two TMUs
+
 	v->chipmask = 0x01;
 	v->attoseconds_per_cycle = ATTOSECONDS_PER_SECOND / v->freq;
 	v->trigger = 51324 + v->index;
@@ -5007,6 +5015,7 @@ void voodoo_device::common_start_voodoo(UINT8 type)
 	{
 		init_tmu(v, &v->tmu[1], &v->reg[0x200], tmumem[1], m_tmumem1 << 20);
 		v->chipmask |= 0x04;
+		v->tmu_config |= 0x40;
 	}
 
 	/* initialize some registers */

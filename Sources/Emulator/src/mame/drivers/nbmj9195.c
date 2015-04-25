@@ -130,26 +130,18 @@ READ8_MEMBER(nbmj9195_state::mscoutm_cpu_portb_r)
 	{
 	case 0x01:
 		return ioport("KEY0")->read();
-		break;
 	case 0x02:
 		return ioport("KEY1")->read();
-		break;
 	case 0x04:
 		return ioport("KEY2")->read();
-		break;
 	case 0x08:
 		return ioport("KEY3")->read();
-		break;
 	case 0x10:
 		return ioport("KEY4")->read();
-		break;
 	default:
 		return (ioport("KEY0")->read() & ioport("KEY1")->read() & ioport("KEY2")->read()
 			& ioport("KEY3")->read() & ioport("KEY4")->read());
-		break;
 	}
-
-	return 0xff;
 }
 
 READ8_MEMBER(nbmj9195_state::mscoutm_cpu_portc_r)
@@ -159,25 +151,18 @@ READ8_MEMBER(nbmj9195_state::mscoutm_cpu_portc_r)
 	{
 	case 0x01:
 		return ioport("KEY5")->read();
-		break;
 	case 0x02:
 		return ioport("KEY6")->read();
-		break;
 	case 0x04:
 		return ioport("KEY7")->read();
-		break;
 	case 0x08:
 		return ioport("KEY8")->read();
-		break;
 	case 0x10:
 		return ioport("KEY9")->read();
-		break;
 	default:
 		return (ioport("KEY5")->read() & ioport("KEY6")->read() & ioport("KEY7")->read()
 			& ioport("KEY8")->read() & ioport("KEY9")->read());
-		break;
 	}
-	return 0xff;
 }
 
 
@@ -213,24 +198,17 @@ READ8_MEMBER(nbmj9195_state::others_cpu_portb_r)
 	{
 	case 0x01:
 		return ioport("KEY0")->read();
-		break;
 	case 0x02:
 		return ioport("KEY1")->read();
-		break;
 	case 0x04:
 		return ioport("KEY2")->read();
-		break;
 	case 0x08:
 		return ioport("KEY3")->read();
-		break;
 	case 0x10:
 		return ((ioport("KEY4")->read() & 0x7f) | (nbmj9195_dipsw_r() << 7));
-		break;
 	default:
 		return (ioport("KEY0")->read() & ioport("KEY1")->read() & ioport("KEY2")->read() & ioport("KEY3")->read() & (ioport("KEY4")->read() & 0x7f));
-		break;
 	}
-	return 0xff;
 }
 
 READ8_MEMBER(nbmj9195_state::others_cpu_portc_r)
@@ -240,24 +218,17 @@ READ8_MEMBER(nbmj9195_state::others_cpu_portc_r)
 	{
 	case 0x01:
 		return ioport("KEY5")->read();
-		break;
 	case 0x02:
 		return ioport("KEY6")->read();
-		break;
 	case 0x04:
 		return ioport("KEY7")->read();
-		break;
 	case 0x08:
 		return ioport("KEY8")->read();
-		break;
 	case 0x10:
 		return ioport("KEY9")->read() & 0x7f;
-		break;
 	default:
 		return (ioport("KEY5")->read() & ioport("KEY6")->read() & ioport("KEY7")->read() & ioport("KEY8")->read() & (ioport("KEY9")->read() & 0x7f));
-		break;
 	}
-	return 0xff;;
 }
 
 
@@ -3500,10 +3471,10 @@ ROM_END
 
 ROM_START( yosimotm )
 	ROM_REGION( 0x10000, "maincpu", 0 ) /* main program */
-	ROM_LOAD( "1(__yosimotm).7c",  0x00000,  0x10000, CRC(d156b07d) SHA1(8dcf2d8ac60920dc7ea286d4b91399ed2db05a3b) )
+	ROM_LOAD( "1.7c",  0x00000,  0x10000, CRC(d156b07d) SHA1(8dcf2d8ac60920dc7ea286d4b91399ed2db05a3b) ) // sldh
 
 	ROM_REGION( 0x20000, "audiocpu", 0 ) /* sound program */
-	ROM_LOAD( "2(__yosimotm).12e", 0x00000,  0x20000, CRC(e2d84085) SHA1(890b4d4a02030253837b67e8232293dce30d7ca2) )
+	ROM_LOAD( "2.12e", 0x00000,  0x20000, CRC(e2d84085) SHA1(890b4d4a02030253837b67e8232293dce30d7ca2) ) // sldh
 
 	ROM_REGION( 0x300000, "gfx1", 0 ) /* gfx */
 	ROM_LOAD( "3.3h",  0x000000, 0x80000, CRC(f421c6c8) SHA1(f9d68f542cbf379a7c41b47704b19e1aec69f237) )
@@ -3749,6 +3720,9 @@ ROM_START( shabdama )
 	ROM_LOAD( "6.bin",        0x020000, 0x010000, CRC(0fece809) SHA1(1fe8436af8ead02a3b517b6306f9824cd64b2d26) )
 	ROM_LOAD( "5.bin",        0x010000, 0x010000, CRC(0706386a) SHA1(29eee363775869dcc9c46285632e8bf745c9110b) )
 	ROM_LOAD( "4.bin",        0x000000, 0x010000, CRC(199e2127) SHA1(2514d51cb06438b312d1f328c72baa739280416a) )
+
+	DISK_REGION( "laserdisc" )
+		DISK_IMAGE_READONLY( "shabdama", 0, NO_DUMP )
 ROM_END
 
 //    YEAR, NAME,     PARENT,   MACHINE,  INPUT,    INIT,     MONITOR, COMPANY, FULLNAME, FLAGS

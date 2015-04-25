@@ -20,22 +20,26 @@
  *
  *  TODO:
  *  - dump CROM and emulate cpu at microinstruction level
- *  - memory modes with IOCNT0, currently always running in full expansion mode
+ *  - memory modes with IOCNT0, currently always running in faked full expansion mode
  *  - timer event counter mode (timer control register, bit 6)
  *  - TMS70x1/2 serial port and timer 3
+ *  - TMS70C46 DOCK-BUS comms with external pins
+ *  - TMS70C46 external memory mode is via "E" bus instead of configuring IOCNT0
+ *  - TMS70C46 clock divider
+ *  - TMS70C46 INT3 on keypress
  *  - when they're needed, add TMS70Cx2, TMS7742, TMS77C82, SE70xxx
  *
  *****************************************************************************/
 
 #include "tms7000.h"
 
-// 7000 is the most basic one, 128 bytes internal RAM and no internal ROM.
-// 7020 and 7040 are same, but with 2KB and 4KB internal ROM respectively.
+// TMS7000 is the most basic one, 128 bytes internal RAM and no internal ROM.
+// TMS7020 and TMS7040 are same, but with 2KB and 4KB internal ROM respectively.
 const device_type TMS7000 = &device_creator<tms7000_device>;
 const device_type TMS7020 = &device_creator<tms7020_device>;
 const device_type TMS7040 = &device_creator<tms7040_device>;
 
-// Exelvision (spinoff of TI) 7020 added one custom opcode.
+// Exelvision (spinoff of TI) TMS7020 added one custom opcode.
 const device_type TMS7020_EXL = &device_creator<tms7020_exl_device>;
 
 // CMOS devices biggest difference in a 'real world' setting is that the power
@@ -44,19 +48,19 @@ const device_type TMS70C00 = &device_creator<tms70c00_device>;
 const device_type TMS70C20 = &device_creator<tms70c20_device>;
 const device_type TMS70C40 = &device_creator<tms70c40_device>;
 
-// 70C46 is same as 70C40, except with support for memory mapped I/O?
-// note: may also be labeled TMC70009
-const device_type TMS70C46 = &device_creator<tms70c46_device>;
-
-// 70x1 features more peripheral I/O, the main addition being a serial port.
-// 70x2 is the same, just with twice more RAM (256 bytes)
+// TMS70x1 features more peripheral I/O, the main addition being a serial port.
+// TMS70x2 is the same, just with twice more RAM (256 bytes)
 const device_type TMS7001 = &device_creator<tms7001_device>;
 const device_type TMS7041 = &device_creator<tms7041_device>;
 const device_type TMS7002 = &device_creator<tms7002_device>;
 const device_type TMS7042 = &device_creator<tms7042_device>;
 
-// 70Cx2 is an update to 70x2 with some extra features. Due to some changes
-// in peripheral file I/O, it is not backward compatible to 70x2.
+// TMS70C46 is literally a shell around a TMS70C40, with support for external
+// memory bus, auto external clock divider on slow memory, and wake-up on keypress.
+const device_type TMS70C46 = &device_creator<tms70c46_device>;
+
+// TMS70Cx2 is an update to TMS70x2 with some extra features. Due to some changes
+// in peripheral file I/O, it is not backward compatible to TMS70x2.
 
 
 // flag helpers
@@ -116,6 +120,15 @@ static ADDRESS_MAP_START(tms7042_mem, AS_PROGRAM, 8, tms7000_device )
 	AM_IMPORT_FROM( tms7002_mem )
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START(tms70c46_mem, AS_PROGRAM, 8, tms70c46_device )
+	AM_RANGE(0x010c, 0x010c) AM_READWRITE(e_bus_data_r, e_bus_data_w)
+	AM_RANGE(0x010d, 0x010d) AM_NOP // ? always writes $FF before checking keyboard... maybe INT3 ack?
+	AM_RANGE(0x010e, 0x010e) AM_READWRITE(dockbus_data_r, dockbus_data_w)
+	AM_RANGE(0x010f, 0x010f) AM_READWRITE(dockbus_status_r, dockbus_status_w)
+	AM_RANGE(0x0118, 0x0118) AM_READWRITE(control_r, control_w)
+	AM_IMPORT_FROM( tms7040_mem )
+ADDRESS_MAP_END
+
 
 // device definitions
 tms7000_device::tms7000_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
@@ -164,11 +177,6 @@ tms70c40_device::tms70c40_device(const machine_config &mconfig, const char *tag,
 {
 }
 
-tms70c46_device::tms70c46_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: tms7000_device(mconfig, TMS70C46, "TMS70C46", tag, owner, clock, ADDRESS_MAP_NAME(tms7040_mem), TMS7000_CHIP_IS_CMOS, "tms70c46", __FILE__)
-{
-}
-
 tms7001_device::tms7001_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: tms7000_device(mconfig, TMS7001, "TMS7001", tag, owner, clock, ADDRESS_MAP_NAME(tms7001_mem), TMS7000_CHIP_FAMILY_70X2, "tms7001", __FILE__)
 {
@@ -186,6 +194,11 @@ tms7002_device::tms7002_device(const machine_config &mconfig, const char *tag, d
 
 tms7042_device::tms7042_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: tms7000_device(mconfig, TMS7042, "TMS7042", tag, owner, clock, ADDRESS_MAP_NAME(tms7042_mem), TMS7000_CHIP_FAMILY_70X2, "tms7042", __FILE__)
+{
+}
+
+tms70c46_device::tms70c46_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
+	: tms7000_device(mconfig, TMS70C46, "TMS70C46", tag, owner, clock, ADDRESS_MAP_NAME(tms70c46_mem), TMS7000_CHIP_IS_CMOS, "tms70c46", __FILE__)
 {
 }
 
@@ -249,9 +262,9 @@ void tms7000_device::device_start()
 	save_item(NAME(m_timer_capture_latch));
 
 	// register for debugger
-	state_add( TMS7000_PC, "PC", m_pc).formatstr("%02X");
-	state_add( TMS7000_SP, "S", m_sp).formatstr("%02X");
-	state_add( TMS7000_ST, "ST", m_sr).formatstr("%02X");
+	state_add(TMS7000_PC, "PC", m_pc).formatstr("%02X");
+	state_add(TMS7000_SP, "S", m_sp).formatstr("%02X");
+	state_add(TMS7000_ST, "ST", m_sr).formatstr("%02X");
 
 	state_add(STATE_GENPC, "GENPC", m_pc).formatstr("%02X").noshow();
 	state_add(STATE_GENSP, "GENSP", m_sp).formatstr("%02X").noshow();
@@ -320,10 +333,10 @@ void tms7000_device::device_reset()
 	if (chip_is_family_70x2())
 		write_p(0x10, 0x00); // IOCNT1
 
-	write_mem16(0, m_pc); // previous PC
-	m_sp = 0x01;
-	m_pc = read_mem16(0xfffe);
-	m_icount -= 17;
+	m_sp = 0xff;
+	m_op = 0xff;
+	execute_one(m_op);
+	m_icount -= 3; // 17 total
 }
 
 
@@ -338,7 +351,7 @@ void tms7000_device::execute_set_input(int extline, int state)
 
 	bool irqstate = (state == CLEAR_LINE) ? false : true;
 
-	// reverse polarity (70cx2-only)
+	// reverse polarity (TMS70cx2-only)
 	if (m_io_control[2] & (0x01 << (4 * extline)))
 		irqstate = !irqstate;
 
@@ -355,11 +368,11 @@ void tms7000_device::execute_set_input(int extline, int state)
 			if (extline == TMS7000_INT3_LINE)
 				m_timer_capture_latch[0] = m_timer_decrementer[0];
 
-			// on 70cx2, latch timer 2 on INT1
+			// on TMS70cx2, latch timer 2 on INT1
 			if (extline == TMS7000_INT1_LINE && chip_is_family_70cx2())
 				m_timer_capture_latch[1] = m_timer_decrementer[1];
 
-			// clear external if it's edge-triggered (70cx2-only)
+			// clear external if it's edge-triggered (TMS70cx2-only)
 			if (m_io_control[2] & (0x02 << (4 * extline)))
 				m_irq_state[extline] = false;
 
@@ -436,7 +449,7 @@ void tms7000_device::timer_run(int tmr)
 	// run automatic timer if source is internal
 	if ((m_timer_control[tmr] & 0xe0) == 0x80)
 	{
-		attotime period = attotime::from_hz(clock()) * 16 * (m_timer_prescaler[tmr] + 1); // fOSC/16
+		attotime period = attotime::from_hz(clock()) * 8 * (m_timer_prescaler[tmr] + 1); // fOSC/16 - fOSC is freq _before_ internal clockdivider
 		m_timer_handle[tmr]->adjust(period, tmr);
 	}
 }
@@ -491,7 +504,7 @@ TIMER_CALLBACK_MEMBER(tms7000_device::simple_timer_cb)
 
 //-------------------------------------------------
 //  peripheral file - read/write internal ports
-//  note: 7000 family is from $00 to $0b, 7002 family adds $10 to $17
+//  note: TMS7000 family is from $00 to $0b, TMS7002 family adds $10 to $17
 //-------------------------------------------------
 
 READ8_MEMBER(tms7000_device::tms7000_pf_r)
@@ -522,7 +535,7 @@ READ8_MEMBER(tms7000_device::tms7000_pf_r)
 			break;
 		}
 
-		// port direction (note: 7000 doesn't support it for port A)
+		// port direction (note: TMS7000 doesn't support it for port A)
 		case 0x05: case 0x09: case 0x0b:
 			return m_port_ddr[offset / 2 - 2];
 
@@ -594,7 +607,7 @@ WRITE8_MEMBER(tms7000_device::tms7000_pf_w)
 
 			break;
 
-		// port data (note: 7000 doesn't support it for port A)
+		// port data (note: TMS7000 doesn't support it for port A)
 		case 0x04: case 0x06: case 0x08: case 0x0a:
 		{
 			// note: in memory expansion modes, some port output pins are used for memory strobes.
@@ -605,7 +618,7 @@ WRITE8_MEMBER(tms7000_device::tms7000_pf_w)
 			break;
 		}
 
-		// port direction (note: 7000 doesn't support it for port A)
+		// port direction (note: TMS7000 doesn't support it for port A)
 		case 0x05: case 0x09: case 0x0b:
 			// note: changing port direction does not change(refresh) the output pins
 			m_port_ddr[offset / 2 - 2] = data;
@@ -875,4 +888,77 @@ void tms7020_exl_device::execute_one(UINT8 op)
 		lvdp();
 	else
 		tms7000_device::execute_one(op);
+}
+
+
+//-------------------------------------------------
+//  TMS70C46 specifics
+//-------------------------------------------------
+
+void tms70c46_device::device_start()
+{
+	// init/zerofill
+	m_control = 0;
+
+	// register for savestates
+	save_item(NAME(m_control));
+
+	tms7000_device::device_start();
+}
+
+void tms70c46_device::device_reset()
+{
+	m_control = 0;
+	m_io->write_byte(TMS7000_PORTE, 0xff);
+
+	tms7000_device::device_reset();
+}
+
+READ8_MEMBER(tms70c46_device::control_r)
+{
+	return m_control;
+}
+
+WRITE8_MEMBER(tms70c46_device::control_w)
+{
+	// d5: enable external databus
+	if (~m_control & data & 0x20)
+		m_io->write_byte(TMS7000_PORTE, 0xff); // go into high impedance
+
+	// d4: enable clock divider when accessing slow memory (not emulated)
+	// known fast memory areas: internal ROM/RAM, system RAM
+	// known slow memory areas: system ROM, cartridge ROM/RAM
+
+	// d0-d3(all bits?): clock divider when d4 is set and addressbus is in slow memory area
+	// needs to be measured, i just know that $30 is full speed, and $38 is about 4 times slower
+	m_control = data;
+}
+
+// DOCK-BUS: TODO..
+// right now pretend that nothing is connected
+// external pins are HD0-HD3(data), HSK(handshake), BAV(bus available)
+
+READ8_MEMBER(tms70c46_device::dockbus_status_r)
+{
+	// d0: slave _HSK
+	// d1: slave _BAV
+	// d2: unused?
+	// d3: IRQ active
+	return 0;
+}
+
+WRITE8_MEMBER(tms70c46_device::dockbus_status_w)
+{
+	// d0: master _HSK (setting it low(write 1) also clears IRQ)
+	// d1: master _BAV
+	// other bits: unused?
+}
+
+READ8_MEMBER(tms70c46_device::dockbus_data_r)
+{
+	return 0xff;
+}
+
+WRITE8_MEMBER(tms70c46_device::dockbus_data_w)
+{
 }

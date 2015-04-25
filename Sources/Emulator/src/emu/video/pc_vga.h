@@ -26,7 +26,7 @@ public:
 	vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 	vga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
-
+	virtual void zero();
 	virtual UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 
 	virtual READ8_MEMBER(port_03b0_r);
@@ -205,6 +205,7 @@ public:
 	// construction/destruction
 	svga_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source);
 
+	virtual void zero();
 	virtual UINT32 screen_update(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 protected:
 	void svga_vh_rgb8(bitmap_rgb32 &bitmap, const rectangle &cliprect);
@@ -340,6 +341,8 @@ public:
 protected:
 	virtual void device_start();
 	virtual void device_config_complete();
+	vga_device* m_vga;  // for pass-through
+	astring m_vga_tag;  // pass-through device tag
 private:
 	void ibm8514_draw_vector(UINT8 len, UINT8 dir, bool draw);
 	void ibm8514_wait_draw_ssv();
@@ -349,8 +352,6 @@ private:
 	void ibm8514_write_bg(UINT32 offset);
 	void ibm8514_write(UINT32 offset, UINT32 src);
 
-	vga_device* m_vga;  // for pass-through
-	astring m_vga_tag;  // pass-through device tag
 	//UINT8* m_vram;  // the original 8514/A has it's own VRAM, but most VGA+8514 combination cards will have
 					// only one set of VRAM, so this will only be needed in standalone 8514/A cards
 	//UINT32 m_vramsize;
@@ -468,33 +469,6 @@ private:
 // device type definition
 extern const device_type TSENG_VGA;
 
-// ======================> trident_vga_device
-
-class trident_vga_device :  public svga_device
-{
-public:
-	// construction/destruction
-	trident_vga_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
-
-	virtual READ8_MEMBER(port_03c0_r);
-	virtual WRITE8_MEMBER(port_03c0_w);
-	virtual READ8_MEMBER(port_03d0_r);
-	virtual WRITE8_MEMBER(port_03d0_w);
-	virtual READ8_MEMBER(mem_r);
-	virtual WRITE8_MEMBER(mem_w);
-
-protected:
-
-private:
-	UINT8 trident_seq_reg_read(UINT8 index);
-	void trident_seq_reg_write(UINT8 index, UINT8 data);
-
-};
-
-
-// device type definition
-extern const device_type TRIDENT_VGA;
-
 
 // ======================> ati_vga_device
 
@@ -584,6 +558,7 @@ protected:
 		UINT8 sr12;   // DCLK PLL
 		UINT8 sr13;   // DCLK PLL
 		UINT8 sr15;   // CLKSYN control 2
+		UINT8 sr17;   // CLKSYN test
 		UINT8 clk_pll_r;  // individual DCLK PLL values
 		UINT8 clk_pll_m;
 		UINT8 clk_pll_n;

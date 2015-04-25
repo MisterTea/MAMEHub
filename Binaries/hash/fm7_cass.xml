@@ -24,6 +24,19 @@ Titles, serial #s, publishers and release dates taken from:
 
 <softwarelist name="fm7_cass" description="Fujitsu FM-7 cassettes">
 
+	<software name="3dufo">
+		<description>3D UFO</description>
+		<year>1984</year>
+		<publisher>Compac</publisher>
+		<info name="serial" value="CC-1114"/>
+		<info name="alt_title" value="3ディーユーフォー"/>
+		<part name="cass1" interface="fm7_cass">
+			<dataarea name="cass" size="538862">
+				<rom name="3d_ufo(1984_compac).t77" size="538862" crc="77966c67" sha1="9eaddab8412f944111cd19f3547353d69755951a" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="alde">
 		<description>Aldebaran</description>
 		<year>1981</year>
@@ -254,6 +267,19 @@ Titles, serial #s, publishers and release dates taken from:
 		<part name="cass1" interface="fm7_cass">
 			<dataarea name="cass" size="2218190">
 				<rom name="bokosuka.t77" size="2218190" crc="c6989ade" sha1="72c0592d0a38faee036720b48218357bb1eab1f1" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="bdash">
+		<description>Boulder Dash</description>
+		<year>1984</year>
+		<publisher>コンプティーク (Comptiq)</publisher>
+		<info name="alt_title" value="バルダーダッシュ"/>
+		<info name="release" value="198411xx"/>
+		<part name="cass1" interface="fm7_cass">
+			<dataarea name="cass" size="2343550">
+				<rom name="baldush.t77" size="2343550" crc="23287d88" sha1="cfdf3354867c55bc557c47df6929a23f00f4f791" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -504,6 +530,19 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
+	<software name="doordmk2">
+		<description>Door Door mkII</description>
+		<year>1985</year>
+		<publisher>エニックス (Enix)</publisher>
+		<info name="serial" value="E-G138"/>
+		<info name="alt_title" value="ドアドアマークII"/>
+		<part name="cass1" interface="fm7_cass">
+			<dataarea name="cass" size="5236124">
+				<rom name="door door mkii (1985).t77" size="5236124" crc="688e59c4" sha1="22415c5b6618a87fbef5d3bc27b87706e2059e12" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="dslayer">
 		<description>Dragon Slayer</description>
 		<year>1984</year>
@@ -539,6 +578,18 @@ Titles, serial #s, publishers and release dates taken from:
 		<part name="cass1" interface="fm7_cass">
 			<dataarea name="cass" size="904832">
 				<rom name="egg.t77" size="904832" crc="aa938b89" sha1="50cb41c0b2def21bed19032b9c3f3f81d6f4a521" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="enterprs">
+		<description>Enterprise</description>
+		<year>1983</year>
+		<publisher>MIA</publisher>
+		<info name="alt_title" value="エンタープライズ"/>
+		<part name="cass1" interface="fm7_cass">
+			<dataarea name="cass" size="1368186">
+				<rom name="ent.t77" size="1368186" crc="4e89f220" sha1="9e65c2c23d23f6a37af7658c74c3bfdf2b144862" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -720,6 +771,19 @@ Titles, serial #s, publishers and release dates taken from:
 		<part name="cass1" interface="fm7_cass">
 			<dataarea name="cass" size="2345284">
 				<rom name="gbank.t77" size="2345284" crc="03aeaf4b" sha1="df1d1772f27235dbc526218658ca9766a6a7b8a6" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="gbanka" cloneof="gbank">
+		<description>Gutchan Bank (Alt)</description>
+		<year>1985</year>
+		<publisher>日本ソフトバンク (Nihon SoftBank)</publisher>
+		<info name="release" value="198506xx"/>
+		<info name="alt_title" value="ぐっちゃんバンク"/>
+		<part name="cass1" interface="fm7_cass">
+			<dataarea name="cass" size="2407350">
+				<rom name="gbank.t77" size="2407350" crc="b5b66db4" sha1="7498c5b8f25eb5aa3a8dfd2972d75f7af22dce1a" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -1167,6 +1231,20 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
+	<!-- requires FM sound (audio and joystick port, listed as FM-7, so FM sound and joystick was available as an add-on? -->
+	<software name="magus">
+		<description>Magus</description>
+		<year>1985</year>
+		<publisher>ソフトプロ (Soft Pro)</publisher>
+		<info name="serial" value="FUG181"/>
+		<info name="alt_title" value="The Magus - Mysterious Pinball"/>
+		<part name="cass1" interface="fm7_cass">
+			<dataarea name="cass" size="4615868">
+				<rom name="magus.t77" size="4615868" crc="261f3f41" sha1="a30fd1386ee3c657537342e9496fc38501a5a686" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="mappy">
 		<description>Mappy</description>
 		<year>1986</year>
@@ -1332,6 +1410,18 @@ Titles, serial #s, publishers and release dates taken from:
 		<part name="cass1" interface="fm7_cass">
 			<dataarea name="cass" size="6740260">
 				<rom name="ninjakun.t77" size="6740260" crc="13d364c3" sha1="cd988e2e12653a77c2933279d625160d872300cd" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="ninjakuna" cloneof="ninjakun">
+		<description>Ninja-kun (Alt)</description>
+		<year>1986</year>
+		<publisher>日本デクスタ (Nihon Dexter)</publisher>
+		<info name="alt_title" value="忍者くん"/>
+		<part name="cass1" interface="fm7_cass">
+			<dataarea name="cass" size="2716494">
+				<rom name="ninjya.t77" size="2716494" crc="17bdb4f1" sha1="b5e30d4f39395d0e7d3f33a78d94fad993041ca4" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -1539,6 +1629,19 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
+	<software name="pushpul2">
+		<description>Push Pull II</description>
+		<year>1985</year>
+		<publisher>Compac</publisher>
+		<info name="serial" value="CF-1190"/>
+		<info name="alt_title" value="プッシュプルII"/>
+		<part name="cass1" interface="fm7_cass">
+			<dataarea name="cass" size="1570538">
+				<rom name="push pull ii (1985)(compac).t77" size="1570538" crc="40cd4fcb" sha1="b3919c5b46d4d840b45650ddee1f16c722c1accd" offset="0" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="raizer">
 		<description>Chikyuu Senshi Raizer</description>
 		<year>1985</year>
@@ -1649,7 +1752,7 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
-	<software name="salad">
+	<software name="tomathim">
 		<description>Salad no Kuni no Tomato Hime</description>
 		<year>1984</year>
 		<publisher>ハドソン (Hudson Soft)</publisher>

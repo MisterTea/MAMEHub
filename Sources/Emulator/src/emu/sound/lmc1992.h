@@ -74,9 +74,6 @@ public:
 	// construction/destruction
 	lmc1992_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
-	// inline configuration helpers
-	static void static_set_config(device_t &device, int clock2);
-
 	DECLARE_WRITE_LINE_MEMBER( clock_w );
 	DECLARE_WRITE_LINE_MEMBER( data_w );
 	DECLARE_WRITE_LINE_MEMBER( enable_w );
@@ -91,7 +88,7 @@ protected:
 private:
 	inline void execute_command(int addr, int data);
 
-	sound_stream *m_stream[4];
+	//sound_stream *m_stream[4];
 
 	int m_enable;                   // enable latch
 	int m_data;                     // data latch

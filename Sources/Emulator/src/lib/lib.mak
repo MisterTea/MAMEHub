@@ -23,8 +23,22 @@ OBJDIRS += \
 	$(LIBOBJ)/libflac \
 	$(LIBOBJ)/lib7z \
 	$(LIBOBJ)/portmidi \
+	$(LIBOBJ)/portmidi/pm_common \
+	$(LIBOBJ)/portmidi/pm_linux \
+	$(LIBOBJ)/portmidi/pm_mac \
+	$(LIBOBJ)/portmidi/pm_win \
+	$(LIBOBJ)/portmidi/porttime \
 	$(LIBOBJ)/lua \
-	$(LIBOBJ)/lua/lib \
+	$(LIBOBJ)/lua/lsqlite3 \
+	$(LIBOBJ)/mongoose \
+	$(LIBOBJ)/jsoncpp \
+	$(LIBOBJ)/sqlite3 \
+	$(LIBOBJ)/bgfx \
+	$(LIBOBJ)/bgfx/common \
+	$(LIBOBJ)/bgfx/common/entry \
+	$(LIBOBJ)/bgfx/common/font \
+	$(LIBOBJ)/bgfx/common/imgui \
+	$(LIBOBJ)/bgfx/common/nanovg \
     $(LIBOBJ)/thrift \
     $(LIBOBJ)/thrift/transport \
     $(LIBOBJ)/thrift/protocol \
@@ -75,15 +89,13 @@ OBJDIRS += \
 	$(LIBOBJ)/webm/vpx_scale \
 	$(LIBOBJ)/webm/vpx_scale/generic \
 	$(LIBOBJ)/webm/libwebm \
-	$(LIBOBJ)/web \
-	$(LIBOBJ)/web/json \
-	$(LIBOBJ)/sqlite3 \
 
 #-------------------------------------------------
 # utility library objects
 #-------------------------------------------------
 
 UTILOBJS = \
+	$(OSDOBJ)/osdcore.o \
 	$(LIBOBJ)/util/astring.o \
 	$(LIBOBJ)/util/avhuff.o \
 	$(LIBOBJ)/util/aviio.o \
@@ -144,6 +156,7 @@ PROTOBUFOBJS = \
 	$(LIBOBJ)/protobuf/google/protobuf/io/lzma_protobuf_stream.o\
 	$(LIBOBJ)/protobuf/google/protobuf/io/gzip_stream.o\
 	$(LIBOBJ)/protobuf/google/protobuf/io/printer.o\
+	$(LIBOBJ)/protobuf/google/protobuf/io/strtod.o\
 	$(LIBOBJ)/protobuf/google/protobuf/io/tokenizer.o\
 	$(LIBOBJ)/protobuf/google/protobuf/io/zero_copy_stream.o\
 	$(LIBOBJ)/protobuf/google/protobuf/io/zero_copy_stream_impl.o\
@@ -160,15 +173,15 @@ PROTOBUFOBJS = \
 
 $(OBJ)/libprotobuf.a: $(PROTOBUFOBJS)
 
-$(LIBOBJ)/protobuf/google/protobuf/%.o: $(LIBSRC)/protobuf/google/protobuf/%.cc | $(OSPREBUILD)
+$(LIBOBJ)/protobuf/google/protobuf/%.o: $(3RDPARTY)/protobuf/google/protobuf/%.cc | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) -c $< -o $@
-$(LIBOBJ)/protobuf/google/protobuf/io/%.o: $(LIBSRC)/protobuf/google/protobuf/io/%.cc | $(OSPREBUILD)
+	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
+$(LIBOBJ)/protobuf/google/protobuf/io/%.o: $(3RDPARTY)/protobuf/google/protobuf/io/%.cc | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) -c $< -o $@
-$(LIBOBJ)/protobuf/google/protobuf/stubs/%.o: $(LIBSRC)/protobuf/google/protobuf/stubs/%.cc | $(OSPREBUILD)
+	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
+$(LIBOBJ)/protobuf/google/protobuf/stubs/%.o: $(3RDPARTY)/protobuf/google/protobuf/stubs/%.cc | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) -I$(LIBSRC)/protobuf $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
 THRIFTOBJS = \
 	$(LIBOBJ)/thrift/TApplicationException.o\
@@ -206,25 +219,25 @@ endif
 
 $(OBJ)/libthrift.a: $(THRIFTOBJS)
 
-$(LIBOBJ)/thrift/%.o: $(LIBSRC)/thrift/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/thrift/%.o: $(3RDPARTY)/thrift/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
-$(LIBOBJ)/thrift/transport/%.o: $(LIBSRC)/thrift/transport/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/thrift/transport/%.o: $(3RDPARTY)/thrift/transport/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
-$(LIBOBJ)/thrift/protocol/%.o: $(LIBSRC)/thrift/protocol/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/thrift/protocol/%.o: $(3RDPARTY)/thrift/protocol/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
-$(LIBOBJ)/thrift/server/%.o: $(LIBSRC)/thrift/server/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/thrift/server/%.o: $(3RDPARTY)/thrift/server/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
-$(LIBOBJ)/thrift/windows/%.o: $(LIBSRC)/thrift/windows/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/thrift/windows/%.o: $(3RDPARTY)/thrift/windows/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
 
 WEBMARMOBJS = \
@@ -435,40 +448,40 @@ $(LIBOBJ)/webm/libwebm/mkvwriter.o \
 $(OBJ)/libwebm.a: $(WEBMOBJS) $(WEBMX86ASMOBJS)
 
 ifeq ($(TARGETOS),macosx)
-$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+$(LIBOBJ)/webm/%.o: $(3RDPARTY)/webm/%.asm | $(OSPREBUILD)
 	@echo Compiling ASM FILE $<...
 	yasm -f macho64 $(INCPATH) -o $@ $<
 endif
 ifeq ($(TARGETOS),linux)
 ifeq ($(PTR64),1)
-$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+$(LIBOBJ)/webm/%.o: $(3RDPARTY)/webm/%.asm | $(OSPREBUILD)
 	@echo Compiling ASM FILE $<...
 	yasm -f elf64 $(INCPATH) -o $@ $<
 else
-$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+$(LIBOBJ)/webm/%.o: $(3RDPARTY)/webm/%.asm | $(OSPREBUILD)
 	@echo Compiling ASM FILE $<...
 	yasm -f elf32 $(INCPATH) -o $@ $<
 endif
 endif
 ifeq ($(TARGETOS),win32)
 ifeq ($(PTR64),1)
-$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+$(LIBOBJ)/webm/%.o: $(3RDPARTY)/webm/%.asm | $(OSPREBUILD)
 	@echo Compiling ASM FILE $<...
 	yasm -f x64 $(INCPATH) -o $@ $<
 else
-$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.asm | $(OSPREBUILD)
+$(LIBOBJ)/webm/%.o: $(3RDPARTY)/webm/%.asm | $(OSPREBUILD)
 	@echo Compiling ASM FILE $<...
 	yasm -f win32 $(INCPATH) -o $@ $<
 endif
 endif
 
-$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.c | $(OSPREBUILD)
+$(LIBOBJ)/webm/%.o: $(3RDPARTY)/webm/%.c | $(OSPREBUILD)
 	@echo Compiling C FILE $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) $(INCPATH) -c $< -o $@
 
-$(LIBOBJ)/webm/%.o: $(LIBSRC)/webm/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/webm/%.o: $(3RDPARTY)/webm/%.cpp | $(OSPREBUILD)
 	@echo Compiling CPLUSPLUS FILE $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
 RAKNETOBJS = \
 $(LIBOBJ)/RakNet/_FindFirst.o \
@@ -584,9 +597,9 @@ $(LIBOBJ)/RakNet/WSAStartupSingleton.o
 
 $(OBJ)/libraknet.a: $(RAKNETOBJS)
 
-$(LIBOBJ)/RakNet/%.o: $(LIBSRC)/RakNet/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/RakNet/%.o: $(3RDPARTY)/RakNet/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
 BOOSTTHREADWINDOWSOBJS = \
 $(LIBOBJ)/boost_thread/libs/thread/src/win32/tss_dll.o \
@@ -602,20 +615,20 @@ $(OBJ)/libboostthreadwindows.a: $(BOOSTTHREADWINDOWSOBJS)
 
 $(OBJ)/libboostthreadposix.a: $(BOOSTTHREADPOSIXOBJS)
 
-$(LIBOBJ)/boost_thread/libs/thread/src/pthread/%.o: $(LIBSRC)/boost_thread/libs/thread/src/pthread/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/boost_thread/libs/thread/src/pthread/%.o: $(3RDPARTY)/boost_thread/libs/thread/src/pthread/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
-$(LIBOBJ)/boost_thread/libs/thread/src/win32/%.o: $(LIBSRC)/boost_thread/libs/thread/src/win32/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/boost_thread/libs/thread/src/win32/%.o: $(3RDPARTY)/boost_thread/libs/thread/src/win32/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
 BOOSTSYSTEMOBJS = \
-$(LIBOBJ)/boost_thread/libs/system/src/error_code.o 
+$(LIBOBJ)/boost_thread/libs/system/src/error_code.o
 
-$(LIBOBJ)/boost_thread/libs/system/src/%.o: $(LIBSRC)/boost_thread/libs/system/src/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/boost_thread/libs/system/src/%.o: $(3RDPARTY)/boost_thread/libs/system/src/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH) -c $< -o $@
 
 $(OBJ)/libboostsystem.a: $(BOOSTSYSTEMOBJS)
 
@@ -630,7 +643,7 @@ EXPATOBJS = \
 
 $(OBJ)/libexpat.a: $(EXPATOBJS)
 
-$(LIBOBJ)/expat/%.o: $(LIBSRC)/expat/%.c | $(OSPREBUILD)
+$(LIBOBJ)/expat/%.o: $(3RDPARTY)/expat/lib/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -c $< -o $@
 
@@ -672,6 +685,7 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/coco_cas.o    \
 	$(LIBOBJ)/formats/coco_dsk.o    \
 	$(LIBOBJ)/formats/comx35_dsk.o  \
+	$(LIBOBJ)/formats/concept_dsk.o \
 	$(LIBOBJ)/formats/coupedsk.o    \
 	$(LIBOBJ)/formats/cpis_dsk.o    \
 	$(LIBOBJ)/formats/cqm_dsk.o     \
@@ -683,14 +697,20 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/d81_dsk.o     \
 	$(LIBOBJ)/formats/d82_dsk.o     \
 	$(LIBOBJ)/formats/d88_dsk.o     \
+	$(LIBOBJ)/formats/dcp_dsk.o     \
 	$(LIBOBJ)/formats/dfi_dsk.o     \
 	$(LIBOBJ)/formats/dim_dsk.o     \
+	$(LIBOBJ)/formats/dip_dsk.o     \
+	$(LIBOBJ)/formats/dmk_dsk.o     \
+	$(LIBOBJ)/formats/dmv_dsk.o     \
 	$(LIBOBJ)/formats/dsk_dsk.o     \
 	$(LIBOBJ)/formats/ep64_dsk.o    \
 	$(LIBOBJ)/formats/esq8_dsk.o    \
 	$(LIBOBJ)/formats/esq16_dsk.o   \
+	$(LIBOBJ)/formats/excali64_dsk.o\
 	$(LIBOBJ)/formats/fc100_cas.o   \
 	$(LIBOBJ)/formats/fdi_dsk.o     \
+	$(LIBOBJ)/formats/fdd_dsk.o     \
 	$(LIBOBJ)/formats/flex_dsk.o    \
 	$(LIBOBJ)/formats/fm7_cas.o     \
 	$(LIBOBJ)/formats/fmsx_cas.o    \
@@ -710,7 +730,6 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/m20_dsk.o     \
 	$(LIBOBJ)/formats/m5_dsk.o      \
 	$(LIBOBJ)/formats/mbee_cas.o    \
-	$(LIBOBJ)/formats/mbee_dsk.o    \
 	$(LIBOBJ)/formats/mm_dsk.o      \
 	$(LIBOBJ)/formats/msx_dsk.o     \
 	$(LIBOBJ)/formats/mfi_dsk.o     \
@@ -718,6 +737,7 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/nanos_dsk.o   \
 	$(LIBOBJ)/formats/naslite_dsk.o \
 	$(LIBOBJ)/formats/nes_dsk.o     \
+	$(LIBOBJ)/formats/nfd_dsk.o     \
 	$(LIBOBJ)/formats/orao_cas.o    \
 	$(LIBOBJ)/formats/oric_dsk.o    \
 	$(LIBOBJ)/formats/oric_tap.o    \
@@ -758,6 +778,7 @@ FORMATSOBJS = \
 	$(LIBOBJ)/formats/tzx_cas.o     \
 	$(LIBOBJ)/formats/uef_cas.o     \
 	$(LIBOBJ)/formats/upd765_dsk.o  \
+	$(LIBOBJ)/formats/victor9k_dsk.o\
 	$(LIBOBJ)/formats/vg5k_cas.o    \
 	$(LIBOBJ)/formats/vt_cas.o      \
 	$(LIBOBJ)/formats/vt_dsk.o      \
@@ -803,7 +824,7 @@ ZLIBOBJS = \
 
 $(OBJ)/libz.a: $(ZLIBOBJS)
 
-$(LIBOBJ)/zlib/%.o: $(LIBSRC)/zlib/%.c | $(OSPREBUILD)
+$(LIBOBJ)/zlib/%.o: $(3RDPARTY)/zlib/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) $(ZLIBOPTS) -c $< -o $@
 
@@ -813,8 +834,8 @@ $(LIBOBJ)/zlib/%.o: $(LIBSRC)/zlib/%.c | $(OSPREBUILD)
 # SoftFloat library objects
 #-------------------------------------------------
 
-PROCESSOR_H = $(LIBSRC)/softfloat/processors/mamesf.h
-SOFTFLOAT_MACROS = $(LIBSRC)/softfloat/softfloat/bits64/softfloat-macros
+PROCESSOR_H = $(3RDPARTY)/softfloat/processors/mamesf.h
+SOFTFLOAT_MACROS = $(3RDPARTY)/softfloat/softfloat/bits64/softfloat-macros
 
 SOFTFLOATOBJS = \
 	$(LIBOBJ)/softfloat/softfloat.o \
@@ -823,10 +844,12 @@ SOFTFLOATOBJS = \
 
 $(OBJ)/libsoftfloat.a: $(SOFTFLOATOBJS)
 
-$(LIBOBJ)/softfloat/softfloat.o: $(LIBSRC)/softfloat/softfloat.c $(LIBSRC)/softfloat/softfloat.h $(LIBSRC)/softfloat/softfloat-macros $(LIBSRC)/softfloat/softfloat-specialize
-$(LIBOBJ)/softfloat/fsincos.o: $(LIBSRC)/softfloat/fsincos.c $(LIBSRC)/softfloat/fpu_constant.h $(LIBSRC)/softfloat/softfloat.h $(LIBSRC)/softfloat/softfloat-macros $(LIBSRC)/softfloat/softfloat-specialize
+$(LIBOBJ)/softfloat/softfloat.o: $(3RDPARTY)/softfloat/softfloat.c $(3RDPARTY)/softfloat/softfloat.h $(3RDPARTY)/softfloat/softfloat-macros $(3RDPARTY)/softfloat/softfloat-specialize
+$(LIBOBJ)/softfloat/fsincos.o: $(3RDPARTY)/softfloat/fsincos.c $(3RDPARTY)/softfloat/fpu_constant.h $(3RDPARTY)/softfloat/softfloat.h $(3RDPARTY)/softfloat/softfloat-macros $(3RDPARTY)/softfloat/softfloat-specialize
 
-
+$(LIBOBJ)/softfloat/%.o: $(3RDPARTY)/softfloat/%.c | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CFLAGS) -c $< -o $@
 
 #-------------------------------------------------
 # libJPEG library objects
@@ -882,9 +905,9 @@ LIBJPEGOBJS= \
 
 $(OBJ)/libjpeg.a: $(LIBJPEGOBJS)
 
-$(LIBOBJ)/libjpeg/%.o: $(LIBSRC)/libjpeg/%.c | $(OSPREBUILD)
+$(LIBOBJ)/libjpeg/%.o: $(3RDPARTY)/libjpeg/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -I$(LIBSRC)/libjpeg -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -I$(3RDPARTY)/libjpeg -c $< -o $@
 
 
 
@@ -929,9 +952,9 @@ LIBFLACOBJS = \
 
 $(OBJ)/libflac.a: $(LIBFLACOBJS)
 
-$(LIBOBJ)/libflac/%.o: $(LIBSRC)/libflac/libFLAC/%.c | $(OSPREBUILD)
+$(LIBOBJ)/libflac/%.o: $(3RDPARTY)/libflac/src/libFLAC/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CONLYFLAGS) $(CCOMFLAGS) $(FLACOPTS) -I$(LIBSRC)/libflac/include -c $< -o $@
+	$(CC) $(CDEFS) $(CONLYFLAGS) $(CCOMFLAGS) $(FLACOPTS) -I$(3RDPARTY)/libflac/include -I$(3RDPARTY)/libflac/src/libFLAC/include -c $< -o $@
 
 
 
@@ -964,9 +987,9 @@ LIB7ZOBJS = \
 
 $(OBJ)/lib7z.a: $(LIB7ZOBJS)
 
-$(LIBOBJ)/lib7z/%.o: $(LIBSRC)/lib7z/%.c | $(OSPREBUILD)
+$(LIBOBJ)/lib7z/%.o: $(3RDPARTY)/lzma/C/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(7ZOPTS) $(CCOMFLAGS) $(CONLYFLAGS) -I$(LIBSRC)/lib7z/ -c $< -o $@
+	$(CC) $(CDEFS) $(7ZOPTS) $(CCOMFLAGS) $(CONLYFLAGS) -I$(3RDPARTY)/lzma/C -c $< -o $@
 
 #-------------------------------------------------
 # portmidi library objects
@@ -976,43 +999,48 @@ PMOPTS =
 
 # common objects
 LIBPMOBJS = \
-	$(LIBOBJ)/portmidi/portmidi.o \
-	$(LIBOBJ)/portmidi/porttime.o \
-	$(LIBOBJ)/portmidi/pmutil.o
+	$(LIBOBJ)/portmidi/pm_common/portmidi.o \
+	$(LIBOBJ)/portmidi/pm_common/pmutil.o \
+	$(LIBOBJ)/portmidi/porttime/porttime.o \
 
 ifeq ($(TARGETOS),linux)
 PMOPTS = -DPMALSA=1
 
 LIBPMOBJS += \
-	$(LIBOBJ)/portmidi/pmlinux.o \
-	$(LIBOBJ)/portmidi/pmlinuxalsa.o \
-	$(LIBOBJ)/portmidi/finddefaultlinux.o \
-	$(LIBOBJ)/portmidi/ptlinux.o
-
+	$(LIBOBJ)/portmidi/pm_linux/pmlinux.o \
+	$(LIBOBJ)/portmidi/pm_linux/pmlinuxalsa.o \
+	$(LIBOBJ)/portmidi/pm_linux/finddefault.o \
+	$(LIBOBJ)/portmidi/porttime/ptlinux.o
 endif
 
 ifeq ($(TARGETOS),macosx)
 LIBPMOBJS += \
-	$(LIBOBJ)/portmidi/pmmac.o \
-	$(LIBOBJ)/portmidi/pmmacosxcm.o \
-	$(LIBOBJ)/portmidi/finddefault.o \
-	$(LIBOBJ)/portmidi/readbinaryplist.o \
-	$(LIBOBJ)/portmidi/ptmacosx_mach.o \
-	$(LIBOBJ)/portmidi/osxsupport.o
+	$(LIBOBJ)/portmidi/pm_mac/pmmac.o \
+	$(LIBOBJ)/portmidi/pm_mac/pmmacosxcm.o \
+	$(LIBOBJ)/portmidi/pm_mac/finddefault.o \
+	$(LIBOBJ)/portmidi/pm_mac/readbinaryplist.o \
+	$(LIBOBJ)/portmidi/pm_mac/osxsupport.o \
+	$(LIBOBJ)/portmidi/porttime/ptmacosx_mach.o
 endif
 
 ifeq ($(TARGETOS),win32)
 LIBPMOBJS += \
-	$(LIBOBJ)/portmidi/pmwin.o \
-	$(LIBOBJ)/portmidi/pmwinmm.o \
-	$(LIBOBJ)/portmidi/ptwinmm.o
+	$(LIBOBJ)/portmidi/pm_win/pmwin.o \
+	$(LIBOBJ)/portmidi/pm_win/pmwinmm.o \
+	$(LIBOBJ)/portmidi/porttime/ptwinmm.o
 endif
 
 $(OBJ)/libportmidi.a: $(LIBPMOBJS)
 
-$(LIBOBJ)/portmidi/%.o: $(LIBSRC)/portmidi/%.c | $(OSPREBUILD)
+$(LIBOBJ)/portmidi/%.o: $(3RDPARTY)/portmidi/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(PMOPTS) $(CCOMFLAGS) $(CONLYFLAGS) -I$(LIBSRC)/portmidi/ -c $< -o $@
+	$(CC) $(CDEFS) $(PMOPTS) $(CCOMFLAGS) $(CONLYFLAGS) $(INCPATH) -I$(3RDPARTY)/portmidi/pm_common -I$(3RDPARTY)/portmidi/porttime -c $< -o $@
+
+ifeq ($(TARGETOS),macosx)
+$(LIBOBJ)/portmidi/%.o: $(3RDPARTY)/portmidi/%.m | $(OSPREBUILD)
+	@echo Objective-C compiling $<...
+	$(CC) $(CDEFS) $(COBJFLAGS) $(CCOMFLAGS) $(INCPATH) -c $< -o $@
+endif
 
 #-------------------------------------------------
 # LUA library objects
@@ -1051,7 +1079,8 @@ LUAOBJS = \
 	$(LIBOBJ)/lua/ltablib.o \
 	$(LIBOBJ)/lua/loadlib.o \
 	$(LIBOBJ)/lua/linit.o \
-	$(LIBOBJ)/lua/lib/lsqlite3.o \
+	$(LIBOBJ)/lua/lutf8lib.o \
+	$(LIBOBJ)/lua/lsqlite3/lsqlite3.o \
 
 $(OBJ)/liblua.a: $(LUAOBJS)
 
@@ -1064,29 +1093,33 @@ ifeq ($(TARGETOS),macosx)
 LUA_FLAGS += -DLUA_USE_POSIX
 endif
 
-$(LIBOBJ)/lua/%.o: $(LIBSRC)/lua/%.c | $(OSPREBUILD)
+$(LIBOBJ)/lua/%.o: $(3RDPARTY)/lua/src/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
 	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -DLUA_COMPAT_ALL $(LUA_FLAGS) -c $< -o $@
+
+$(LIBOBJ)/lua/lsqlite3/%.o: $(3RDPARTY)/lsqlite3/%.c | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -DLUA_COMPAT_ALL -I$(3RDPARTY)/lua/src -I$(3RDPARTY) $(LUA_FLAGS) -c $< -o $@
 
 #-------------------------------------------------
 # web library objects
 #-------------------------------------------------
 
 WEBOBJS = \
-	$(LIBOBJ)/web/mongoose.o \
-	$(LIBOBJ)/web/json/json_reader.o \
-	$(LIBOBJ)/web/json/json_value.o \
-	$(LIBOBJ)/web/json/json_writer.o \
+	$(LIBOBJ)/mongoose/mongoose.o \
+	$(LIBOBJ)/jsoncpp/json_reader.o \
+	$(LIBOBJ)/jsoncpp/json_value.o \
+	$(LIBOBJ)/jsoncpp/json_writer.o \
 
 $(OBJ)/libweb.a: $(WEBOBJS)
 
-$(LIBOBJ)/web/%.o: $(LIBSRC)/web/%.cpp | $(OSPREBUILD)
+$(LIBOBJ)/jsoncpp/%.o: $(3RDPARTY)/jsoncpp/src/lib_json/%.cpp | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CFLAGS) -I$(LIBSRC)/web -c $< -o $@
+	$(CC) $(CDEFS) $(CFLAGS) -I$(3RDPARTY)/jsoncpp/include -c $< -o $@
 
-$(LIBOBJ)/web/%.o: $(LIBSRC)/web/%.c | $(OSPREBUILD)
+$(LIBOBJ)/mongoose/%.o: $(3RDPARTY)/mongoose/%.c | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CFLAGS) -I$(LIBSRC)/web -DNS_STACK_SIZE=0 -c $< -o $@
+	$(CC) $(CDEFS) $(CFLAGS) -I$(3RDPARTY)/mongoose -DNS_STACK_SIZE=0 -DMONGOOSE_ENABLE_THREADS -c $< -o $@
 
 #-------------------------------------------------
 # SQLite3 library objects
@@ -1097,10 +1130,108 @@ SQLITEOBJS = \
 
 $(OBJ)/libsqlite3.a: $(SQLITEOBJS)
 
+SQLITE3_FLAGS =
+ifdef SANITIZE
+ifneq (,$(findstring thread,$(SANITIZE)))
+SQLITE3_FLAGS += -fPIC
+endif
+ifneq (,$(findstring memory,$(SANITIZE)))
+SQLITE3_FLAGS += -fPIC
+endif
+endif
+
 ifeq ($(TARGETOS),linux)
 LIBS += -ldl
 endif
 
-$(LIBOBJ)/sqlite3/sqlite3.o: $(LIBSRC)/sqlite3/sqlite3.c | $(OSPREBUILD)
+$(LIBOBJ)/sqlite3/sqlite3.o: $(3RDPARTY)/sqlite3/sqlite3.c | $(OSPREBUILD)
 	@echo Compiling $<...
-	$(CC) $(CDEFS) $(CONLYFLAGS) -Wno-bad-function-cast -I$(LIBSRC)/sqlite3 -c $< -o $@
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(CONLYFLAGS) -Wno-bad-function-cast -Wno-undef -I$(3RDPARTY)/sqlite3 $(SQLITE3_FLAGS) -c $< -o $@
+
+#-------------------------------------------------
+# BGFX library objects
+#-------------------------------------------------
+
+BGFXOBJS = \
+	$(LIBOBJ)/bgfx/bgfx.o \
+	$(LIBOBJ)/bgfx/glcontext_egl.o \
+	$(LIBOBJ)/bgfx/glcontext_glx.o \
+	$(LIBOBJ)/bgfx/glcontext_ppapi.o \
+	$(LIBOBJ)/bgfx/glcontext_wgl.o \
+	$(LIBOBJ)/bgfx/image.o \
+	$(LIBOBJ)/bgfx/renderer_d3d12.o \
+	$(LIBOBJ)/bgfx/renderer_d3d11.o \
+	$(LIBOBJ)/bgfx/renderer_d3d9.o \
+	$(LIBOBJ)/bgfx/renderer_gl.o \
+	$(LIBOBJ)/bgfx/renderer_null.o \
+	$(LIBOBJ)/bgfx/renderer_vk.o \
+	$(LIBOBJ)/bgfx/renderdoc.o \
+	$(LIBOBJ)/bgfx/vertexdecl.o \
+	$(LIBOBJ)/bgfx/common/bgfx_utils.o \
+	$(LIBOBJ)/bgfx/common/bounds.o \
+	$(LIBOBJ)/bgfx/common/camera.o \
+	$(LIBOBJ)/bgfx/common/cube_atlas.o \
+	$(LIBOBJ)/bgfx/common/font/font_manager.o \
+	$(LIBOBJ)/bgfx/common/font/text_buffer_manager.o \
+	$(LIBOBJ)/bgfx/common/font/text_metrics.o \
+	$(LIBOBJ)/bgfx/common/font/utf8.o \
+	$(LIBOBJ)/bgfx/common/imgui/imgui.o \
+	$(LIBOBJ)/bgfx/common/nanovg/nanovg.o \
+	$(LIBOBJ)/bgfx/common/nanovg/nanovg_bgfx.o \
+#   $(LIBOBJ)/bgfx/common/entry/cmd.o \
+#   $(LIBOBJ)/bgfx/common/entry/dbg.o \
+#   $(LIBOBJ)/bgfx/common/entry/entry.o \
+#   $(LIBOBJ)/bgfx/common/entry/entry_android.o \
+#   $(LIBOBJ)/bgfx/common/entry/entry_asmjs.o \
+#   $(LIBOBJ)/bgfx/common/entry/entry_linux.o \
+#   $(LIBOBJ)/bgfx/common/entry/entry_nacl.o \
+#   $(LIBOBJ)/bgfx/common/entry/entry_qnx.o \
+#   $(LIBOBJ)/bgfx/common/entry/entry_sdl.o \
+#   $(LIBOBJ)/bgfx/common/entry/entry_windows.o \
+#   $(LIBOBJ)/bgfx/common/entry/input.o \
+
+ifeq ($(TARGETOS),macosx)
+	BGFXOBJS += $(LIBOBJ)/bgfx/glcontext_eagl.o
+	BGFXOBJS += $(LIBOBJ)/bgfx/glcontext_nsgl.o
+endif
+
+$(OBJ)/libbgfx.a: $(BGFXOBJS)
+
+BGFXINC = -I$(3RDPARTY)/bgfx/include -I$(3RDPARTY)/bgfx/3rdparty -I$(3RDPARTY)/bx/include -I$(3RDPARTY)/bgfx/3rdparty/khronos
+ifdef MSVC_BUILD
+	BGFXINC += -I$(3RDPARTY)/bx/include/compat/msvc /EHsc
+else
+	ifeq ($(TARGETOS),win32)
+		BGFXINC += -I$(3RDPARTY)/bx/include/compat/mingw
+		ifeq ($(PTR64),1)
+		BGFXINC += -L$(3RDPARTY)/dxsdk/lib/x64 -D_WIN32_WINNT=0x601
+		else
+		BGFXINC += -L$(3RDPARTY)/dxsdk/lib/x86 -D_WIN32_WINNT=0x601
+		endif
+	endif
+	ifeq ($(TARGETOS),freebsd)
+		BGFXINC += -I$(3RDPARTY)/bx/include/compat/freebsd
+	endif
+	ifeq ($(TARGETOS),macosx)
+		BGFXINC += -I$(3RDPARTY)/bx/include/compat/osx
+	endif
+endif
+
+ifeq ($(TARGETOS),win32)
+BGFXINC += -I$(3RDPARTY)/dxsdk/Include
+endif
+
+$(LIBOBJ)/bgfx/%.o: $(3RDPARTY)/bgfx/src/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(BGFXINC) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS -c $< -o $@
+
+$(LIBOBJ)/bgfx/common/%.o: $(3RDPARTY)/bgfx/examples/common/%.cpp | $(OSPREBUILD)
+	@echo Compiling $<...
+	$(CC) $(CDEFS) $(CCOMFLAGS) $(BGFXINC) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS -c $< -o $@
+
+ifeq ($(TARGETOS),macosx)
+$(LIBOBJ)/bgfx/%.o: $(3RDPARTY)/bgfx/src/%.mm | $(OSPREBUILD)
+	@echo Objective-C compiling $<...
+	$(CC) $(CDEFS) $(COBJFLAGS) $(CCOMFLAGS) $(BGFXINC) -D__STDC_LIMIT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_CONSTANT_MACROS -c $< -o $@
+
+endif

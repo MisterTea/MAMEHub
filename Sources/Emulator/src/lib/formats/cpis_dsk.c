@@ -7,6 +7,7 @@
 *********************************************************************/
 
 #include <string.h>
+#include <assert.h>
 
 #include "formats/cpis_dsk.h"
 #include "formats/basicdsk.h"
@@ -105,7 +106,6 @@ LEGACY_FLOPPY_OPTIONS_END
 
 *********************************************************************/
 
-#include "emu.h"
 #include "formats/cpis_dsk.h"
 
 cpis_format::cpis_format() : upd765_format(formats)

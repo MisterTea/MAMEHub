@@ -110,19 +110,15 @@ static const char *const frogs_sample_names[] =
 	0
 };
 
-static const samples_interface frogs_samples_interface =
-{
-	5,  /* 5 channels */
-	frogs_sample_names
-};
-
 
 MACHINE_CONFIG_FRAGMENT( frogs_audio )
-	MCFG_SAMPLES_ADD("samples", frogs_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(5)
+	MCFG_SAMPLES_NAMES(frogs_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.35)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(frogs)
+	MCFG_DISCRETE_INTF(frogs)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -452,7 +448,7 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( headon_audio )
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(headon)
+	MCFG_DISCRETE_INTF(headon)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 

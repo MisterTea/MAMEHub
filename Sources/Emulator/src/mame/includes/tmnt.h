@@ -134,7 +134,6 @@ public:
 	DECLARE_READ16_MEMBER(prmrsocr_rom_r);
 	DECLARE_WRITE16_MEMBER(tmnt_priority_w);
 	DECLARE_READ16_MEMBER(glfgreat_ball_r);
-	DECLARE_READ8_MEMBER(punkshot_sound_r);
 	DECLARE_WRITE8_MEMBER(glfgreat_sound_w);
 	DECLARE_WRITE8_MEMBER(tmnt_upd_start_w);
 	DECLARE_READ8_MEMBER(tmnt_upd_busy_r);
@@ -181,6 +180,7 @@ public:
 	K052109_CB_MEMBER(tmnt_tile_callback);
 	K052109_CB_MEMBER(ssbl_tile_callback);
 	K052109_CB_MEMBER(blswhstl_tile_callback);
+	SAMPLES_START_CB_MEMBER(tmnt_decode_sample);
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);

@@ -62,16 +62,9 @@ public:
 	DECLARE_READ32_MEMBER(mjgtaste_input_r);
 	DECLARE_WRITE32_MEMBER(psh_eeprom_w);
 	DECLARE_READ32_MEMBER(psh_eeprom_r);
-	DECLARE_DRIVER_INIT(gnbarich);
-	DECLARE_DRIVER_INIT(daraku);
-	DECLARE_DRIVER_INIT(soldivid);
-	DECLARE_DRIVER_INIT(s1945iii);
+	DECLARE_DRIVER_INIT(ps3);
+	DECLARE_DRIVER_INIT(ps5);
 	DECLARE_DRIVER_INIT(mjgtaste);
-	DECLARE_DRIVER_INIT(tgm2);
-	DECLARE_DRIVER_INIT(sbomberb);
-	DECLARE_DRIVER_INIT(dragnblz);
-	DECLARE_DRIVER_INIT(gunbird2);
-	DECLARE_DRIVER_INIT(s1945ii);
 	virtual void machine_start();
 	virtual void video_start();
 	void ps3_init();
@@ -91,5 +84,4 @@ public:
 	void psikyosh_drawgfxzoom( bitmap_rgb32 &dest_bmp,const rectangle &clip,gfx_element *gfx,
 			UINT32 code,UINT32 color,int flipx,int flipy,int offsx,int offsy,
 			int alpha, int zoomx, int zoomy, int wide, int high, UINT32 z);
-	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 };

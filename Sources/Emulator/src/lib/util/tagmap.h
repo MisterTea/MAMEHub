@@ -35,6 +35,7 @@ enum tagmap_error
 
 #ifdef MAME_DEBUG
 extern INT32 g_tagmap_finds;
+extern bool g_tagmap_counter_enabled;
 #endif
 
 //**************************************************************************
@@ -134,7 +135,8 @@ public:
 	_ElementType find(const char *tag, UINT32 fullhash) const
 	{
 #ifdef MAME_DEBUG
-		atomic_increment32(&g_tagmap_finds);
+		if (g_tagmap_counter_enabled)
+			atomic_increment32(&g_tagmap_finds);
 #endif
 		for (entry_t *entry = m_table[fullhash % ARRAY_LENGTH(m_table)]; entry != NULL; entry = entry->next())
 			if (entry->fullhash() == fullhash && entry->tag() == tag)
@@ -146,7 +148,8 @@ public:
 	_ElementType find_hash_only(const char *tag) const
 	{
 #ifdef MAME_DEBUG
-		atomic_increment32(&g_tagmap_finds);
+		if (g_tagmap_counter_enabled)
+			atomic_increment32(&g_tagmap_finds);
 #endif
 		UINT32 fullhash = hash(tag);
 		for (entry_t *entry = m_table[fullhash % ARRAY_LENGTH(m_table)]; entry != NULL; entry = entry->next())
@@ -194,6 +197,15 @@ private:
 
 // ======================> tagged_list
 
+class add_exception
+{
+public:
+	add_exception(const char *tag) : m_tag(tag) { }
+	const char *tag() const { return m_tag; }
+private:
+	const char *m_tag;
+};
+
 // a tagged_list is a class that maintains a list of objects that can be quickly looked up by tag
 template<class _ElementType>
 class tagged_list
@@ -203,15 +215,6 @@ class tagged_list
 	tagged_list &operator=(const tagged_list &);
 
 public:
-	class add_exception
-	{
-	public:
-		add_exception(const char *tag) : m_tag(tag) { }
-		const char *tag() const { return m_tag; }
-	private:
-		const char *m_tag;
-	};
-
 	// construction
 	tagged_list() { }
 

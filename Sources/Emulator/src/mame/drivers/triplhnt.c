@@ -4,10 +4,6 @@ Atari Triple Hunt Driver
 
   Calibrate controls in service mode the first time you run this game.
 
-To Do:
- The 3 different overlays need to be found, scanned and added as artwork
- to really make the game complete.
-
 ***************************************************************************/
 
 #include "emu.h"
@@ -326,11 +322,13 @@ static MACHINE_CONFIG_START( triplhnt, triplhnt_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", triplhnt_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(2)  /* 2 channels */
+	MCFG_SAMPLES_NAMES(triplhnt_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(triplhnt)
+	MCFG_DISCRETE_INTF(triplhnt)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.90)
 MACHINE_CONFIG_END
 
@@ -356,4 +354,4 @@ ROM_START( triplhnt )
 ROM_END
 
 
-GAME( 1977, triplhnt, 0, triplhnt, triplhnt, triplhnt_state, triplhnt, 0, "Atari", "Triple Hunt", 0 )
+GAME( 1977, triplhnt, 0, triplhnt, triplhnt, triplhnt_state, triplhnt, 0, "Atari", "Triple Hunt", GAME_REQUIRES_ARTWORK )

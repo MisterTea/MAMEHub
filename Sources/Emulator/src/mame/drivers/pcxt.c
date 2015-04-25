@@ -195,6 +195,7 @@ isa8_cga_tetriskr_device::isa8_cga_tetriskr_device(const machine_config &mconfig
 
 void isa8_cga_tetriskr_device::device_start()
 {
+	m_bg_bank = 0;
 	isa8_cga_superimpose_device::device_start();
 	m_isa->install_device(0x3c0, 0x3c0, 0, 0,  read8_delegate( FUNC(isa8_cga_tetriskr_device::bg_bank_r), this ), write8_delegate( FUNC(isa8_cga_tetriskr_device::bg_bank_w), this ) );
 }
@@ -684,7 +685,7 @@ void pcxt_state::machine_reset()
 	m_lastvalue = -1;
 
 	m_pc_spkrdata = 0;
-	m_pit_out2 = 0;
+	m_pit_out2 = 1;
 	m_wss2_data = 0;
 	m_speaker->level_w(0);
 }

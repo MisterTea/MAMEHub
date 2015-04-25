@@ -58,12 +58,17 @@ class wallc_state : public driver_device
 public:
 	wallc_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_videoram(*this, "videoram"),
 		m_maincpu(*this, "maincpu"),
-		m_gfxdecode(*this, "gfxdecode") { }
+		m_gfxdecode(*this, "gfxdecode"),
+		m_videoram(*this, "videoram") { }
+
+	required_device<cpu_device> m_maincpu;
+	required_device<gfxdecode_device> m_gfxdecode;
 
 	required_shared_ptr<UINT8> m_videoram;
+
 	tilemap_t *m_bg_tilemap;
+
 	DECLARE_WRITE8_MEMBER(wallc_videoram_w);
 	DECLARE_WRITE8_MEMBER(wallc_coin_counter_w);
 	DECLARE_DRIVER_INIT(wallc);
@@ -73,8 +78,6 @@ public:
 	virtual void video_start();
 	DECLARE_PALETTE_INIT(wallc);
 	UINT32 screen_update_wallc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	required_device<cpu_device> m_maincpu;
-	required_device<gfxdecode_device> m_gfxdecode;
 };
 
 
@@ -143,15 +146,13 @@ PALETTE_INIT_MEMBER(wallc_state, wallc)
 
 WRITE8_MEMBER(wallc_state::wallc_videoram_w)
 {
-	UINT8 *videoram = m_videoram;
-	videoram[offset] = data;
+	m_videoram[offset] = data;
 	m_bg_tilemap->mark_tile_dirty(offset);
 }
 
 TILE_GET_INFO_MEMBER(wallc_state::get_bg_tile_info)
 {
-	UINT8 *videoram = m_videoram;
-	SET_TILE_INFO_MEMBER(0, videoram[tile_index] + 0x100, 1, 0);
+	SET_TILE_INFO_MEMBER(0, m_videoram[tile_index] + 0x100, 1, 0);
 }
 
 void wallc_state::video_start()
@@ -363,6 +364,21 @@ ROM_START( wallca )
 	ROM_LOAD( "74s288.c2",  0x0000, 0x0020, CRC(83e3e293) SHA1(a98c5e63b688de8d175adb6539e0cdc668f313fd) )
 ROM_END
 
+ROM_START( brkblast )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "fadesa-r0.6m",     0x0000, 0x4000, CRC(4e96ca15) SHA1(87f1a3538712aa3d6c3713b845679dd42a4ba5a4) )
+
+	ROM_REGION( 0x3000, "gfx1", 0 )
+	ROM_LOAD( "rom3.rom",     0x0800, 0x0800, CRC(6634db73) SHA1(fe6104f974495a250e0cd14c0745eec8e44b8d3a) )
+	ROM_LOAD( "rom2.rom",     0x1800, 0x0800, CRC(79f49c2c) SHA1(485fdba5ebdb4c01306f3ef26c992a513aa6b5dc) )
+	ROM_LOAD( "rom1.rom",     0x2800, 0x0800, CRC(3884fd4f) SHA1(47254c8828128ac48fc15f05b52fe4d42d4919e7) )
+
+	ROM_REGION( 0x0020, "proms", 0 )
+	ROM_LOAD( "74s288.c2",  0x0000, 0x0020, CRC(83e3e293) SHA1(a98c5e63b688de8d175adb6539e0cdc668f313fd) )
+ROM_END
+
+
+
 /*
 
 It use a epoxy brick like wallc
@@ -472,6 +488,8 @@ DRIVER_INIT_MEMBER(wallc_state,sidam)
 
 }
 
-GAME( 1984, wallc,  0,      wallc,  wallc, wallc_state, wallc,  ROT0, "Midcoin", "Wall Crash (set 1)", 0 )
-GAME( 1984, wallca, wallc,  wallc,  wallc, wallc_state, wallca, ROT0, "Midcoin", "Wall Crash (set 2)", 0 )
-GAME( 1984, sidampkr,0,     wallc,  wallc, wallc_state, sidam,  ROT270, "Sidam", "unknown Sidam Poker", GAME_NOT_WORKING )
+GAME( 1984, wallc,  0,      wallc,  wallc, wallc_state, wallc,  ROT0, "Midcoin", "Wall Crash (set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1984, wallca, wallc,  wallc,  wallc, wallc_state, wallca, ROT0, "Midcoin", "Wall Crash (set 2)", GAME_SUPPORTS_SAVE )
+GAME( 1984, brkblast,wallc, wallc,  wallc, wallc_state, wallca, ROT0, "bootleg (Fadesa)", "Brick Blast (bootleg of Wall Crash)", GAME_SUPPORTS_SAVE ) // Spanish bootleg board, Fadesa stickers / text on various components
+
+GAME( 1984, sidampkr,0,     wallc,  wallc, wallc_state, sidam,  ROT270, "Sidam", "unknown Sidam Poker", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )

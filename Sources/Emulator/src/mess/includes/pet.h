@@ -20,6 +20,9 @@
 #include "sound/speaker.h"
 #include "video/mc6845.h"
 
+#include "bus/generic/slot.h"
+#include "bus/generic/carts.h"
+
 #define M6502_TAG       "f3"
 #define M6522_TAG       "a5"
 #define M6520_1_TAG     "g8"
@@ -47,6 +50,9 @@ public:
 		m_exp(*this, PET_EXPANSION_SLOT_TAG),
 		m_user(*this, PET_USER_PORT_TAG),
 		m_speaker(*this, "speaker"),
+		m_cart_9000(*this, "cart_9000"),
+		m_cart_a000(*this, "cart_a000"),
+		m_cart_b000(*this, "cart_b000"),
 		m_ram(*this, RAM_TAG),
 		m_rom(*this, M6502_TAG),
 		m_char_rom(*this, "charom"),
@@ -87,6 +93,9 @@ public:
 	required_device<pet_expansion_slot_device> m_exp;
 	required_device<pet_user_port_device> m_user;
 	optional_device<speaker_sound_device> m_speaker;
+	optional_device<generic_slot_device> m_cart_9000;
+	optional_device<generic_slot_device> m_cart_a000;
+	optional_device<generic_slot_device> m_cart_b000;
 	required_device<ram_device> m_ram;
 	required_memory_region m_rom;
 	required_memory_region m_char_rom;
@@ -192,8 +201,8 @@ public:
 class pet2001b_state : public pet_state
 {
 public:
-	pet2001b_state(const machine_config &mconfig, device_type type, const char *tag)
-		: pet_state(mconfig, type, tag)
+	pet2001b_state(const machine_config &mconfig, device_type type, const char *tag) :
+		pet_state(mconfig, type, tag)
 	{ }
 
 	DECLARE_READ8_MEMBER( pia1_pb_r );
@@ -203,8 +212,8 @@ public:
 class pet80_state : public pet2001b_state
 {
 public:
-	pet80_state(const machine_config &mconfig, device_type type, const char *tag)
-		: pet2001b_state(mconfig, type, tag)
+	pet80_state(const machine_config &mconfig, device_type type, const char *tag) :
+		pet2001b_state(mconfig, type, tag)
 	{ }
 
 	DECLARE_MACHINE_START( pet80 );
@@ -227,8 +236,8 @@ public:
 class cbm8096_state : public pet80_state
 {
 public:
-	cbm8096_state(const machine_config &mconfig, device_type type, const char *tag)
-		: pet80_state(mconfig, type, tag)
+	cbm8096_state(const machine_config &mconfig, device_type type, const char *tag) :
+		pet80_state(mconfig, type, tag)
 	{ }
 };
 
@@ -236,22 +245,22 @@ public:
 class cbm8296_state : public pet80_state
 {
 public:
-	cbm8296_state(const machine_config &mconfig, device_type type, const char *tag)
-		: pet80_state(mconfig, type, tag),
-			m_basic_rom(*this, "basic"),
-			m_editor_rom(*this, "editor"),
-			m_ue5_rom(*this, "ue5hack"),
-			m_ue6_rom(*this, "ue6hack"),
-			m_pla1(*this, PLA1_TAG),
-			m_pla2(*this, PLA2_TAG)
+	cbm8296_state(const machine_config &mconfig, device_type type, const char *tag) :
+		pet80_state(mconfig, type, tag),
+		m_basic_rom(*this, "basic"),
+		m_editor_rom(*this, "editor"),
+		m_ue5_rom(*this, "ue5_eprom"),
+		m_ue6_rom(*this, "ue6_eprom"),
+		m_pla1(*this, PLA1_TAG),
+		m_pla2(*this, PLA2_TAG)
 	{ }
 
 	required_memory_region m_basic_rom;
 	required_memory_region m_editor_rom;
 	required_memory_region m_ue5_rom;
 	required_memory_region m_ue6_rom;
-	required_device<pls100_device> m_pla1;
-	required_device<pls100_device> m_pla2;
+	required_device<pla_device> m_pla1;
+	required_device<pla_device> m_pla2;
 
 	DECLARE_MACHINE_START( cbm8296 );
 	DECLARE_MACHINE_RESET( cbm8296 );
@@ -259,6 +268,10 @@ public:
 	void read_pla1(offs_t offset, int phi2, int brw, int noscreen, int noio, int ramsela, int ramsel9, int ramon, int norom,
 		int &cswff, int &cs9, int &csa, int &csio, int &cse, int &cskb, int &fa12, int &casena1);
 	void read_pla2(offs_t offset, int phi2, int brw, int casena1, int &endra, int &noscreen, int &casena2, int &fa15);
+
+	void read_pla1_eprom(offs_t offset, int phi2, int brw, int noscreen, int noio, int ramsela, int ramsel9, int ramon, int norom,
+		int &cswff, int &cs9, int &csa, int &csio, int &cse, int &cskb, int &fa12, int &casena1);
+	void read_pla2_eprom(offs_t offset, int phi2, int brw, int casena1, int &endra, int &noscreen, int &casena2, int &fa15);
 
 	DECLARE_READ8_MEMBER( read );
 	DECLARE_WRITE8_MEMBER( write );

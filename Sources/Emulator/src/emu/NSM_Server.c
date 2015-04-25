@@ -32,6 +32,7 @@
 #include "unicode.h"
 #include "ui/ui.h"
 #include "osdcore.h"
+#include "osdepend.h"
 #include "emuopts.h"
 
 using boost::shared_ptr;
@@ -870,7 +871,7 @@ void Server::sync(running_machine *machine)
   cout << "SYNCING (count): " << syncCount << endl;
 
   //if (syncCount>0) {
-    machine->save().doPreSave();
+    machine->save().dispatch_presave();
     //}
 
   if(syncOverride)
@@ -973,7 +974,7 @@ void Server::sync(running_machine *machine)
   //cout.flush();
 
   //if (syncCount>0) {
-    machine->save().doPostLoad();
+    machine->save().dispatch_postload();
     //}
 
   {

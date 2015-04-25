@@ -128,6 +128,8 @@ public:
 	TIMER_DEVICE_CALLBACK_MEMBER(paddle_timer);
 	void pdl_handler(int offset);
 	DECLARE_FLOPPY_FORMATS( floppy_formats );
+	DECLARE_WRITE_LINE_MEMBER(a2bus_irq_w);
+	DECLARE_WRITE_LINE_MEMBER(a2bus_nmi_w);
 
 	// these need to be public for now
 	UINT32 m_flags;
@@ -162,6 +164,8 @@ private:
 	int m_analog_sel;
 	bool m_ramp_active;
 	int m_pdl_charge;
+	int m_va, m_vb, m_vc;
+	int m_smoothscr;
 };
 
 #endif /* APPLE3_H_ */

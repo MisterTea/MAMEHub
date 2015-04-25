@@ -101,15 +101,9 @@ Stephh's notes (based on the games M68000 code and some tests) :
 
 ***************************************************************************/
 
-WRITE16_MEMBER(yunsun16_state::yunsun16_sound_bank_w)
+WRITE8_MEMBER(yunsun16_state::sound_bank_w)
 {
-	if (ACCESSING_BITS_0_7)
-	{
-		int bank = data & 3;
-		UINT8 *dst  = memregion("oki")->base();
-		UINT8 *src  = dst + 0x80000 + 0x20000 * bank;
-		memcpy(dst + 0x20000, src, 0x20000);
-	}
+	membank("okibank")->set_entry(data & 3);
 }
 
 static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, yunsun16_state )
@@ -126,12 +120,12 @@ static ADDRESS_MAP_START( main_map, AS_PROGRAM, 16, yunsun16_state )
 	AM_RANGE(0x80010c, 0x80010f) AM_RAM AM_SHARE("scrollram_1") // Scrolling
 	AM_RANGE(0x800114, 0x800117) AM_RAM AM_SHARE("scrollram_0") // Scrolling
 	AM_RANGE(0x800154, 0x800155) AM_RAM AM_SHARE("priorityram") // Priority
-	AM_RANGE(0x800180, 0x800181) AM_WRITE(yunsun16_sound_bank_w)    // Sound
+	AM_RANGE(0x800180, 0x800181) AM_WRITE8(sound_bank_w, 0x00ff)    // Sound
 	AM_RANGE(0x800188, 0x800189) AM_DEVREADWRITE8("oki", okim6295_device, read, write, 0x00ff)  // Sound
 	AM_RANGE(0x8001fe, 0x8001ff) AM_WRITENOP    // ? 0 (during int)
 	AM_RANGE(0x900000, 0x903fff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")    // Palette
-	AM_RANGE(0x908000, 0x90bfff) AM_RAM_WRITE(yunsun16_vram_1_w) AM_SHARE("vram_1") // Layer 1
-	AM_RANGE(0x90c000, 0x90ffff) AM_RAM_WRITE(yunsun16_vram_0_w) AM_SHARE("vram_0") // Layer 0
+	AM_RANGE(0x908000, 0x90bfff) AM_RAM_WRITE(vram_1_w) AM_SHARE("vram_1") // Layer 1
+	AM_RANGE(0x90c000, 0x90ffff) AM_RAM_WRITE(vram_0_w) AM_SHARE("vram_0") // Layer 0
 	AM_RANGE(0x910000, 0x910fff) AM_RAM AM_SHARE("spriteram")   // Sprites
 	AM_RANGE(0xff0000, 0xffffff) AM_RAM
 ADDRESS_MAP_END
@@ -155,8 +149,8 @@ number 0 on each voice. That sample is 00000-00000.
 
 DRIVER_INIT_MEMBER(yunsun16_state,magicbub)
 {
-//  remove_mem_write16_handler (0, 0x800180, 0x800181 );
-	m_maincpu->space(AS_PROGRAM).install_write_handler(0x800188, 0x800189, write16_delegate(FUNC(yunsun16_state::magicbub_sound_command_w),this));
+	m_maincpu->space(AS_PROGRAM).unmap_write(0x800180, 0x800181);
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x800188, 0x800189, write16_delegate(FUNC(yunsun16_state::magicbub_sound_command_w), this));
 }
 
 /***************************************************************************
@@ -178,6 +172,11 @@ static ADDRESS_MAP_START( sound_port_map, AS_IO, 8, yunsun16_state )
 	AM_RANGE(0x18, 0x18) AM_READ(soundlatch_byte_r )                        // From Main CPU
 	AM_RANGE(0x1c, 0x1c) AM_DEVREADWRITE("oki", okim6295_device, read, write)       // M6295
 ADDRESS_MAP_END
+
+static ADDRESS_MAP_START( oki_map, AS_0, 8, yunsun16_state )
+	AM_RANGE(0x00000, 0x1ffff) AM_ROM
+	AM_RANGE(0x20000, 0x3ffff) AM_ROMBANK("okibank")
+	ADDRESS_MAP_END
 
 
 /***************************************************************************
@@ -566,23 +565,31 @@ void yunsun16_state::machine_reset()
 	m_sprites_scrolldy = -0x0f;
 }
 
+MACHINE_START_MEMBER(yunsun16_state, shocking)
+{
+	machine_start();
+	membank("okibank")->configure_entries(0, 0x80000 / 0x20000, memregion("oki")->base(), 0x20000);
+	membank("okibank")->set_entry(0);
+}
+
+MACHINE_RESET_MEMBER(yunsun16_state, shocking)
+{
+	machine_reset();
+	membank("okibank")->set_entry(0);
+}
+
 /***************************************************************************
                                 Magic Bubble
 ***************************************************************************/
 
-WRITE_LINE_MEMBER(yunsun16_state::soundirq)
-{
-	m_audiocpu->set_input_line(0, state);
-}
-
 static MACHINE_CONFIG_START( magicbub, yunsun16_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 16000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_16MHz)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", yunsun16_state,  irq2_line_hold)
 
-	MCFG_CPU_ADD("audiocpu", Z80, 3000000)  /* ? */
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_16MHz/4)
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 	MCFG_CPU_IO_MAP(sound_port_map)
 
@@ -601,12 +608,12 @@ static MACHINE_CONFIG_START( magicbub, yunsun16_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SOUND_ADD("ymsnd", YM3812, 4000000)
-	MCFG_YM3812_IRQ_HANDLER(WRITELINE(yunsun16_state, soundirq))
+	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_16MHz/4)
+	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.80)
 
-	MCFG_OKIM6295_ADD("oki", 1056000, OKIM6295_PIN7_HIGH)
+	MCFG_OKIM6295_ADD("oki", XTAL_16MHz/16, OKIM6295_PIN7_HIGH)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.80)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.80)
 MACHINE_CONFIG_END
@@ -619,10 +626,12 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_START( shocking, yunsun16_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, 16000000)
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_16MHz)
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", yunsun16_state,  irq2_line_hold)
 
+	MCFG_MACHINE_START_OVERRIDE(yunsun16_state, shocking)
+	MCFG_MACHINE_RESET_OVERRIDE(yunsun16_state, shocking)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
@@ -637,9 +646,10 @@ static MACHINE_CONFIG_START( shocking, yunsun16_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_OKIM6295_ADD("oki", 1000000, OKIM6295_PIN7_HIGH)
+	MCFG_OKIM6295_ADD("oki", XTAL_16MHz/16, OKIM6295_PIN7_HIGH)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.0)
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, oki_map)
 MACHINE_CONFIG_END
 
 
@@ -715,7 +725,7 @@ ROM_START( magicbub )
 	ROM_LOAD16_BYTE( "magbuble.u32", 0x000001, 0x040000, CRC(f6ea7004) SHA1(069541e37b60370810451616ee66bbd05dc10137) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )        /* Z80 Code */
-	ROM_LOAD( "magbuble.143", 0x00000, 0x10000, CRC(04192753) SHA1(9c56ba70e1d074906ea1dc593c2a8516c6ba2074) )
+	ROM_LOAD( "u143.bin", 0x00000, 0x10000, CRC(04192753) SHA1(9c56ba70e1d074906ea1dc593c2a8516c6ba2074) )
 
 	ROM_REGION( 0x200000*8, "gfx1", ROMREGION_ERASEFF ) /* 16x16x8 */
 	ROMX_LOAD( "magbuble.u67", 0x000000, 0x080000, CRC(6355e57d) SHA1(5e9234dd474ddcf0a9e1001080f3de11c7d0ee55) , ROM_GROUPWORD | ROM_SKIP(6))
@@ -724,13 +734,13 @@ ROM_START( magicbub )
 	ROMX_LOAD( "magbuble.u70", 0x000006, 0x080000, CRC(37794837) SHA1(11597614e1e048544326fbbe281b364278d6350d) , ROM_GROUPWORD | ROM_SKIP(6))
 
 	ROM_REGION( 0x080000, "gfx2", 0 )   /* 16x16x4 */
-	ROM_LOAD( "magbuble.u20", 0x000000, 0x020000, CRC(f70e3b8c) SHA1(d925c27bbd0f915228d22589a98e3ea7181a87ca) )
-	ROM_LOAD( "magbuble.u21", 0x020000, 0x020000, CRC(ad082cf3) SHA1(0bc3cf6c54d47be4f1940192fc1585cb48767e97) )
-	ROM_LOAD( "magbuble.u22", 0x040000, 0x020000, CRC(7c68df7a) SHA1(88acf9dd43892a790415b418f77d88c747aa84f5) )
-	ROM_LOAD( "magbuble.u23", 0x060000, 0x020000, CRC(c7763fc1) SHA1(ed68b3c3c5155073afb7b55d6d92d3057e40df6c) )
+	ROM_LOAD( "u20.bin", 0x000000, 0x020000, CRC(f70e3b8c) SHA1(d925c27bbd0f915228d22589a98e3ea7181a87ca) )
+	ROM_LOAD( "u21.bin", 0x020000, 0x020000, CRC(ad082cf3) SHA1(0bc3cf6c54d47be4f1940192fc1585cb48767e97) )
+	ROM_LOAD( "u22.bin", 0x040000, 0x020000, CRC(7c68df7a) SHA1(88acf9dd43892a790415b418f77d88c747aa84f5) )
+	ROM_LOAD( "u23.bin", 0x060000, 0x020000, CRC(c7763fc1) SHA1(ed68b3c3c5155073afb7b55d6d92d3057e40df6c) )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
-	ROM_LOAD( "magbuble.131", 0x000000, 0x020000, CRC(03e04e89) SHA1(7d80e6a7be2322e32e40acae72bedd8d7e90ad33) )
+	ROM_LOAD( "u131.bin", 0x000000, 0x020000, CRC(03e04e89) SHA1(7d80e6a7be2322e32e40acae72bedd8d7e90ad33) )
 
 ROM_END
 
@@ -741,7 +751,7 @@ ROM_START( magicbuba )
 	ROM_LOAD16_BYTE( "u32.bin", 0x000001, 0x040000, CRC(58f885ad) SHA1(e66f5bb1ac0acd9abc2def439af7f932c3a09cbd) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )        /* Z80 Code */
-	ROM_LOAD( "magbuble.143", 0x00000, 0x10000, CRC(04192753) SHA1(9c56ba70e1d074906ea1dc593c2a8516c6ba2074) )
+	ROM_LOAD( "u143.bin", 0x00000, 0x10000, CRC(04192753) SHA1(9c56ba70e1d074906ea1dc593c2a8516c6ba2074) )
 
 	ROM_REGION( 0x200000*8, "gfx1", ROMREGION_ERASEFF ) /* 16x16x8 */
 	ROMX_LOAD( "u67.bin", 0x000000, 0x080000, CRC(89523dcd) SHA1(edea2bbec615aa253d940bbc3bbdb33f6873a8ee) , ROM_GROUPWORD | ROM_SKIP(6))
@@ -754,13 +764,40 @@ ROM_START( magicbuba )
 	ROMX_LOAD( "u74.bin", 0x200006, 0x080000, CRC(81ff4910) SHA1(69241fe2d20b53984aa67f17d8da32e1b74ce696) , ROM_GROUPWORD | ROM_SKIP(6))
 
 	ROM_REGION( 0x080000, "gfx2", 0 )   /* 16x16x4 */
-	ROM_LOAD( "magbuble.u20", 0x000000, 0x020000, CRC(f70e3b8c) SHA1(d925c27bbd0f915228d22589a98e3ea7181a87ca) )
-	ROM_LOAD( "magbuble.u21", 0x020000, 0x020000, CRC(ad082cf3) SHA1(0bc3cf6c54d47be4f1940192fc1585cb48767e97) )
-	ROM_LOAD( "magbuble.u22", 0x040000, 0x020000, CRC(7c68df7a) SHA1(88acf9dd43892a790415b418f77d88c747aa84f5) )
-	ROM_LOAD( "magbuble.u23", 0x060000, 0x020000, CRC(c7763fc1) SHA1(ed68b3c3c5155073afb7b55d6d92d3057e40df6c) )
+	ROM_LOAD( "u20.bin", 0x000000, 0x020000, CRC(f70e3b8c) SHA1(d925c27bbd0f915228d22589a98e3ea7181a87ca) )
+	ROM_LOAD( "u21.bin", 0x020000, 0x020000, CRC(ad082cf3) SHA1(0bc3cf6c54d47be4f1940192fc1585cb48767e97) )
+	ROM_LOAD( "u22.bin", 0x040000, 0x020000, CRC(7c68df7a) SHA1(88acf9dd43892a790415b418f77d88c747aa84f5) )
+	ROM_LOAD( "u23.bin", 0x060000, 0x020000, CRC(c7763fc1) SHA1(ed68b3c3c5155073afb7b55d6d92d3057e40df6c) )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
-	ROM_LOAD( "magbuble.131", 0x000000, 0x020000, CRC(03e04e89) SHA1(7d80e6a7be2322e32e40acae72bedd8d7e90ad33) )
+	ROM_LOAD( "u131.bin", 0x000000, 0x020000, CRC(03e04e89) SHA1(7d80e6a7be2322e32e40acae72bedd8d7e90ad33) )
+
+ROM_END
+
+ROM_START( magicbubb ) /* Found on a YS-0211 PCB like below */
+
+	ROM_REGION( 0x080000, "maincpu", 0 )        /* 68000 Code */
+	ROM_LOAD16_BYTE( "u33", 0x000000, 0x040000, CRC(db651555) SHA1(41dbf35147e1c646db585437b378529559d3decb) )
+	ROM_LOAD16_BYTE( "u32", 0x000001, 0x040000, CRC(c9cb4d88) SHA1(ee41b9b307b423db7a9d706dfa9718efefa3b625) )
+
+	ROM_REGION( 0x200000*8, "gfx1", ROMREGION_ERASEFF ) /* 16x16x8 */
+	ROMX_LOAD( "u67.bin", 0x000000, 0x080000, CRC(89523dcd) SHA1(edea2bbec615aa253d940bbc3bbdb33f6873a8ee) , ROM_GROUPWORD | ROM_SKIP(6))
+	ROMX_LOAD( "u68.bin", 0x000002, 0x080000, CRC(30e01a70) SHA1(3a98c2ef61307b44bf4e155663117199587ff4a4) , ROM_GROUPWORD | ROM_SKIP(6))
+	ROMX_LOAD( "u69.bin", 0x000004, 0x080000, CRC(fe357f52) SHA1(5aff9a0bf70fc8a78820c4d13838ad238852c594) , ROM_GROUPWORD | ROM_SKIP(6))
+	ROMX_LOAD( "u70.bin", 0x000006, 0x080000, CRC(1398a473) SHA1(f58bda6cbf5f553a9632d910b2ffef5d5bfedf18) , ROM_GROUPWORD | ROM_SKIP(6))
+	ROMX_LOAD( "u71.bin", 0x200000, 0x080000, CRC(0844e017) SHA1(2ae5c9da521fea7aa5811627d7b3eca82cdc0821) , ROM_GROUPWORD | ROM_SKIP(6))
+	ROMX_LOAD( "u72.bin", 0x200002, 0x080000, CRC(591db1cb) SHA1(636fbfe9e048d6418d43f947004b281f61081fd8) , ROM_GROUPWORD | ROM_SKIP(6))
+	ROMX_LOAD( "u73.bin", 0x200004, 0x080000, CRC(cb4f3c3c) SHA1(fbd804bb70f09c2471557675af4c5b4abedea3b2) , ROM_GROUPWORD | ROM_SKIP(6))
+	ROMX_LOAD( "u74.bin", 0x200006, 0x080000, CRC(81ff4910) SHA1(69241fe2d20b53984aa67f17d8da32e1b74ce696) , ROM_GROUPWORD | ROM_SKIP(6))
+
+	ROM_REGION( 0x080000, "gfx2", 0 )   /* 16x16x4 */
+	ROM_LOAD( "u20.bin", 0x000000, 0x020000, CRC(f70e3b8c) SHA1(d925c27bbd0f915228d22589a98e3ea7181a87ca) )
+	ROM_LOAD( "u21.bin", 0x020000, 0x020000, CRC(ad082cf3) SHA1(0bc3cf6c54d47be4f1940192fc1585cb48767e97) )
+	ROM_LOAD( "u22.bin", 0x040000, 0x020000, CRC(7c68df7a) SHA1(88acf9dd43892a790415b418f77d88c747aa84f5) )
+	ROM_LOAD( "u23.bin", 0x060000, 0x020000, CRC(c7763fc1) SHA1(ed68b3c3c5155073afb7b55d6d92d3057e40df6c) )
+
+	ROM_REGION( 0x080000, "oki", 0 )    /* Samples */
+	ROM_LOAD( "u131", 0x000000, 0x040000, CRC(9bdb08e4) SHA1(4d8bdeb9b503b0959a6ae3f3fb3574350b01b1a1) )
 
 ROM_END
 
@@ -772,6 +809,7 @@ YunSung YS-0211 based games:
 Paparazzi (c) 1996 (no PCB label but looks identical)
 Shocking  (c) 1997
 Bomb Kick (c) 1998
+Magic Bubble (c) 199?
 
 PCB Layout
 ----------
@@ -831,9 +869,8 @@ ROM_START( paprazzi )
 	ROM_LOAD( "u22.bin", 0x080000, 0x040000, CRC(436499c7) SHA1(ec1390b6d5656c99d91cf6425d319f4796bcb28a) )
 	ROM_LOAD( "u23.bin", 0x0c0000, 0x040000, CRC(358280fe) SHA1(eac3cb65fe75bc2da14896734f4a339480b54a2c) )
 
-	ROM_REGION( 0x080000 * 2, "oki", 0 )    /* Samples */
+	ROM_REGION( 0x080000, "oki", 0 )    /* Samples */
 	ROM_LOAD( "u131.bin", 0x000000, 0x080000, CRC(bcf7aa12) SHA1(f7bf5258396ed0eb7e85eccf250c6d0a333a4d61) )
-	ROM_RELOAD(           0x080000, 0x080000 )
 
 ROM_END
 
@@ -861,9 +898,8 @@ ROM_START( shocking )
 	ROM_LOAD( "yunsun16.u22", 0x080000, 0x040000, CRC(d6db0388) SHA1(f5d8f7740b602c402a8dd6c4ebd357cf15a0dfac) )
 	ROM_LOAD( "yunsun16.u23", 0x0c0000, 0x040000, CRC(1fa33b2e) SHA1(4aa0dee8d34aac19cf6b7ba3f79ca022ad8d7760) )
 
-	ROM_REGION( 0x080000 * 2, "oki", 0 )    /* Samples */
+	ROM_REGION( 0x080000, "oki", 0 )    /* Samples */
 	ROM_LOAD( "yunsun16.131", 0x000000, 0x080000, CRC(d0a1bb8c) SHA1(10f33521bd6031ed73ee5c7be1382165925aa8f8) )
-	ROM_RELOAD(               0x080000, 0x080000 )
 
 ROM_END
 
@@ -885,9 +921,8 @@ ROM_START( shockingk )
 	ROM_LOAD( "u22.bin", 0x080000, 0x040000, CRC(59260de1) SHA1(2dd2d7ab93fa751cb9142400a3ff91391477d555) )
 	ROM_LOAD( "u23.bin", 0x0c0000, 0x040000, CRC(00e4af23) SHA1(a4d23f16748385dd8c87cae3e16593e5a0195c24) )
 
-	ROM_REGION( 0x080000 * 2, "oki", 0 )    /* Samples */
+	ROM_REGION( 0x080000, "oki", 0 )    /* Samples */
 	ROM_LOAD( "yunsun16.131", 0x000000, 0x080000, CRC(d0a1bb8c) SHA1(10f33521bd6031ed73ee5c7be1382165925aa8f8) )
-	ROM_RELOAD(               0x080000, 0x080000 )
 
 ROM_END
 
@@ -918,9 +953,8 @@ ROM_START( bombkick )
 	ROM_LOAD( "bk_u22", 0x080000, 0x040000, CRC(9538c46c) SHA1(d7d0e167d5abc2ee81eae6fde152b2f5cc716c0e) )
 	ROM_LOAD( "bk_u23", 0x0c0000, 0x040000, CRC(e3831f3d) SHA1(096658ee5a7b83d774b671c0a38113533c8751d1) )
 
-	ROM_REGION( 0x080000 * 2, "oki", 0 )    /* Samples */
+	ROM_REGION( 0x080000, "oki", 0 )    /* Samples */
 	ROM_LOAD( "bk_u131", 0x000000, 0x080000, CRC(22cc5732) SHA1(38aefa4e543ea54e004eee428ee087121eb20905) )
-	ROM_RELOAD(          0x080000, 0x080000 )
 
 ROM_END
 
@@ -942,9 +976,8 @@ ROM_START( bombkicka ) // marked 'Bomb Kick 98'
 	ROM_LOAD( "bk_u22", 0x080000, 0x040000, CRC(9538c46c) SHA1(d7d0e167d5abc2ee81eae6fde152b2f5cc716c0e) )
 	ROM_LOAD( "bk_u23", 0x0c0000, 0x040000, CRC(e3831f3d) SHA1(096658ee5a7b83d774b671c0a38113533c8751d1) )
 
-	ROM_REGION( 0x080000 * 2, "oki", 0 )    /* Samples */
+	ROM_REGION( 0x080000, "oki", 0 )    /* Samples */
 	ROM_LOAD( "bk_u131", 0x000000, 0x080000, CRC(22cc5732) SHA1(38aefa4e543ea54e004eee428ee087121eb20905) )
-	ROM_RELOAD(          0x080000, 0x080000 )
 
 ROM_END
 
@@ -956,10 +989,11 @@ ROM_END
 
 ***************************************************************************/
 
-GAME( 199?, magicbub,  0,        magicbub, magicbub, yunsun16_state, magicbub, ROT0,   "Yun Sung", "Magic Bubble",                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 199?, magicbuba, magicbub, magicbub, magicbua, yunsun16_state, magicbub, ROT0,   "Yun Sung", "Magic Bubble (Adult version)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1996, paprazzi,  0,        shocking, paprazzi, driver_device,  0,        ROT270, "Yun Sung", "Paparazzi",                    GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1997, shocking,  0,        shocking, shocking, driver_device,  0,        ROT0,   "Yun Sung", "Shocking",                     GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1997, shockingk, shocking, shocking, shocking, driver_device,  0,        ROT0,   "Yun Sung", "Shocking (Korea)",             GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1998, bombkick,  0,        shocking, bombkick, driver_device,  0,        ROT0,   "Yun Sung", "Bomb Kick (set 1)",            GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
-GAME( 1998, bombkicka, bombkick, shocking, bombkick, driver_device,  0,        ROT0,   "Yun Sung", "Bomb Kick (set 2)",            GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 199?, magicbub,  0,        magicbub, magicbub, yunsun16_state, magicbub, ROT0,   "Yun Sung", "Magic Bubble",                              GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 199?, magicbuba, magicbub, magicbub, magicbua, yunsun16_state, magicbub, ROT0,   "Yun Sung", "Magic Bubble (Adult version, YS-1302 PCB)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 199?, magicbubb, magicbub, shocking, magicbua, driver_device,  0,        ROT0,   "Yun Sung", "Magic Bubble (Adult version, YS-0211 PCB)", GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1996, paprazzi,  0,        shocking, paprazzi, driver_device,  0,        ROT270, "Yun Sung", "Paparazzi",                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1997, shocking,  0,        shocking, shocking, driver_device,  0,        ROT0,   "Yun Sung", "Shocking",                                  GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1997, shockingk, shocking, shocking, shocking, driver_device,  0,        ROT0,   "Yun Sung", "Shocking (Korea)",                          GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1998, bombkick,  0,        shocking, bombkick, driver_device,  0,        ROT0,   "Yun Sung", "Bomb Kick (set 1)",                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1998, bombkicka, bombkick, shocking, bombkick, driver_device,  0,        ROT0,   "Yun Sung", "Bomb Kick (set 2)",                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )

@@ -45,9 +45,9 @@ protected:
 private:
 	static const device_timer_id TIMER_DAC_UPDATE = 1;
 	required_device<dac_device> m_dac;
+	required_region_ptr<INT8> m_samples;
 
 	emu_timer * m_dac_update_timer;
-	INT8 *      m_samples;
 	bool        m_output_active;
 	int         m_count;
 	int         m_shift;
@@ -76,14 +76,20 @@ public:
 	void update_lcd_symbols(bitmap_ind16 &bitmap, UINT8 pos, UINT8 y, UINT8 x, int state);
 	DECLARE_DRIVER_INIT(hr16);
 	DECLARE_WRITE8_MEMBER( led_w );
+	DECLARE_WRITE8_MEMBER( mmt8_led_w );
+	DECLARE_READ8_MEMBER( mmt8_led_r );
+	DECLARE_WRITE8_MEMBER( track_led_w );
 	DECLARE_WRITE8_MEMBER( kb_matrix_w );
 	DECLARE_READ8_MEMBER( kb_r );
 	DECLARE_READ8_MEMBER( p3_r );
 	DECLARE_WRITE8_MEMBER( p3_w );
+	DECLARE_READ8_MEMBER( mmt8_p3_r );
+	DECLARE_WRITE8_MEMBER( mmt8_p3_w );
 	DECLARE_WRITE8_MEMBER( sr16_lcd_w );
 
 private:
 	UINT8       m_kb_matrix;
+	UINT8       m_leds;
 	UINT8       m_lcd_digits[5];
 	required_device<cpu_device> m_maincpu;
 };

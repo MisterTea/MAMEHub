@@ -338,18 +338,19 @@ public:
 		m_gn680(*this, "gn680"),
 		m_dsp(*this, "dsp"),
 		m_dsp2(*this, "dsp2"),
-		m_eeprom(*this, "eeprom"),
 		m_k037122_1(*this, "k037122_1"),
 		m_k037122_2(*this, "k037122_2" ),
 		m_adc12138(*this, "adc12138"),
+		m_konppc(*this, "konppc"),
+		m_lan_eeprom(*this, "lan_eeprom"),
 		m_in0(*this, "IN0"),
 		m_in1(*this, "IN1"),
 		m_in2(*this, "IN2"),
 		m_dsw(*this, "DSW"),
 		m_eepromout(*this, "EEPROMOUT"),
 		m_analog1(*this, "ANALOG1"),
-		m_analog2(*this, "ANALOG2"),
-		m_konppc(*this, "konppc"){ }
+		m_analog2(*this, "ANALOG2")
+	{ }
 
 	// TODO: Needs verification on real hardware
 	static const int m_sound_timer_usec = 2800;
@@ -363,13 +364,13 @@ public:
 	optional_device<cpu_device> m_gn680;
 	required_device<cpu_device> m_dsp;
 	optional_device<cpu_device> m_dsp2;
-	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	optional_device<k037122_device> m_k037122_1;
 	optional_device<k037122_device> m_k037122_2;
 	required_device<adc12138_device> m_adc12138;
-	required_ioport m_in0, m_in1, m_in2, m_dsw, m_eepromout;
-	optional_ioport m_analog1, m_analog2;
 	required_device<konppc_device> m_konppc;
+	optional_device<eeprom_serial_93cxx_device> m_lan_eeprom;
+	required_ioport m_in0, m_in1, m_in2, m_dsw;
+	optional_ioport m_eepromout, m_analog1, m_analog2;
 
 	emu_timer *m_sound_irq_timer;
 	UINT8 m_led_reg0;
@@ -405,6 +406,7 @@ public:
 	DECLARE_WRITE16_MEMBER(soundtimer_en_w);
 	DECLARE_WRITE16_MEMBER(soundtimer_count_w);
 	ADC12138_IPT_CONVERT_CB(adc12138_input_callback);
+	DECLARE_WRITE8_MEMBER(jamma_jvs_w);
 
 	DECLARE_DRIVER_INIT(hornet);
 	DECLARE_DRIVER_INIT(hornet_2board);
@@ -533,7 +535,9 @@ READ8_MEMBER(hornet_state::sysreg_r)
 			    0x02 = ADDOR (ADC DOR)
 			    0x01 = ADDO (ADC DO)
 			*/
-			r = 0xf0 | (m_eeprom->do_read() << 3);
+			r = 0xf0;
+			if (m_lan_eeprom)
+				r |= m_lan_eeprom->do_read() << 3;
 			r |= m_adc12138->do_r(space, 0) | (m_adc12138->eoc_r(space, 0) << 2);
 			break;
 
@@ -571,7 +575,8 @@ WRITE8_MEMBER(hornet_state::sysreg_w)
 			    0x02 = LAMP1
 			    0x01 = LAMP0
 			*/
-			m_eepromout->write(data, 0xff);
+			if (m_eepromout)
+				m_eepromout->write(data, 0xff);
 			osd_printf_debug("System register 0 = %02X\n", data);
 			break;
 
@@ -876,11 +881,6 @@ static INPUT_PORTS_START( hornet )
 	PORT_DIPNAME( 0x01, 0x01, "Monitor Type" ) PORT_DIPLOCATION("SW:8")
 	PORT_DIPSETTING( 0x01, "24KHz" )
 	PORT_DIPSETTING( 0x00, "15KHz" )
-
-	PORT_START( "EEPROMOUT" )
-	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, di_write)
-	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, clk_write)
-	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("eeprom", eeprom_serial_93cxx_device, cs_write)
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( sscope )
@@ -899,6 +899,16 @@ static INPUT_PORTS_START( sscope )
 
 	PORT_START("ANALOG2") // Gun Pitch
 	PORT_BIT( 0x7ff, 0x3ff, IPT_AD_STICK_Y ) PORT_MINMAX(0x000, 0x7ff) PORT_SENSITIVITY(35) PORT_KEYDELTA(5) PORT_INVERT
+INPUT_PORTS_END
+
+static INPUT_PORTS_START( sscope2 )
+	PORT_INCLUDE( sscope )
+
+	// LAN board EEPROM
+	PORT_START( "EEPROMOUT" )
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("lan_eeprom", eeprom_serial_93cxx_device, di_write)
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("lan_eeprom", eeprom_serial_93cxx_device, clk_write)
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_OUTPUT ) PORT_WRITE_LINE_DEVICE_MEMBER("lan_eeprom", eeprom_serial_93cxx_device, cs_write)
 INPUT_PORTS_END
 
 
@@ -976,8 +986,8 @@ static MACHINE_CONFIG_START( hornet, hornet_state )
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 
-
-	MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
+//  PCB description at top doesn't mention any EEPROM on the base board...
+//  MCFG_EEPROM_SERIAL_93C46_ADD("eeprom")
 
 	MCFG_DEVICE_ADD("voodoo0", VOODOO_1, STD_VOODOO_1_CLOCK)
 	MCFG_VOODOO_FBMEM(2)
@@ -1138,16 +1148,15 @@ MACHINE_CONFIG_END
 
 /*****************************************************************************/
 
-static void jamma_jvs_w(device_t *device, UINT8 data)
+WRITE8_MEMBER(hornet_state::jamma_jvs_w)
 {
-	hornet_state *state = device->machine().driver_data<hornet_state>();
-	if (state->m_jvs_sdata_ptr == 0 && data != 0xe0)
+	if (m_jvs_sdata_ptr == 0 && data != 0xe0)
 		return;
-	state->m_jvs_sdata[state->m_jvs_sdata_ptr] = data;
-	state->m_jvs_sdata_ptr++;
+	m_jvs_sdata[m_jvs_sdata_ptr] = data;
+	m_jvs_sdata_ptr++;
 
-	if (state->m_jvs_sdata_ptr >= 3 && state->m_jvs_sdata_ptr >= 3 + state->m_jvs_sdata[2])
-		state->jamma_jvs_cmd_exec();
+	if (m_jvs_sdata_ptr >= 3 && m_jvs_sdata_ptr >= 3 + m_jvs_sdata[2])
+		jamma_jvs_cmd_exec();
 }
 
 int hornet_state::jvs_encode_data(UINT8 *in, int length)
@@ -1283,7 +1292,7 @@ DRIVER_INIT_MEMBER(hornet_state,hornet)
 	m_konppc->set_cgboard_texture_bank(0, "bank5", memregion("user5")->base());
 	m_led_reg0 = m_led_reg1 = 0x7f;
 
-	m_maincpu->ppc4xx_spu_set_tx_handler(jamma_jvs_w);
+	m_maincpu->ppc4xx_spu_set_tx_handler(write8_delegate(FUNC(hornet_state::jamma_jvs_w), this));
 }
 
 DRIVER_INIT_MEMBER(hornet_state,hornet_2board)
@@ -1292,7 +1301,7 @@ DRIVER_INIT_MEMBER(hornet_state,hornet_2board)
 	m_konppc->set_cgboard_texture_bank(1, "bank6", memregion("user5")->base());
 	m_led_reg0 = m_led_reg1 = 0x7f;
 
-	m_maincpu->ppc4xx_spu_set_tx_handler(jamma_jvs_w);
+	m_maincpu->ppc4xx_spu_set_tx_handler(write8_delegate(FUNC(hornet_state::jamma_jvs_w), this));
 }
 
 /*****************************************************************************/
@@ -1311,7 +1320,7 @@ ROM_START(sscope)
 	ROM_LOAD32_WORD( "830a14.u32", 0x000000, 0x400000, CRC(335793e1) SHA1(d582b53c3853abd59bc728f619a30c27cfc9497c) )
 	ROM_LOAD32_WORD( "830a13.u24", 0x000002, 0x400000, CRC(d6e7877e) SHA1(b4d0e17ada7dd126ec564a20e7140775b4b3fdb7) )
 
-	ROM_REGION(0x1000000, "rfsnd", 0)       /* PCM sample roms */
+	ROM_REGION16_LE(0x1000000, "rfsnd", 0)       /* PCM sample roms */
 	ROM_LOAD( "830a09.16p", 0x000000, 0x400000, CRC(e4b9f305) SHA1(ce2c6f63bdc9374dde48d8359102b57e48b4fdeb) )
 	ROM_LOAD( "830a10.14p", 0x400000, 0x400000, CRC(8b8aaf7e) SHA1(49b694dc171c149056b87c15410a6bf37ff2987f) )
 
@@ -1334,7 +1343,7 @@ ROM_START(sscopec)
 	ROM_LOAD32_WORD( "830a14.u32", 0x000000, 0x400000, CRC(335793e1) SHA1(d582b53c3853abd59bc728f619a30c27cfc9497c) )
 	ROM_LOAD32_WORD( "830a13.u24", 0x000002, 0x400000, CRC(d6e7877e) SHA1(b4d0e17ada7dd126ec564a20e7140775b4b3fdb7) )
 
-	ROM_REGION(0x1000000, "rfsnd", 0)       /* PCM sample roms */
+	ROM_REGION16_LE(0x1000000, "rfsnd", 0)       /* PCM sample roms */
 	ROM_LOAD( "830a09.16p", 0x000000, 0x400000, CRC(e4b9f305) SHA1(ce2c6f63bdc9374dde48d8359102b57e48b4fdeb) )
 	ROM_LOAD( "830a10.14p", 0x400000, 0x400000, CRC(8b8aaf7e) SHA1(49b694dc171c149056b87c15410a6bf37ff2987f) )
 
@@ -1356,7 +1365,7 @@ ROM_START(sscopeb)
 	ROM_LOAD32_WORD( "830a14.u32", 0x000000, 0x400000, CRC(335793e1) SHA1(d582b53c3853abd59bc728f619a30c27cfc9497c) )
 	ROM_LOAD32_WORD( "830a13.u24", 0x000002, 0x400000, CRC(d6e7877e) SHA1(b4d0e17ada7dd126ec564a20e7140775b4b3fdb7) )
 
-	ROM_REGION(0x1000000, "rfsnd", 0)       /* PCM sample roms */
+	ROM_REGION16_LE(0x1000000, "rfsnd", 0)       /* PCM sample roms */
 	ROM_LOAD( "830a09.16p", 0x000000, 0x400000, CRC(e4b9f305) SHA1(ce2c6f63bdc9374dde48d8359102b57e48b4fdeb) )
 	ROM_LOAD( "830a10.14p", 0x400000, 0x400000, CRC(8b8aaf7e) SHA1(49b694dc171c149056b87c15410a6bf37ff2987f) )
 
@@ -1378,7 +1387,7 @@ ROM_START(sscopea)
 	ROM_LOAD32_WORD( "830a14.u32", 0x000000, 0x400000, CRC(335793e1) SHA1(d582b53c3853abd59bc728f619a30c27cfc9497c) )
 	ROM_LOAD32_WORD( "830a13.u24", 0x000002, 0x400000, CRC(d6e7877e) SHA1(b4d0e17ada7dd126ec564a20e7140775b4b3fdb7) )
 
-	ROM_REGION(0x1000000, "rfsnd", 0)       /* PCM sample roms */
+	ROM_REGION16_LE(0x1000000, "rfsnd", 0)       /* PCM sample roms */
 	ROM_LOAD( "830a09.16p", 0x000000, 0x400000, CRC(e4b9f305) SHA1(ce2c6f63bdc9374dde48d8359102b57e48b4fdeb) )
 	ROM_LOAD( "830a10.14p", 0x400000, 0x400000, CRC(8b8aaf7e) SHA1(49b694dc171c149056b87c15410a6bf37ff2987f) )
 
@@ -1403,7 +1412,7 @@ ROM_START(sscope2)
 	ROM_REGION(0x80000, "audiocpu", 0)      /* 68K Program */
 	ROM_LOAD16_WORD_SWAP("931a08.bin", 0x000000, 0x80000, CRC(1597d604) SHA1(a1eab4d25907930b59ea558b484c3b6ddcb9303c) )
 
-	ROM_REGION(0xc00000, "rfsnd", 0)        /* PCM sample roms */
+	ROM_REGION16_LE(0xc00000, "rfsnd", 0)        /* PCM sample roms */
 	ROM_LOAD( "931a09.bin",   0x000000, 0x400000, CRC(694c354c) SHA1(42f54254a5959e1b341f2801f1ad032c4ed6f329) )
 	ROM_LOAD( "931a10.bin",   0x400000, 0x400000, CRC(78ceb519) SHA1(e61c0d21b6dc37a9293e72814474f5aee59115ad) )
 	ROM_LOAD( "931a11.bin",   0x800000, 0x400000, CRC(9c8362b2) SHA1(a8158c4db386e2bbd61dc9a600720f07a1eba294) )
@@ -1436,7 +1445,7 @@ ROM_START(gradius4)
 	ROM_REGION(0x80000, "audiocpu", 0)      /* 68K Program */
 	ROM_LOAD16_WORD_SWAP( "837a08.7s",    0x000000, 0x080000, CRC(c3a7ff56) SHA1(9d8d033277d560b58da151338d14b4758a9235ea) )
 
-	ROM_REGION(0x800000, "rfsnd", 0)        /* PCM sample roms */
+	ROM_REGION16_LE(0x800000, "rfsnd", 0)        /* PCM sample roms */
 	ROM_LOAD( "837a09.16p",   0x000000, 0x400000, CRC(fb8f3dc2) SHA1(69e314ac06308c5a24309abc3d7b05af6c0302a8) )
 	ROM_LOAD( "837a10.14p",   0x400000, 0x400000, CRC(1419cad2) SHA1(a6369a5c29813fa51e8246d0c091736f32994f3d) )
 
@@ -1462,7 +1471,7 @@ ROM_START(nbapbp)
 	ROM_REGION(0x80000, "audiocpu", 0)      /* 68K Program */
 	ROM_LOAD16_WORD_SWAP( "778a08.7s",    0x000000, 0x080000, CRC(6259b4bf) SHA1(d0c38870495c9a07984b4b85e736d6477dd44832) )
 
-	ROM_REGION(0x1000000, "rfsnd", 0)       /* PCM sample roms */
+	ROM_REGION16_LE(0x1000000, "rfsnd", 0)       /* PCM sample roms */
 	ROM_LOAD( "778a09.16p",   0x000000, 0x400000, CRC(e8c6fd93) SHA1(dd378b67b3b7dd932e4b39fbf4321e706522247f) )
 	ROM_LOAD( "778a10.14p",   0x400000, 0x400000, CRC(c6a0857b) SHA1(976734ba56460fcc090619fbba043a3d888c4f4e) )
 	ROM_LOAD( "778a11.12p",   0x800000, 0x400000, CRC(40199382) SHA1(bee268adf9b6634a4f6bb39278ecd02f2bdcb1f4) )
@@ -1488,7 +1497,7 @@ ROM_START(terabrst)
 	ROM_REGION(0x80000, "audiocpu", 0)      /* 68K Program */
 	ROM_LOAD16_WORD_SWAP( "715a08.7s",    0x000000, 0x080000, CRC(3aa2f4a5) SHA1(bb43e5f5ef4ac51f228d4d825be66d3c720d51ea) )
 
-	ROM_REGION(0x1000000, "rfsnd", 0)       /* PCM sample roms */
+	ROM_REGION16_LE(0x1000000, "rfsnd", 0)       /* PCM sample roms */
 	ROM_LOAD( "715a09.16p",   0x000000, 0x400000, CRC(65845866) SHA1(d2a63d0deef1901e6fa21b55c5f96e1f781dceda) )
 	ROM_LOAD( "715a10.14p",   0x400000, 0x400000, CRC(294fe71b) SHA1(ac5fff5627df1cee4f1e1867377f208b34334899) )
 
@@ -1515,7 +1524,7 @@ ROM_START(terabrsta)
 	ROM_REGION(0x80000, "audiocpu", 0)      /* 68K Program */
 	ROM_LOAD16_WORD_SWAP( "715a08.7s",    0x000000, 0x080000, CRC(3aa2f4a5) SHA1(bb43e5f5ef4ac51f228d4d825be66d3c720d51ea) )
 
-	ROM_REGION(0x1000000, "rfsnd", 0)       /* PCM sample roms */
+	ROM_REGION16_LE(0x1000000, "rfsnd", 0)       /* PCM sample roms */
 	ROM_LOAD( "715a09.16p",   0x000000, 0x400000, CRC(65845866) SHA1(d2a63d0deef1901e6fa21b55c5f96e1f781dceda) )
 	ROM_LOAD( "715a10.14p",   0x400000, 0x400000, CRC(294fe71b) SHA1(ac5fff5627df1cee4f1e1867377f208b34334899) )
 
@@ -1528,17 +1537,17 @@ ROM_END
 
 /*************************************************************************/
 
-GAME(  1998, gradius4,  0,        hornet,           hornet, hornet_state, hornet,        ROT0, "Konami", "Gradius 4: Fukkatsu", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAME(  1998, nbapbp,    0,        hornet,           hornet, hornet_state, hornet,        ROT0, "Konami", "NBA Play By Play", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
-GAMEL( 1998, terabrst,  0,        terabrst,         hornet, hornet_state, hornet_2board, ROT0, "Konami", "Teraburst (1998/07/17 ver UEL)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE, layout_dualhsxs )
-GAMEL( 1998, terabrsta, terabrst, terabrst,         hornet, hornet_state, hornet_2board, ROT0, "Konami", "Teraburst (1998/02/25 ver AAA)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE, layout_dualhsxs )
+GAME(  1998, gradius4,  0,        hornet,           hornet,  hornet_state, hornet,        ROT0, "Konami", "Gradius 4: Fukkatsu", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAME(  1998, nbapbp,    0,        hornet,           hornet,  hornet_state, hornet,        ROT0, "Konami", "NBA Play By Play", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+GAMEL( 1998, terabrst,  0,        terabrst,         hornet,  hornet_state, hornet_2board, ROT0, "Konami", "Teraburst (1998/07/17 ver UEL)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE, layout_dualhsxs )
+GAMEL( 1998, terabrsta, terabrst, terabrst,         hornet,  hornet_state, hornet_2board, ROT0, "Konami", "Teraburst (1998/02/25 ver AAA)", GAME_NOT_WORKING | GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE, layout_dualhsxs )
 
 // The region comes from the Timekeeper NVRAM, without a valid default all sets except 'xxD, Ver 1.33' will init their NVRAM to UAx versions, the xxD set seems to incorrectly init it to JXD, which isn't a valid
 // version, and thus can't be booted.  If you copy the NVRAM from another already initialized set, it will boot as UAD.
 // to get the actual game to boot you must calibrate the guns etc.
-GAMEL( 2000, sscope,    0,        hornet_2board,    sscope, hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope (ver xxD, Ver 1.33)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
-GAMEL( 2000, sscopec,   sscope,   hornet_2board,    sscope, hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope (ver xxC, Ver 1.30)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
-GAMEL( 2000, sscopeb,   sscope,   hornet_2board,    sscope, hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope (ver xxB, Ver 1.20)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
-GAMEL( 2000, sscopea,   sscope,   hornet_2board,    sscope, hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope (ver xxA, Ver 1.00)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
+GAMEL( 2000, sscope,    0,        hornet_2board,    sscope,  hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope (ver xxD, Ver 1.33)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
+GAMEL( 2000, sscopec,   sscope,   hornet_2board,    sscope,  hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope (ver xxC, Ver 1.30)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
+GAMEL( 2000, sscopeb,   sscope,   hornet_2board,    sscope,  hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope (ver xxB, Ver 1.20)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
+GAMEL( 2000, sscopea,   sscope,   hornet_2board,    sscope,  hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope (ver xxA, Ver 1.00)", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
 
-GAMEL( 2000, sscope2,   0,        sscope2,          sscope, hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope 2", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )
+GAMEL( 2000, sscope2,   0,        sscope2,          sscope2, hornet_state, hornet_2board, ROT0, "Konami", "Silent Scope 2", GAME_IMPERFECT_SOUND | GAME_NOT_WORKING | GAME_SUPPORTS_SAVE, layout_dualhsxs )

@@ -15,7 +15,9 @@ public:
 
 	int m_lastdata;
 	DECLARE_READ8_MEMBER(spacduel_IN3_r);
+	DECLARE_READ8_MEMBER(bwidowp_in_r);
 	DECLARE_WRITE8_MEMBER(bwidow_misc_w);
+	DECLARE_WRITE8_MEMBER(spacduel_coin_counter_w);
 	DECLARE_WRITE8_MEMBER(irq_ack_w);
 	DECLARE_CUSTOM_INPUT_MEMBER(clock_r);
 	required_device<cpu_device> m_maincpu;

@@ -947,7 +947,6 @@ UINT64 debug_read_opcode(address_space &space, offs_t address, int size, int arg
 
 		default:
 			fatalerror("debug_read_opcode: unknown type = %d\n", space.data_width() / 8 * 10 + size);
-			break;
 	}
 
 	/* turn on debugger access */
@@ -1272,7 +1271,7 @@ static UINT64 expression_read_memory_region(running_machine &machine, const char
 		else if (address < region->bytes())
 		{
 			/* lowmask specified which address bits are within the databus width */
-			UINT32 lowmask = region->width() - 1;
+			UINT32 lowmask = region->bytewidth() - 1;
 			UINT8 *base = region->base() + (address & ~lowmask);
 
 			/* if we have a valid base, return the appropriate byte */
@@ -1454,7 +1453,7 @@ static void expression_write_memory_region(running_machine &machine, const char 
 		else if (address < region->bytes())
 		{
 			/* lowmask specified which address bits are within the databus width */
-			UINT32 lowmask = region->width() - 1;
+			UINT32 lowmask = region->bytewidth() - 1;
 			UINT8 *base = region->base() + (address & ~lowmask);
 
 			/* if we have a valid base, set the appropriate byte */
@@ -1931,6 +1930,8 @@ void device_debug::instruction_hook(offs_t curpc)
 			// flush any pending updates before waiting again
 			machine.debug_view().flush_osd_updates();
 
+			machine.manager().web()->serve();
+
 			// clear the memory modified flag and wait
 			global->memory_modified = false;
 			if (machine.debug_flags & DEBUG_FLAG_OSD_ENABLED)
@@ -1994,11 +1995,11 @@ void device_debug::memory_write_hook(address_space &space, offs_t address, UINT6
 	if (m_track_mem)
 	{
 		dasm_memory_access newAccess(space.spacenum(), address, data, history_pc(0));
-		if (!m_track_mem_set.insert(newAccess))
-		{
-			m_track_mem_set.remove(newAccess);
+		dasm_memory_access* trackedAccess = m_track_mem_set.find(newAccess);
+		if (trackedAccess)
+			trackedAccess->m_pc = newAccess.m_pc;
+		else
 			m_track_mem_set.insert(newAccess);
-		}
 	}
 	watchpoint_check(space, WATCHPOINT_WRITE, address, data, mem_mask);
 }

@@ -46,7 +46,7 @@
 #ifndef __RENDER_H__
 #define __RENDER_H__
 
-#include "osdepend.h"
+//#include "osdepend.h"
 
 #include <math.h>
 
@@ -167,7 +167,6 @@ class layout_view;
 // texture scaling callback
 typedef void (*texture_scaler_func)(bitmap_argb32 &dest, bitmap_argb32 &source, const rectangle &sbounds, void *param);
 
-
 // render_bounds - floating point bounding rectangle
 struct render_bounds
 {
@@ -216,9 +215,9 @@ struct render_texinfo
 	UINT32              rowpixels;          // pixels per row
 	UINT32              width;              // width of the image
 	UINT32              height;             // height of the image
-	const rgb_t *       palette;            // palette for PALETTE16 textures, LUTs for RGB15/RGB32
 	UINT32              seqid;              // sequence ID
 	UINT64              osddata;            // aux data to pass to osd
+	const rgb_t *       palette;            // palette for PALETTE16 textures, bcg lookup table for RGB32/YUY16
 };
 
 
@@ -253,11 +252,12 @@ public:
 	void reset() { m_list.reset(); }
 
 	// query
-	bool contains(screen_device &screen) const
+	int contains(screen_device &screen) const
 	{
+		int count = 0;
 		for (item *curitem = m_list.first(); curitem != NULL; curitem = curitem->m_next)
-			if (&curitem->m_screen == &screen) return true;
-		return false;
+			if (&curitem->m_screen == &screen) count++;
+		return count;
 	}
 
 private:
@@ -338,6 +338,7 @@ public:
 	float               width;              // width (for line primitives)
 	render_texinfo      texture;            // texture info (for quad primitives)
 	render_quad_texuv   texcoords;          // texture coordinates (for quad primitives)
+	render_container *  container;          // the render container we belong to
 
 private:
 	// internal state
@@ -432,7 +433,7 @@ public:
 
 private:
 	// internal helpers
-	bool get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &texinfo, render_primitive_list &primlist);
+	void get_scaled(UINT32 dwidth, UINT32 dheight, render_texinfo &texinfo, render_primitive_list &primlist);
 	const rgb_t *get_adjusted_palette(render_container &container);
 
 	static const int MAX_TEXTURE_SCALES = 8;
@@ -574,7 +575,7 @@ private:
 	bitmap_argb32 *         m_overlaybitmap;        // overlay bitmap
 	render_texture *        m_overlaytexture;       // overlay texture
 	auto_pointer<palette_client> m_palclient;       // client to the screen palette
-	dynamic_array<rgb_t>    m_bcglookup;            // full palette lookup with bcg adjustments
+	dynamic_array<rgb_t>    m_bcglookup;            // copy of screen palette with bcg adjustment
 	rgb_t                   m_bcglookup256[0x400];  // lookup table for brightness/contrast/gamma
 };
 
@@ -743,7 +744,7 @@ public:
 	// UI targets
 	render_target &ui_target() const { assert(m_ui_target != NULL); return *m_ui_target; }
 	void set_ui_target(render_target &target) { m_ui_target = &target; }
-	float ui_aspect();
+	float ui_aspect(render_container *rc = NULL);
 
 	// UI containers
 	render_container &ui_container() const { assert(m_ui_container != NULL); return *m_ui_container; }

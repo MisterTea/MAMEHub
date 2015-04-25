@@ -74,47 +74,46 @@ class galpani3_state : public driver_device
 public:
 	galpani3_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_spriteram(*this, "spriteram"),
-		m_priority_buffer(*this, "priority_buffer"),
-		m_sprregs(*this, "sprregs"),
-		m_sprite_bitmap_1(1024, 1024),
 		m_maincpu(*this,"maincpu"),
 		m_grap2_0(*this,"grap2_0"),
 		m_grap2_1(*this,"grap2_1"),
 		m_grap2_2(*this,"grap2_2"),
 		m_palette(*this, "palette"),
-		m_paletteram(*this, "palette")
+		m_spritegen(*this, "spritegen"),
+		m_paletteram(*this, "palette"),
+		m_spriteram(*this, "spriteram"),
+		m_priority_buffer(*this, "priority_buffer"),
+		m_sprregs(*this, "sprregs"),
+		m_sprite_bitmap_1(1024, 1024)
+
 	{ }
 
-	optional_shared_ptr<UINT16> m_spriteram;
-	required_shared_ptr<UINT16> m_priority_buffer;
-	required_shared_ptr<UINT16> m_sprregs;
-	bitmap_ind16 m_sprite_bitmap_1;
 	required_device<cpu_device> m_maincpu;
 	required_device<kaneko_grap2_device> m_grap2_0;
 	required_device<kaneko_grap2_device> m_grap2_1;
 	required_device<kaneko_grap2_device> m_grap2_2;
 	required_device<palette_device> m_palette;
-	required_shared_ptr<UINT16> m_paletteram;
+	required_device<sknsspr_device> m_spritegen;
 
+	required_shared_ptr<UINT16> m_paletteram;
+	optional_shared_ptr<UINT16> m_spriteram;
+	required_shared_ptr<UINT16> m_priority_buffer;
+	required_shared_ptr<UINT16> m_sprregs;
+
+	bitmap_ind16 m_sprite_bitmap_1;
 	UINT16 m_priority_buffer_scrollx;
 	UINT16 m_priority_buffer_scrolly;
-
 	UINT32 m_spriteram32[0x4000/4];
 	UINT32 m_spc_regs[0x40/4];
 
-	sknsspr_device* m_spritegen;
 	DECLARE_WRITE16_MEMBER(galpani3_suprnova_sprite32_w);
 	DECLARE_WRITE16_MEMBER(galpani3_suprnova_sprite32regs_w);
-
 	DECLARE_WRITE16_MEMBER(galpani3_priority_buffer_scrollx_w);
 	DECLARE_WRITE16_MEMBER(galpani3_priority_buffer_scrolly_w);
 
 
-	DECLARE_DRIVER_INIT( galpani3 )
-	{
-	}
 	virtual void video_start();
+
 	UINT32 screen_update_galpani3(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(galpani3_vblank);
 	int gp3_is_alpha_pen(int pen);
@@ -146,10 +145,13 @@ TIMER_DEVICE_CALLBACK_MEMBER(galpani3_state::galpani3_vblank)// 2, 3, 5 ?
 
 void galpani3_state::video_start()
 {
-	/* so we can use suprnova.c */
-
-	m_spritegen = machine().device<sknsspr_device>("spritegen");
+	/* so we can use video/sknsspr.c */
 	m_spritegen->skns_sprite_kludge(0,0);
+
+	save_item(NAME(m_priority_buffer_scrollx));
+	save_item(NAME(m_priority_buffer_scrolly));
+	save_item(NAME(m_spriteram32));
+	save_item(NAME(m_spc_regs));
 }
 
 
@@ -349,7 +351,7 @@ UINT32 galpani3_state::screen_update_galpani3(screen_device &screen, bitmap_rgb3
 
 	m_sprite_bitmap_1.fill(0x0000, cliprect);
 
-	m_spritegen->skns_draw_sprites(machine(), m_sprite_bitmap_1, cliprect, &m_spriteram32[0], 0x4000, memregion("gfx1")->base(), memregion ("gfx1")->bytes(), m_spc_regs );
+	m_spritegen->skns_draw_sprites(m_sprite_bitmap_1, cliprect, &m_spriteram32[0], 0x4000, memregion("gfx1")->base(), memregion ("gfx1")->bytes(), m_spc_regs );
 
 	// ignoring priority bits for now..
 	for (y=0;y<240;y++)
@@ -465,13 +467,13 @@ static ADDRESS_MAP_START( galpani3_map, AS_PROGRAM, 16, galpani3_state )
 	AM_RANGE(0x300000, 0x303fff) AM_RAM_WRITE(galpani3_suprnova_sprite32_w) AM_SHARE("spriteram")
 	AM_RANGE(0x380000, 0x38003f) AM_RAM_WRITE(galpani3_suprnova_sprite32regs_w) AM_SHARE("sprregs")
 
-	AM_RANGE(0x400000, 0x40ffff) AM_DEVREADWRITE( "toybox", kaneko_toybox_device, toybox_mcu_ram_r, toybox_mcu_ram_w ) // area [C]
+	AM_RANGE(0x400000, 0x40ffff) AM_RAM AM_SHARE("mcuram") // area [C]
 
-	AM_RANGE(0x580000, 0x580001) AM_DEVWRITE( "toybox", kaneko_toybox_device, toybox_mcu_com0_w)
-	AM_RANGE(0x600000, 0x600001) AM_DEVWRITE( "toybox", kaneko_toybox_device, toybox_mcu_com1_w)
-	AM_RANGE(0x680000, 0x680001) AM_DEVWRITE( "toybox", kaneko_toybox_device, toybox_mcu_com2_w)
-	AM_RANGE(0x700000, 0x700001) AM_DEVWRITE( "toybox", kaneko_toybox_device, toybox_mcu_com3_w)
-	AM_RANGE(0x780000, 0x780001) AM_DEVREAD( "toybox", kaneko_toybox_device, toybox_mcu_status_r)
+	AM_RANGE(0x580000, 0x580001) AM_DEVWRITE( "toybox", kaneko_toybox_device, mcu_com0_w)
+	AM_RANGE(0x600000, 0x600001) AM_DEVWRITE( "toybox", kaneko_toybox_device, mcu_com1_w)
+	AM_RANGE(0x680000, 0x680001) AM_DEVWRITE( "toybox", kaneko_toybox_device, mcu_com2_w)
+	AM_RANGE(0x700000, 0x700001) AM_DEVWRITE( "toybox", kaneko_toybox_device, mcu_com3_w)
+	AM_RANGE(0x780000, 0x780001) AM_DEVREAD( "toybox", kaneko_toybox_device, mcu_status_r)
 
 	GRAP2_AREA( 0x800000, "grap2_0" )
 	GRAP2_AREA( 0xa00000, "grap2_1" )
@@ -638,7 +640,7 @@ ROM_END
 
 
 
-GAME( 1995, galpani3,  0,        galpani3, galpani3, galpani3_state, galpani3, ROT90, "Kaneko", "Gals Panic 3 (Euro)",  GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
-GAME( 1995, galpani3j, galpani3, galpani3, galpani3, galpani3_state, galpani3, ROT90, "Kaneko", "Gals Panic 3 (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
-GAME( 1995, galpani3k, galpani3, galpani3, galpani3, galpani3_state, galpani3, ROT90, "Kaneko", "Gals Panic 3 (Korea)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
-GAME( 1995, galpani3hk,galpani3, galpani3, galpani3, galpani3_state, galpani3, ROT90, "Kaneko", "Gals Panic 3 (Hong Kong)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL )
+GAME( 1995, galpani3,  0,        galpani3, galpani3, driver_device, 0, ROT90, "Kaneko", "Gals Panic 3 (Euro)",  GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1995, galpani3j, galpani3, galpani3, galpani3, driver_device, 0, ROT90, "Kaneko", "Gals Panic 3 (Japan)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1995, galpani3k, galpani3, galpani3, galpani3, driver_device, 0, ROT90, "Kaneko", "Gals Panic 3 (Korea)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1995, galpani3hk,galpani3, galpani3, galpani3, driver_device, 0, ROT90, "Kaneko", "Gals Panic 3 (Hong Kong)", GAME_IMPERFECT_GRAPHICS | GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )

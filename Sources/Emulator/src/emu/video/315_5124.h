@@ -62,6 +62,9 @@ public:
 	sega315_5124_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, UINT8 cram_size, UINT8 palette_offset, bool supports_224_240, const char *shortname, const char *source);
 
 	static void set_signal_type(device_t &device, bool is_pal) { downcast<sega315_5124_device &>(device).m_is_pal = is_pal; }
+
+
+
 	template<class _Object> static devcb_base &set_int_callback(device_t &device, _Object object) { return downcast<sega315_5124_device &>(device).m_int_cb.set_callback(object); }
 	template<class _Object> static devcb_base &set_pause_callback(device_t &device, _Object object) { return downcast<sega315_5124_device &>(device).m_pause_cb.set_callback(object); }
 
@@ -88,17 +91,19 @@ public:
 
 protected:
 	void set_display_settings();
+	void set_frame_timing();
 	virtual void update_palette();
 	virtual void cram_write(UINT8 data);
 	virtual void draw_scanline( int pixel_offset_x, int pixel_plot_y, int line );
-	virtual UINT16 get_name_table_address();
+	virtual void blit_scanline( int *line_buffer, int *priority_selected, int pixel_offset_x, int pixel_plot_y, int line );
+	virtual UINT16 get_name_table_row(int row);
 	void process_line_timer();
+	void select_sprites( int line );
 	void draw_scanline_mode4( int *line_buffer, int *priority_selected, int line );
 	void draw_sprites_mode4( int *line_buffer, int *priority_selected, int line );
 	void draw_sprites_tms9918_mode( int *line_buffer, int line );
 	void draw_scanline_mode2( int *line_buffer, int line );
 	void draw_scanline_mode0( int *line_buffer, int line );
-	void select_sprites( int line );
 	void check_pending_flags();
 
 	// device-level overrides
@@ -131,28 +136,25 @@ protected:
 	int              m_draw_time;
 	UINT8            m_line_counter;
 	UINT8            m_hcounter;
-	memory_region    *m_CRAM;                    /* Pointer to CRAM */
+	UINT8            m_CRAM[SEGA315_5378_CRAM_SIZE];  /* CRAM */
 	const UINT8      *m_frame_timing;
 	bitmap_rgb32     m_tmpbitmap;
 	bitmap_ind8      m_y1_bitmap;
-	UINT8            m_collision_buffer[SEGA315_5124_WIDTH];
 	UINT8            m_palette_offset;
 	bool             m_supports_224_240;
 	bool             m_display_disabled;
 	UINT16           m_sprite_base;
-	int              m_selected_sprite[8];
+	UINT16           m_sprite_pattern_line[8];
+	int              m_sprite_tile_selected[8];
+	int              m_sprite_x[8];
+	UINT8            m_sprite_flags[8];
 	int              m_sprite_count;
 	int              m_sprite_height;
 	int              m_sprite_zoom;
-
-	/* line_buffer will be used to hold 5 lines of line data. Line #0 is the regular blitting area.
-	   Lines #1-#4 will be used as a kind of cache to be used for vertical scaling in the gamegear
-	   sms compatibility mode. */
-	int              *m_line_buffer;
 	int              m_current_palette[32];
-	bool               m_is_pal;             /* false = NTSC, true = PAL */
-	devcb_write_line  m_int_cb;       /* Interrupt callback function */
-	devcb_write_line  m_pause_cb;     /* Pause callback function */
+	bool             m_is_pal;             /* false = NTSC, true = PAL */
+	devcb_write_line m_int_cb;       /* Interrupt callback function */
+	devcb_write_line m_pause_cb;     /* Pause callback function */
 	emu_timer        *m_display_timer;
 	emu_timer        *m_hint_timer;
 	emu_timer        *m_vint_timer;
@@ -160,6 +162,7 @@ protected:
 	emu_timer        *m_draw_timer;
 	emu_timer        *m_lborder_timer;
 	emu_timer        *m_rborder_timer;
+	emu_timer        *m_pending_flags_timer;
 
 	const address_space_config  m_space_config;
 
@@ -171,6 +174,7 @@ protected:
 	static const device_timer_id TIMER_HINT = 4;
 	static const device_timer_id TIMER_VINT = 5;
 	static const device_timer_id TIMER_NMI = 6;
+	static const device_timer_id TIMER_FLAGS = 7;
 
 	required_device<palette_device> m_palette;
 };
@@ -182,7 +186,7 @@ public:
 	sega315_5246_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock);
 
 protected:
-	virtual UINT16 get_name_table_address();
+	virtual UINT16 get_name_table_row(int row);
 };
 
 
@@ -201,8 +205,8 @@ protected:
 
 	virtual void update_palette();
 	virtual void cram_write(UINT8 data);
-	virtual void draw_scanline( int pixel_offset_x, int pixel_plot_y, int line );
-	virtual UINT16 get_name_table_address();
+	virtual void blit_scanline( int *line_buffer, int *priority_selected, int pixel_offset_x, int pixel_plot_y, int line );
+	virtual UINT16 get_name_table_row(int row);
 };
 
 

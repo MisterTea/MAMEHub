@@ -40,23 +40,34 @@ public:
 
 	midyunit_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
+			m_maincpu(*this, "maincpu"),
+			m_audiocpu(*this, "audiocpu"),
+			m_oki(*this, "oki"),
+			m_palette(*this, "palette"),
 			m_narc_sound(*this, "narcsnd"),
 			m_cvsd_sound(*this, "cvsd"),
 			m_adpcm_sound(*this, "adpcm"),
-			m_gfx_rom(*this, "gfx_rom", 16) ,
-		m_maincpu(*this, "maincpu"),
-		m_audiocpu(*this, "audiocpu"),
-		m_oki(*this, "oki"),
-		m_palette(*this, "palette"),
-		m_generic_paletteram_16(*this, "paletteram") { }
+			m_generic_paletteram_16(*this, "paletteram"),
+			m_gfx_rom(*this, "gfx_rom", 16),
+			m_ports(*this, ports) { }
 
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<okim6295_device> m_oki;
+	required_device<palette_device> m_palette;
 	optional_device<williams_narc_sound_device> m_narc_sound;
 	optional_device<williams_cvsd_sound_device> m_cvsd_sound;
 	optional_device<williams_adpcm_sound_device> m_adpcm_sound;
 
+	required_shared_ptr<UINT16> m_generic_paletteram_16;
+	optional_shared_ptr<UINT8> m_gfx_rom;
+
+	optional_ioport_array<6> m_ports;
+
+	DECLARE_IOPORT_ARRAY(ports);
+
 	UINT16 *m_cmos_ram;
 	UINT32 m_cmos_page;
-	optional_shared_ptr<UINT8> m_gfx_rom;
 	UINT16 m_prot_result;
 	UINT16 m_prot_sequence[3];
 	UINT8 m_prot_index;
@@ -99,6 +110,9 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER(narc_talkback_data_r);
 	DECLARE_CUSTOM_INPUT_MEMBER(adpcm_irq_state_r);
 	DECLARE_WRITE8_MEMBER(yawdim_oki_bank_w);
+	TMS340X0_TO_SHIFTREG_CB_MEMBER(to_shiftreg);
+	TMS340X0_FROM_SHIFTREG_CB_MEMBER(from_shiftreg);
+	TMS340X0_SCANLINE_IND16_CB_MEMBER(scanline_update);
 	DECLARE_DRIVER_INIT(smashtv);
 	DECLARE_DRIVER_INIT(strkforc);
 	DECLARE_DRIVER_INIT(narc);
@@ -121,16 +135,10 @@ public:
 	DECLARE_VIDEO_START(common);
 	TIMER_CALLBACK_MEMBER(dma_callback);
 	TIMER_CALLBACK_MEMBER(autoerase_line);
-	required_device<cpu_device> m_maincpu;
-	optional_device<cpu_device> m_audiocpu;
-	optional_device<okim6295_device> m_oki;
-	required_device<palette_device> m_palette;
-	required_shared_ptr<UINT16> m_generic_paletteram_16;
+
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
+	void dma_draw(UINT16 command);
+	void init_generic(int bpp, int sound, int prot_start, int prot_end);
+	void term2_init_common(write16_delegate hack_w);
 };
-
-/*----------- defined in video/midyunit.c -----------*/
-void midyunit_to_shiftreg(address_space &space, UINT32 address, UINT16 *shiftreg);
-void midyunit_from_shiftreg(address_space &space, UINT32 address, UINT16 *shiftreg);
-void midyunit_scanline_update(screen_device &screen, bitmap_ind16 &bitmap, int scanline, const tms34010_display_params *params);

@@ -107,15 +107,22 @@ void h8_device::device_start()
 	}
 
 	save_item(NAME(PPC));
-	save_item(NAME(PC));
 	save_item(NAME(NPC));
+	save_item(NAME(PC));
+	save_item(NAME(PIR));
 	save_item(NAME(IR));
 	save_item(NAME(R));
 	save_item(NAME(EXR));
 	save_item(NAME(CCR));
 	save_item(NAME(TMP1));
+	save_item(NAME(TMP2));
 	save_item(NAME(inst_state));
 	save_item(NAME(inst_substate));
+	save_item(NAME(irq_vector));
+	save_item(NAME(taken_irq_vector));
+	save_item(NAME(irq_level));
+	save_item(NAME(taken_irq_level));
+	save_item(NAME(irq_nmi));
 
 	m_icountptr = &icount;
 
@@ -130,14 +137,12 @@ void h8_device::device_start()
 	MACF = 0;
 	inst_state = STATE_RESET;
 	inst_substate = 0;
-	end_cycles = 0;
 }
 
 void h8_device::device_reset()
 {
 	inst_state = STATE_RESET;
 	inst_substate = 0;
-	end_cycles = 0;
 
 	irq_vector = 0;
 	irq_level = -1;
@@ -162,26 +167,18 @@ UINT32 h8_device::execute_input_lines() const
 	return 0;
 }
 
-UINT64 h8_device::get_cycle()
-{
-	return end_cycles == 0 || icount <= 0 ? machine().time().as_ticks(clock()) : end_cycles - icount;
-}
-
 void h8_device::recompute_bcount(UINT64 event_time)
 {
-	if(!event_time || event_time >= end_cycles) {
+	if(!event_time || event_time >= total_cycles() + icount) {
 		bcount = 0;
 		return;
 	}
-	bcount = end_cycles - event_time;
+	bcount = total_cycles() + icount - event_time;
 }
 
 void h8_device::execute_run()
 {
-	start_cycles = machine().time().as_ticks(clock());
-	end_cycles = start_cycles + icount;
-
-	internal_update(start_cycles);
+	internal_update(total_cycles());
 
 	if(inst_substate)
 		do_exec_partial();
@@ -196,11 +193,10 @@ void h8_device::execute_run()
 			do_exec_full();
 		}
 		while(bcount && icount && icount <= bcount)
-			internal_update(end_cycles - bcount);
+			internal_update(total_cycles() + icount - bcount);
 		if(inst_substate)
 			do_exec_partial();
 	}
-	end_cycles = 0;
 }
 
 void h8_device::add_event(UINT64 &event_time, UINT64 new_event)
@@ -213,7 +209,7 @@ void h8_device::add_event(UINT64 &event_time, UINT64 new_event)
 
 void h8_device::internal_update()
 {
-	internal_update(get_cycle());
+	internal_update(total_cycles());
 }
 
 const address_space_config *h8_device::memory_space_config(address_spacenum spacenum) const

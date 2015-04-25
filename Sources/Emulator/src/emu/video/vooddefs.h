@@ -1346,6 +1346,7 @@ static const UINT8 dither_matrix_2x2[16] =
 #define TEXDETAIL_ALPHA_MAG_FILTER(val)     (((val) >> 20) & 1)     /* Voodoo 2 only */
 #define TEXDETAIL_SEPARATE_RGBA_FILTER(val) (((val) >> 21) & 1)     /* Voodoo 2 only */
 
+#define TREXINIT_SEND_TMU_CONFIG(val)       (((val) >> 18) & 1)
 
 
 /*************************************
@@ -1724,6 +1725,9 @@ struct voodoo_state
 	int                 next_rasterizer;        /* next rasterizer index */
 	raster_info         rasterizer[MAX_RASTERIZERS]; /* array of rasterizers */
 	raster_info *       raster_hash[RASTER_HASH_SIZE]; /* hash table of rasterizers */
+
+	bool                send_config;
+	UINT32              tmu_config;
 };
 
 
@@ -3326,6 +3330,22 @@ do                                                                              
 	/* handle alpha mask */                                                     \
 	APPLY_ALPHAMASK(VV, STATS, FBZMODE, c_other.rgb.a);                         \
 																				\
+	/* compute c_local */                                                       \
+	if (FBZCP_CC_LOCALSELECT_OVERRIDE(FBZCOLORPATH) == 0)                       \
+	{                                                                           \
+		if (FBZCP_CC_LOCALSELECT(FBZCOLORPATH) == 0)    /* iterated RGB */      \
+			c_local.u = ITERARGB.u;                                             \
+		else                                            /* color0 RGB */        \
+			c_local.u = (VV)->reg[color0].u;                                    \
+	}                                                                           \
+	else                                                                        \
+	{                                                                           \
+		if (!(TEXELARGB.rgb.a & 0x80))                  /* iterated RGB */      \
+			c_local.u = ITERARGB.u;                                             \
+		else                                            /* color0 RGB */        \
+			c_local.u = (VV)->reg[color0].u;                                    \
+	}                                                                           \
+																				\
 	/* compute a_local */                                                       \
 	switch (FBZCP_CCA_LOCALSELECT(FBZCOLORPATH))                                \
 	{                                                                           \
@@ -3411,22 +3431,6 @@ do                                                                              
 	/* handle alpha test */                                                     \
 	APPLY_ALPHATEST(VV, STATS, ALPHAMODE, a);                                   \
 																				\
-																				\
-	/* compute c_local */                                                       \
-	if (FBZCP_CC_LOCALSELECT_OVERRIDE(FBZCOLORPATH) == 0)                       \
-	{                                                                           \
-		if (FBZCP_CC_LOCALSELECT(FBZCOLORPATH) == 0)    /* iterated RGB */      \
-			c_local.u = ITERARGB.u;                                             \
-		else                                            /* color0 RGB */        \
-			c_local.u = (VV)->reg[color0].u;                                    \
-	}                                                                           \
-	else                                                                        \
-	{                                                                           \
-		if (!(TEXELARGB.rgb.a & 0x80))                  /* iterated RGB */      \
-			c_local.u = ITERARGB.u;                                             \
-		else                                            /* color0 RGB */        \
-			c_local.u = (VV)->reg[color0].u;                                    \
-	}                                                                           \
 																				\
 	/* select zero or c_other */                                                \
 	if (FBZCP_CC_ZERO_OTHER(FBZCOLORPATH) == 0)                                 \
@@ -3642,9 +3646,18 @@ static void raster_##name(void *destbase, INT32 y, const poly_extent *extent, co
 		/* result in texel */                                                   \
 		/* note that they set LOD min to 8 to "disable" a TMU */                \
 		if (TMUS >= 1 && v->tmu[0].lodmin < (8 << 8))                           \
-			TEXTURE_PIPELINE(&v->tmu[0], x, dither4, TEXMODE0, texel,           \
-								v->tmu[0].lookup, extra->lodbase0,              \
-								iters0, itert0, iterw0, texel);                 \
+				{                                                                   \
+			if (!v->send_config)                                                \
+						{                                                                   \
+				TEXTURE_PIPELINE(&v->tmu[0], x, dither4, TEXMODE0, texel,           \
+									v->tmu[0].lookup, extra->lodbase0,              \
+									iters0, itert0, iterw0, texel);                 \
+						}                                                                   \
+						else                                                                \
+						{                                                                   \
+				texel.u=v->tmu_config;                                              \
+						}                                                                   \
+				}                                                                   \
 																				\
 		/* colorpath pipeline selects source colors and does blending */        \
 		CLAMPED_ARGB(iterr, iterg, iterb, itera, FBZCOLORPATH, iterargb);       \

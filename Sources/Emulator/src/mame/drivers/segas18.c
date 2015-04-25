@@ -57,8 +57,8 @@ void segas18_state::memory_mapper(sega_315_5195_mapper_device &mapper, UINT8 ind
 			break;
 
 		case 5:
-			mapper.map_as_ram(0x00000, 0x10000, 0xfe0000, "tileram", write16_delegate(FUNC(segas18_state::sega_tileram_0_w), this));
-			mapper.map_as_ram(0x10000, 0x01000, 0xfef000, "textram", write16_delegate(FUNC(segas18_state::sega_textram_0_w), this));
+			mapper.map_as_ram(0x00000, 0x10000, 0xfe0000, "tileram", write16_delegate(FUNC(segas18_state::tileram_w), this));
+			mapper.map_as_ram(0x10000, 0x01000, 0xfef000, "textram", write16_delegate(FUNC(segas18_state::textram_w), this));
 			break;
 
 		case 4:
@@ -73,6 +73,7 @@ void segas18_state::memory_mapper(sega_315_5195_mapper_device &mapper, UINT8 ind
 			switch (m_romboard)
 			{
 				case ROM_BOARD_171_SHADOW:  break;  // ???
+				case ROM_BOARD_837_7525:
 				case ROM_BOARD_171_5874:
 				case ROM_BOARD_171_5987:    mapper.map_as_handler(0x00000, 0x00010, 0xfffff0, read16_delegate(FUNC(segas18_state::genesis_vdp_r), this), write16_delegate(FUNC(segas18_state::genesis_vdp_w), this)); break;
 				default:                    assert(false);
@@ -89,6 +90,9 @@ void segas18_state::memory_mapper(sega_315_5195_mapper_device &mapper, UINT8 ind
 											else
 												mapper.map_as_rom(0x00000,0x100000, 0xf00000, "rom1base",0x100000, write16_delegate(FUNC(segas18_state::rom_5987_bank_w), this));
 											break;
+				case ROM_BOARD_837_7525:    mapper.map_as_rom(0x00000, 0x80000, 0xf80000, "rom1base", 0x80000, write16_delegate(FUNC(segas18_state::rom_837_7525_bank_w), this));
+				break;
+
 				default:                    assert(false);
 			}
 			break;
@@ -98,6 +102,7 @@ void segas18_state::memory_mapper(sega_315_5195_mapper_device &mapper, UINT8 ind
 			{
 				case ROM_BOARD_171_SHADOW:
 				case ROM_BOARD_171_5874:    mapper.map_as_rom(0x00000, 0x80000, 0xf80000, "rom0base", 0x00000, write16_delegate()); break;
+				case ROM_BOARD_837_7525:
 				case ROM_BOARD_171_5987:    if (romsize <= 0x100000)
 												mapper.map_as_rom(0x00000, 0x80000, 0xf80000, "rom0base", 0x00000, write16_delegate());
 											else
@@ -136,22 +141,17 @@ void segas18_state::init_generic(segas18_rom_board rom_board)
 	// configure the NVRAM to point to our workram
 	m_nvram->set_base(m_workram, m_workram.bytes());
 
-	// point globals to allocated memory regions
-	m_segaic16vid->segaic16_tileram_0 = reinterpret_cast<UINT16 *>(memshare("tileram")->ptr());
-	m_segaic16vid->segaic16_textram_0 = reinterpret_cast<UINT16 *>(memshare("textram")->ptr());
-
 	// configure VDP
 	m_vdp->set_use_cram(1);
 	m_vdp->set_vdp_pal(FALSE);
 	m_vdp->set_framerate(60);
 	m_vdp->set_total_scanlines(262);
-	m_vdp->stop_timers();   // 315-5124 timers
+	m_vdp->stop_timers(); // 315-5124 timers
 
 	// save state
 	save_item(NAME(m_mcu_data));
 	save_item(NAME(m_lghost_value));
 	save_item(NAME(m_lghost_select));
-	save_item(NAME(m_misc_io_data));
 	save_item(NAME(m_wwally_last_x));
 	save_item(NAME(m_wwally_last_y));
 }
@@ -177,7 +177,7 @@ void segas18_state::device_timer(emu_timer &timer, device_timer_id id, int param
 
 void segas18_state::machine_reset()
 {
-	m_segaic16vid->segaic16_tilemap_reset(*m_screen);
+	m_segaic16vid->tilemap_reset(*m_screen);
 
 	m_vdp->device_reset_old();
 
@@ -194,134 +194,44 @@ void segas18_state::machine_reset()
  *
  *************************************/
 
-READ16_MEMBER( segas18_state::io_chip_r )
+WRITE8_MEMBER( segas18_state::misc_outputs_w )
 {
-	static const char *const portnames[] = { "P1", "P2", "PORTC", "PORTD", "SERVICE", "COINAGE", "DSW", "PORTH" };
-	offset &= 0x1f/2;
-
-	switch (offset)
-	{
-		// I/O ports
-		case 0x00/2:
-		case 0x02/2:
-		case 0x04/2:
-		case 0x06/2:
-		case 0x08/2:
-		case 0x0a/2:
-		case 0x0c/2:
-		case 0x0e/2:
-			// if the port is configured as an output, return the last thing written
-			if (m_misc_io_data[0x1e/2] & (1 << offset))
-				return m_misc_io_data[offset];
-
-			// otherwise, return an input port
-			return ioport(portnames[offset])->read();
-
-		// 'SEGA' protection
-		case 0x10/2:
-			return 'S';
-		case 0x12/2:
-			return 'E';
-		case 0x14/2:
-			return 'G';
-		case 0x16/2:
-			return 'A';
-
-		// CNT register & mirror
-		case 0x18/2:
-		case 0x1c/2:
-			return m_misc_io_data[0x1c/2];
-
-		// port direction register & mirror
-		case 0x1a/2:
-		case 0x1e/2:
-			return m_misc_io_data[0x1e/2];
-	}
-	return 0xffff;
-}
-
-
-WRITE16_MEMBER( segas18_state::io_chip_w )
-{
-	// generic implementation
-	offset &= 0x1f/2;
-	UINT8 old = m_misc_io_data[offset];
-	m_misc_io_data[offset] = data;
-
-	switch (offset)
-	{
-		// I/O ports
-		case 0x00/2:
-		case 0x02/2:
-		case 0x04/2:
-		case 0x08/2:
-		case 0x0a/2:
-		case 0x0c/2:
-			if (m_has_guns)
-			{
-				// outputs for lghost only
-				output_set_value("P1_Gun_Recoil",(~data & 0x01));
-				output_set_value("P2_Gun_Recoil",(~data & 0x02)>>1);
-				output_set_value("P3_Gun_Recoil",(~data & 0x04)>>2);
-			}
-			break;
-
-		// miscellaneous output
-		case 0x06/2:
-			set_grayscale(~data & 0x40);
-			m_segaic16vid->segaic16_tilemap_set_flip(0, data & 0x20);
-			m_sprites->set_flip(data & 0x20);
-// These are correct according to cgfm's docs, but mwalker and ddcrew both
-// enable the lockout and never turn it off
-//            coin_lockout_w(machine(), 1, data & 0x08);
-//            coin_lockout_w(machine(), 0, data & 0x04);
-			coin_counter_w(machine(), 1, data & 0x02);
-			coin_counter_w(machine(), 0, data & 0x01);
-			break;
-
-		// tile banking
-		case 0x0e/2:
-			if (m_romboard == ROM_BOARD_171_5874 || m_romboard == ROM_BOARD_171_SHADOW)
-				for (int i = 0; i < 4; i++)
-				{
-					m_segaic16vid->segaic16_tilemap_set_bank(0, 0 + i, (data & 0xf) * 4 + i);
-					m_segaic16vid->segaic16_tilemap_set_bank(0, 4 + i, ((data >> 4) & 0xf) * 4 + i);
-				}
-			break;
-
-		// CNT register
-		case 0x1c/2:
-			m_segaic16vid->segaic16_set_display_enable(data & 2);
-			if ((old ^ data) & 4)
-				set_vdp_enable(data & 4);
-			break;
-	}
+	// miscellaneous output
+	set_grayscale(~data & 0x40);
+	m_segaic16vid->tilemap_set_flip(0, data & 0x20);
+	m_sprites->set_flip(data & 0x20);
+	// These are correct according to cgfm's docs, but mwalker and ddcrew both
+	// enable the lockout and never turn it off
+	// coin_lockout_w(machine(), 1, data & 0x08);
+	// coin_lockout_w(machine(), 0, data & 0x04);
+	coin_counter_w(machine(), 1, data & 0x02);
+	coin_counter_w(machine(), 0, data & 0x01);
 }
 
 
 READ16_MEMBER( segas18_state::misc_io_r )
 {
-	static const char *const portnames[] = { "SERVICE", "COINAGE" };
-
 	offset &= 0x1fff;
-
 	switch (offset & (0x3000/2))
 	{
 		// I/O chip
 		case 0x0000/2:
 		case 0x1000/2:
-			return io_chip_r(space, offset, mem_mask);
+			return m_io->read(space, offset) | (open_bus_r(space, 0, mem_mask) & 0xff00);
 
 		// video control latch
 		case 0x2000/2:
+		{
+			static const char *const portnames[] = { "SERVICE", "COINAGE" };
 			return ioport(portnames[offset & 1])->read();
+		}
 	}
+
 	if (!m_custom_io_r.isnull())
 		return m_custom_io_r(space, offset, mem_mask);
 	logerror("%06X:misc_io_r - unknown read access to address %04X\n", space.device().safe_pc(), offset * 2);
 	return open_bus_r(space, 0, mem_mask);
 }
-
 
 WRITE16_MEMBER( segas18_state::misc_io_w )
 {
@@ -333,7 +243,7 @@ WRITE16_MEMBER( segas18_state::misc_io_w )
 		case 0x1000/2:
 			if (ACCESSING_BITS_0_7)
 			{
-				io_chip_w(space, offset, data, mem_mask);
+				m_io->write(space, offset, data);
 				return;
 			}
 			break;
@@ -347,6 +257,7 @@ WRITE16_MEMBER( segas18_state::misc_io_w )
 			}
 			break;
 	}
+
 	if (!m_custom_io_w.isnull())
 	{
 		m_custom_io_w(space, offset, data, mem_mask);
@@ -363,10 +274,24 @@ WRITE16_MEMBER( segas18_state::misc_io_w )
  *
  *************************************/
 
+WRITE8_MEMBER( segas18_state::rom_5874_bank_w )
+{
+	if (m_romboard == ROM_BOARD_171_5874 || m_romboard == ROM_BOARD_171_SHADOW)
+	{
+		for (int i = 0; i < 4; i++)
+		{
+			m_segaic16vid->tilemap_set_bank(0, 0 + i, (data & 0xf) * 4 + i);
+			m_segaic16vid->tilemap_set_bank(0, 4 + i, ((data >> 4) & 0xf) * 4 + i);
+		}
+	}
+}
+
+
 WRITE16_MEMBER( segas18_state::rom_5987_bank_w )
 {
 	if (!ACCESSING_BITS_0_7)
 		return;
+
 	offset &= 0xf;
 	data &= 0xff;
 
@@ -376,7 +301,7 @@ WRITE16_MEMBER( segas18_state::rom_5987_bank_w )
 		int maxbanks = m_gfxdecode->gfx(0)->elements() / 1024;
 		if (data >= maxbanks)
 			data %= maxbanks;
-		m_segaic16vid->segaic16_tilemap_set_bank(0, offset, data);
+		m_segaic16vid->tilemap_set_bank(0, offset, data);
 	}
 
 	// sprite banking
@@ -390,6 +315,32 @@ WRITE16_MEMBER( segas18_state::rom_5987_bank_w )
 	}
 }
 
+WRITE16_MEMBER( segas18_state::rom_837_7525_bank_w )
+{
+	if (!ACCESSING_BITS_0_7)
+		return;
+
+	offset &= 0xf;
+	data &= 0xff;
+
+	// tile banking
+	if (offset < 8)
+	{
+		data &= 0x9f;
+
+		if (data & 0x80) data += 0x20;
+		data &= 0x3f;
+
+		m_segaic16vid->tilemap_set_bank(0, offset, data);
+	}
+
+	// sprite banking
+	else
+	{
+		//printf("%02x %02x\n", offset, data);
+		// not needed?
+	}
+}
 
 
 /*************************************
@@ -403,13 +354,13 @@ READ16_MEMBER( segas18_state::ddcrew_custom_io_r )
 	switch (offset)
 	{
 		case 0x3020/2:
-			return ioport("P3")->read();
+			return ioport("EXP3")->read();
 
 		case 0x3022/2:
-			return ioport("P4")->read();
+			return ioport("EXP4")->read();
 
 		case 0x3024/2:
-			return ioport("P34START")->read();
+			return ioport("EXSERVICE")->read();
 	}
 	return open_bus_r(space, 0, mem_mask);
 }
@@ -438,7 +389,6 @@ READ16_MEMBER( segas18_state::lghost_custom_io_r )
 	return open_bus_r(space, 0, mem_mask);
 }
 
-
 WRITE16_MEMBER( segas18_state::lghost_custom_io_w )
 {
 	switch (offset)
@@ -463,6 +413,14 @@ WRITE16_MEMBER( segas18_state::lghost_custom_io_w )
 			m_lghost_select = data & 1;
 			break;
 	}
+}
+
+
+WRITE8_MEMBER( segas18_state::lghost_gun_recoil_w )
+{
+	output_set_value("P1_Gun_Recoil", (~data & 0x01));
+	output_set_value("P2_Gun_Recoil", (~data & 0x02)>>1);
+	output_set_value("P3_Gun_Recoil", (~data & 0x04)>>2);
 }
 
 
@@ -541,22 +499,6 @@ WRITE8_MEMBER( segas18_state::mcu_data_w )
 {
 	m_mcu_data = data;
 	m_mcu->set_input_line(MCS51_INT1_LINE, HOLD_LINE);
-}
-
-/*************************************
- *
- *  VDP memory handlers
- *
- *************************************/
-
-READ16_MEMBER( segas18_state::genesis_vdp_r )
-{
-	return m_vdp->vdp_r(space, offset, mem_mask);
-}
-
-WRITE16_MEMBER( segas18_state::genesis_vdp_w )
-{
-	m_vdp->vdp_w(space, offset, data, mem_mask);
 }
 
 
@@ -649,10 +591,7 @@ static INPUT_PORTS_START( system18_generic )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_COCKTAIL
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_COCKTAIL
 
-	PORT_START("PORTC")
-	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
-
-	PORT_START("PORTD")
+	PORT_START("P3")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 
 	PORT_START("SERVICE")
@@ -677,9 +616,6 @@ static INPUT_PORTS_START( system18_generic )
 	PORT_DIPUNUSED_DIPLOC( 0x20, IP_ACTIVE_LOW, "SW2:6" )
 	PORT_DIPUNUSED_DIPLOC( 0x40, IP_ACTIVE_LOW, "SW2:7" )
 	PORT_DIPUNUSED_DIPLOC( 0x80, IP_ACTIVE_LOW, "SW2:8" )
-
-	PORT_START("PORTH")
-	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
 
 
@@ -693,7 +629,7 @@ INPUT_PORTS_END
 static INPUT_PORTS_START( astorm )
 	PORT_INCLUDE( system18_generic )
 
-	PORT_MODIFY("PORTC")
+	PORT_MODIFY("P3")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(3)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(3)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(3)
@@ -729,9 +665,7 @@ static INPUT_PORTS_START( astorm )
 	PORT_DIPSETTING(    0x00, "1" )
 	//"SW2:7" unused
 	//"SW2:8" unused
-
 INPUT_PORTS_END
-
 
 static INPUT_PORTS_START( astorm2p )
 	PORT_INCLUDE( system18_generic )
@@ -757,7 +691,6 @@ static INPUT_PORTS_START( astorm2p )
 	PORT_DIPSETTING(    0x00, "1" )
 	//"SW2:7" unused
 	//"SW2:8" unused
-
 INPUT_PORTS_END
 
 
@@ -848,7 +781,7 @@ static INPUT_PORTS_START( ddcrew )
 	PORT_DIPSETTING(    0x40, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
 
-	PORT_START("P3")
+	PORT_START("EXP3")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(3)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(3)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(3)
@@ -858,7 +791,7 @@ static INPUT_PORTS_START( ddcrew )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(3)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(3)
 
-	PORT_START("P4")
+	PORT_START("EXP4")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(4)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(4)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(4)
@@ -868,14 +801,13 @@ static INPUT_PORTS_START( ddcrew )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(4)
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(4)
 
-	PORT_START("P34START")
+	PORT_START("EXSERVICE")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_START3 )
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_START4 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_COIN3 ) // individual mode
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_COIN4 ) // individual mode
 	PORT_BIT( 0xf0, IP_ACTIVE_LOW, IPT_UNUSED )
 INPUT_PORTS_END
-
 
 static INPUT_PORTS_START( ddcrew2p )
 	PORT_INCLUDE( system18_generic )
@@ -903,14 +835,31 @@ static INPUT_PORTS_START( ddcrew2p )
 	PORT_DIPSETTING(    0xc0, DEF_STR( Normal ) )
 	PORT_DIPSETTING(    0x40, DEF_STR( Hard ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
+INPUT_PORTS_END
 
+static INPUT_PORTS_START( ddcrew3p )
+	PORT_INCLUDE( ddcrew2p )
+
+	PORT_MODIFY("P3")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(3)
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(3)
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(3)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_START3 )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_8WAY PORT_PLAYER(3)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_JOYSTICK_UP ) PORT_8WAY PORT_PLAYER(3)
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_8WAY PORT_PLAYER(3)
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_8WAY PORT_PLAYER(3)
+
+	PORT_MODIFY("SERVICE")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN3 )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_COIN1 )
 INPUT_PORTS_END
 
 
 static INPUT_PORTS_START( desertbr )
 	PORT_INCLUDE( system18_generic )
 
-	PORT_MODIFY("PORTC")
+	PORT_MODIFY("P3")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(3)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(3)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(3)
@@ -952,6 +901,31 @@ static INPUT_PORTS_START( desertbr )
 	PORT_DIPSETTING(    0x80, DEF_STR( Easy ) )
 	PORT_DIPSETTING(    0xc0, DEF_STR( Normal ) )
 	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
+INPUT_PORTS_END
+
+
+static INPUT_PORTS_START( hamaway )
+	PORT_INCLUDE( system18_generic )
+
+	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0x03, 0x03, DEF_STR( Difficulty ) )   PORT_DIPLOCATION("SW2:1,2")
+	PORT_DIPSETTING(    0x02, DEF_STR( Easy ) )
+	PORT_DIPSETTING(    0x03, DEF_STR( Normal ) )
+	PORT_DIPSETTING(    0x01, DEF_STR( Hard ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( Hardest ) )
+	PORT_DIPNAME( 0x0c, 0x0c, DEF_STR( Lives ) )    PORT_DIPLOCATION("SW2:3,4")
+	PORT_DIPSETTING(    0x08, "1" )
+	PORT_DIPSETTING(    0x04, "2" )
+	PORT_DIPSETTING(    0x0c, "3" )
+	PORT_DIPSETTING(    0x00, "5" )
+	//"SW2:5" is unknown - Not listed in the service mode
+	//"SW2:6" is unknown - Not listed in the service mode
+	PORT_DIPNAME( 0x40, 0x00, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION("SW2:7")
+	PORT_DIPSETTING(    0x40, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x80, 0x80, "2 Credits to Start" )    PORT_DIPLOCATION("SW2:8")
+	PORT_DIPSETTING(    0x80, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
 INPUT_PORTS_END
 
 
@@ -1031,7 +1005,7 @@ INPUT_PORTS_END
 static INPUT_PORTS_START( mwalk )
 	PORT_INCLUDE( system18_generic )
 
-	PORT_MODIFY("PORTC")
+	PORT_MODIFY("P3")
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(3)
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(3)
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_PLAYER(3)
@@ -1166,7 +1140,6 @@ static INPUT_PORTS_START( wwally )
 INPUT_PORTS_END
 
 
-
 /*************************************
  *
  *  Graphics definitions
@@ -1210,6 +1183,12 @@ WRITE_LINE_MEMBER(segas18_state::vdp_lv4irqline_callback_s18)
  *
  *************************************/
 
+WRITE_LINE_MEMBER(segas18_state::ym3438_irq_handler)
+{
+	m_soundcpu->set_input_line(INPUT_LINE_IRQ0, state ? ASSERT_LINE : CLEAR_LINE);
+}
+
+
 static MACHINE_CONFIG_START( system18, segas18_state )
 
 	// basic machine hardware
@@ -1225,6 +1204,17 @@ static MACHINE_CONFIG_START( system18, segas18_state )
 
 	MCFG_SEGA_315_5195_MAPPER_ADD("mapper", "maincpu", segas18_state, memory_mapper, mapper_sound_r, mapper_sound_w)
 
+	MCFG_DEVICE_ADD("io", SEGA_315_5296, 16000000)
+	MCFG_315_5296_IN_PORTA_CB(IOPORT("P1"))
+	MCFG_315_5296_IN_PORTB_CB(IOPORT("P2"))
+	MCFG_315_5296_IN_PORTC_CB(IOPORT("P3"))
+	MCFG_315_5296_OUT_PORTD_CB(WRITE8(segas18_state, misc_outputs_w))
+	MCFG_315_5296_IN_PORTE_CB(IOPORT("SERVICE"))
+	MCFG_315_5296_IN_PORTF_CB(IOPORT("COINAGE"))
+	MCFG_315_5296_IN_PORTG_CB(IOPORT("DSW"))
+	MCFG_315_5296_OUT_PORTH_CB(WRITE8(segas18_state, rom_5874_bank_w))
+	MCFG_315_5296_OUT_CNT1_CB(DEVWRITELINE("segaic16vid", segaic16_video_device, set_display_enable))
+	MCFG_315_5296_OUT_CNT2_CB(WRITELINE(segas18_state, set_vdp_enable))
 
 	MCFG_DEVICE_ADD("gen_vdp", SEGA315_5313, 0)
 	MCFG_SEGA315_5313_IS_PAL(false)
@@ -1237,10 +1227,9 @@ static MACHINE_CONFIG_START( system18, segas18_state )
 
 	MCFG_TIMER_DEVICE_ADD_SCANLINE("scantimer", "gen_vdp", sega315_5313_device, megadriv_scanline_timer_callback_alt_timing, "screen", 0, 1)
 
-
 	// video hardware
 	MCFG_SCREEN_ADD("screen", RASTER)
-	MCFG_SCREEN_REFRESH_RATE(57.23)    // verified on pcb
+	MCFG_SCREEN_REFRESH_RATE(57.23) // verified on pcb
 	MCFG_SCREEN_SIZE(342,262)
 	MCFG_SCREEN_VISIBLE_AREA(0*8, 40*8-1, 0*8, 28*8-1)
 	MCFG_SCREEN_UPDATE_DRIVER(segas18_state, screen_update)
@@ -1258,6 +1247,7 @@ static MACHINE_CONFIG_START( system18, segas18_state )
 
 	MCFG_SOUND_ADD("ym1", YM3438, 8000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
+	MCFG_YM2612_IRQ_HANDLER(WRITELINE(segas18_state, ym3438_irq_handler))
 
 	MCFG_SOUND_ADD("ym2", YM3438, 8000000)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
@@ -1268,12 +1258,24 @@ MACHINE_CONFIG_END
 
 
 static MACHINE_CONFIG_DERIVED( system18_fd1094, system18 )
+
+	// basic machine hardware
 	MCFG_CPU_REPLACE("maincpu", FD1094, 10000000)
 	MCFG_CPU_PROGRAM_MAP(system18_map)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", segas18_state, irq4_line_hold)
 MACHINE_CONFIG_END
 
+static MACHINE_CONFIG_DERIVED( lghost, system18_fd1094 )
+
+	// basic machine hardware
+	MCFG_DEVICE_MODIFY("io")
+	MCFG_315_5296_OUT_PORTC_CB(WRITE8(segas18_state, lghost_gun_recoil_w))
+MACHINE_CONFIG_END
+
+
 static MACHINE_CONFIG_DERIVED( system18_fd1094_i8751, system18_fd1094 )
+
+	// basic machine hardware
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_VBLANK_INT_REMOVE()
 
@@ -1853,6 +1855,45 @@ ROM_END
 /**************************************************************************************************************************
  **************************************************************************************************************************
  **************************************************************************************************************************
+    Hammer Away, Sega System 18 (prototype / unreleased)
+    CPU: M68000
+    ROM Board: 837-7525
+
+    Japanese text on the mission screens, but no "For use in Japan..." warning. There are screen shots of a version without
+    the Japanese text on mission screens and an alternate title screen, so a "World" proto might exist.
+*/
+ROM_START( hamaway )
+	ROM_REGION( 0x100000, "maincpu", 0 ) // 68000 code
+	ROM_LOAD16_BYTE( "4.bin",  0x000000, 0x40000, CRC(cc0981e1) SHA1(63528bd36f27e62fdf40715101e6d05b73e48f16) ) // 1xxxxxxxxxxxxxxxxx = 0xFF
+	ROM_LOAD16_BYTE( "6.bin",  0x000001, 0x40000, CRC(e8599ee6) SHA1(3e32b025403aecbaecfcdd0325e4acd676e99c4e) ) // 1xxxxxxxxxxxxxxxxx = 0xFF
+	ROM_LOAD16_BYTE( "5.bin",  0x080000, 0x40000, CRC(fdb247fd) SHA1(ee9db799fb5de27f81904f8ef792203415b6d4a6) )
+	ROM_LOAD16_BYTE( "7.bin",  0x080001, 0x40000, CRC(63711470) SHA1(6c4be3a0cf0f897c34ef0b3bf549f52b185bb915) )
+
+	ROM_REGION( 0x180000, "gfx1", 0 ) // tiles
+	ROM_LOAD( "c10.bin",  0x000000, 0x40000, CRC(c55cb5cf) SHA1(396179632b29ac5f8b7f8f3c91d7cf834e548bdf) )
+	ROM_LOAD( "1.bin",    0x040000, 0x40000, CRC(33be003f) SHA1(134fa6b3347c306d9e30882dfcf24632b49f85ea) )
+	ROM_LOAD( "c11.bin",  0x080000, 0x40000, CRC(37787915) SHA1(c8d251be6c41de3aed2da6da70aa87071b70b1f6) )
+	ROM_LOAD( "2.bin",    0x0c0000, 0x40000, CRC(60ca5c9f) SHA1(6358ea00125a5e3f55acf73aeb9c36b1db6e711e) )
+	ROM_LOAD( "c12.bin",  0x100000, 0x40000, CRC(f12f1cf3) SHA1(45e883029c58e617a2a20ac1ab5c5f598c95f4bd) )
+	ROM_LOAD( "3.bin",    0x140000, 0x40000, CRC(520aa7ae) SHA1(9584206aedd8be5ce9dca0ed370f8fe77aabaf76) )
+
+	ROM_REGION16_BE( 0x200000, "sprites", ROMREGION_ERASEFF ) // sprites
+	ROM_LOAD16_BYTE( "c17.bin", 0x000001, 0x40000, CRC(aa28d7aa) SHA1(3dd5d95b05e408c023f9bd77753c37080714239d) )
+	ROM_LOAD16_BYTE( "10.bin",  0x000000, 0x40000, CRC(c4c95161) SHA1(2e313a4ca9506f53a2062b4a8e5ba7b381ba93ae) )
+	ROM_LOAD16_BYTE( "c18.bin", 0x080001, 0x40000, CRC(0f8fe8bb) SHA1(e6f68442b8d4def29b106458496a47344f70d511) )
+	ROM_LOAD16_BYTE( "11.bin",  0x080000, 0x40000, CRC(2b5eacbc) SHA1(ba3690501588b9c88a31022b44bc3c82b44ae26b) )
+	ROM_LOAD16_BYTE( "c19.bin", 0x100001, 0x40000, CRC(3c616caa) SHA1(d48a6239b7a52ac13971f7513a65a17af492bfdf) ) // 11xxxxxxxxxxxxxxxx = 0xFF
+	ROM_LOAD16_BYTE( "12.bin",  0x100000, 0x40000, CRC(c7bbd579) SHA1(ab87bfdad66ea241cb23c9bbfea05f5a1574d6c9) ) // 1ST AND 2ND HALF IDENTICAL (but ok, because pairing ROM has no data in the 2nd half anyway)
+
+	ROM_REGION( 0x210000, "soundcpu", ROMREGION_ERASEFF ) // sound CPU
+	ROM_LOAD( "c16.bin", 0x010000, 0x40000, CRC(913cc18c) SHA1(4bf4ec14937586c3ae77fcad57dcb21f6433ef81) )
+	ROM_LOAD( "c15.bin", 0x090000, 0x40000, CRC(b53694fc) SHA1(0e42be2730abce1b52ea94a9fe61cbd1c9a0ccae) )
+ROM_END
+
+
+/**************************************************************************************************************************
+ **************************************************************************************************************************
+ **************************************************************************************************************************
     Laser Ghost, Sega System 18
     CPU: FD1094 (317-0166)
     ROM Board: 171-5873B
@@ -2244,7 +2285,6 @@ ROM_START( wwallyja )
 ROM_END
 
 
-
 /*************************************
  *
  *  Generic driver initialization
@@ -2266,6 +2306,10 @@ DRIVER_INIT_MEMBER(segas18_state,generic_5987)
 	init_generic(ROM_BOARD_171_5987);
 }
 
+DRIVER_INIT_MEMBER(segas18_state,hamaway)
+{
+	init_generic(ROM_BOARD_837_7525);
+}
 
 
 /*************************************
@@ -2282,7 +2326,6 @@ DRIVER_INIT_MEMBER(segas18_state,ddcrew)
 
 DRIVER_INIT_MEMBER(segas18_state,lghost)
 {
-	m_has_guns = true;
 	init_generic_5987();
 	m_custom_io_r = read16_delegate(FUNC(segas18_state::lghost_custom_io_r), this);
 	m_custom_io_w = write16_delegate(FUNC(segas18_state::lghost_custom_io_w), this);
@@ -2296,37 +2339,37 @@ DRIVER_INIT_MEMBER(segas18_state,wwally)
 }
 
 
-
 /*************************************
  *
  *  Game driver(s)
  *
  *************************************/
 
-//    YEAR, NAME,      PARENT,   MACHINE,              INPUT,    INIT,                       MONITOR,COMPANY,FULLNAME,FLAGS
-GAME( 1990, astorm,    0,        system18_fd1094,      astorm2p, segas18_state,generic_5874, ROT0,   "Sega", "Alien Storm (World, 2 Players, FD1094 317-0154)", 0 )
-GAME( 1990, astorm3,   astorm,   system18_fd1094,      astorm,   segas18_state,generic_5874, ROT0,   "Sega", "Alien Storm (World, 3 Players, FD1094 317-0148)", 0 )
-GAME( 1990, astormu,   astorm,   system18_fd1094,      astorm,   segas18_state,generic_5874, ROT0,   "Sega", "Alien Storm (US, 3 Players, FD1094 317-0147)", 0 )
-GAME( 1990, astormj,   astorm,   system18_fd1094,      astorm2p, segas18_state,generic_5874, ROT0,   "Sega", "Alien Storm (Japan, 2 Players, FD1094 317-0146)", 0 )
-GAME( 1989, bloxeed,   0,        system18_fd1094,      bloxeed,  segas18_state,generic_5874, ROT0,   "Sega", "Bloxeed (Japan, FD1094 317-0139)", 0 )
-GAME( 1991, cltchitr,  0,        system18_fd1094,      cltchitr, segas18_state,generic_5987, ROT0,   "Sega", "Clutch Hitter (US, FD1094 317-0176)", 0 )
-GAME( 1991, cltchitrj, cltchitr, system18_fd1094,      cltchitr, segas18_state,generic_5987, ROT0,   "Sega", "Clutch Hitter (Japan, FD1094 317-0175)", 0 )
-GAME( 1992, desertbr,  0,        system18_fd1094,      desertbr, segas18_state,generic_5987, ROT270, "Sega", "Desert Breaker (World, FD1094 317-0196)", 0 )
-GAME( 1992, desertbrj, desertbr, system18_fd1094,      desertbr, segas18_state,generic_5987, ROT270, "Sega", "Desert Breaker (Japan, FD1094 317-0194)", 0 )
-GAME( 1991, ddcrew,    0,        system18_fd1094,      ddcrew,   segas18_state,ddcrew,       ROT0,   "Sega", "D. D. Crew (World, 3 Players, FD1094 317-0190)", 0 )
-GAME( 1991, ddcrewu,   ddcrew,   system18_fd1094,      ddcrew,   segas18_state,ddcrew,       ROT0,   "Sega", "D. D. Crew (US, 4 Players, FD1094 317-0186)", 0 )
-GAME( 1991, ddcrew2,   ddcrew,   system18_fd1094,      ddcrew2p, segas18_state,ddcrew,       ROT0,   "Sega", "D. D. Crew (World, 2 Players, FD1094 317-0184)", 0 )
-GAME( 1991, ddcrew1,   ddcrew,   system18_fd1094,      ddcrew,   segas18_state,ddcrew,       ROT0,   "Sega", "D. D. Crew (World, 4 Players, FD1094 317-0187)", 0 )
-GAME( 1991, ddcrewj,   ddcrew,   system18_fd1094,      ddcrew,   segas18_state,ddcrew,       ROT0,   "Sega", "D. D. Crew (Japan, 4 Players, FD1094 317-0185)", 0 )
-GAME( 1991, ddcrewj2,  ddcrew,   system18_fd1094,      ddcrew2p, segas18_state,ddcrew,       ROT0,   "Sega", "D. D. Crew (Japan, 2 Players, FD1094 317-0182)", 0 )
-GAME( 1990, lghost,    0,        system18_fd1094,      lghost,   segas18_state,lghost,       ROT0,   "Sega", "Laser Ghost (World, FD1094 317-0166)", 0 )
-GAME( 1990, lghostu,   lghost,   system18_fd1094,      lghost,   segas18_state,lghost,       ROT0,   "Sega", "Laser Ghost (US, FD1094 317-0165)", 0 )
-GAME( 1990, mwalk,     0,        system18_fd1094_i8751,mwalk,    segas18_state,generic_5874, ROT0,   "Sega", "Michael Jackson's Moonwalker (World, FD1094/8751 317-0159)", 0 )
-GAME( 1990, mwalku,    mwalk,    system18_fd1094_i8751,mwalka,   segas18_state,generic_5874, ROT0,   "Sega", "Michael Jackson's Moonwalker (US, FD1094/8751 317-0158)", 0 )
-GAME( 1990, mwalkj,    mwalk,    system18_fd1094_i8751,mwalk,    segas18_state,generic_5874, ROT0,   "Sega", "Michael Jackson's Moonwalker (Japan, FD1094/8751 317-0157)", 0 )
-GAME( 1989, pontoon,   0,        system18_fd1094,      shdancer, segas18_state,generic_5874, ROT0,   "Sega", "Pontoon (FD1094 317-0153)", GAME_NOT_WORKING ) // satellite/networked gambling game?
-GAME( 1989, shdancer,  0,        system18,             shdancer, segas18_state,generic_shad, ROT0,   "Sega", "Shadow Dancer (World)", 0 )
-GAME( 1989, shdancerj, shdancer, system18,             shdancer, segas18_state,generic_shad, ROT0,   "Sega", "Shadow Dancer (Japan)", 0 )
-GAME( 1989, shdancer1, shdancer, system18,             shdancer, segas18_state,generic_shad, ROT0,   "Sega", "Shadow Dancer (US)", 0 )
-GAME( 1992, wwallyj,   0,        system18_fd1094,      wwally,   segas18_state,wwally,       ROT0,   "Sega", "Wally wo Sagase! (rev B, Japan, FD1094 317-0197B)", 0) // the roms do contain an english logo so maybe there is a world / us set too
-GAME( 1992, wwallyja,  wwallyj,  system18_fd1094,      wwally,   segas18_state,wwally,       ROT0,   "Sega", "Wally wo Sagase! (rev A, Japan, FD1094 317-0197A)", 0 )
+//    YEAR, NAME,      PARENT,   MACHINE,              INPUT,                   INIT,         MONITOR, COMPANY,        FULLNAME,                                        FLAGS
+GAME( 1990, astorm,    0,        system18_fd1094,      astorm2p, segas18_state, generic_5874, ROT0,   "Sega",          "Alien Storm (World, 2 Players, FD1094 317-0154)", 0 )
+GAME( 1990, astorm3,   astorm,   system18_fd1094,      astorm,   segas18_state, generic_5874, ROT0,   "Sega",          "Alien Storm (World, 3 Players, FD1094 317-0148)", 0 )
+GAME( 1990, astormu,   astorm,   system18_fd1094,      astorm,   segas18_state, generic_5874, ROT0,   "Sega",          "Alien Storm (US, 3 Players, FD1094 317-0147)", 0 )
+GAME( 1990, astormj,   astorm,   system18_fd1094,      astorm2p, segas18_state, generic_5874, ROT0,   "Sega",          "Alien Storm (Japan, 2 Players, FD1094 317-0146)", 0 )
+GAME( 1989, bloxeed,   0,        system18_fd1094,      bloxeed,  segas18_state, generic_5874, ROT0,   "Sega",          "Bloxeed (Japan, FD1094 317-0139)", 0 )
+GAME( 1991, cltchitr,  0,        system18_fd1094,      cltchitr, segas18_state, generic_5987, ROT0,   "Sega",          "Clutch Hitter (US, FD1094 317-0176)", 0 )
+GAME( 1991, cltchitrj, cltchitr, system18_fd1094,      cltchitr, segas18_state, generic_5987, ROT0,   "Sega",          "Clutch Hitter (Japan, FD1094 317-0175)", 0 )
+GAME( 1992, desertbr,  0,        system18_fd1094,      desertbr, segas18_state, generic_5987, ROT270, "Sega",          "Desert Breaker (World, FD1094 317-0196)", 0 )
+GAME( 1992, desertbrj, desertbr, system18_fd1094,      desertbr, segas18_state, generic_5987, ROT270, "Sega",          "Desert Breaker (Japan, FD1094 317-0194)", 0 )
+GAME( 1991, ddcrew,    0,        system18_fd1094,      ddcrew3p, segas18_state, ddcrew,       ROT0,   "Sega",          "D. D. Crew (World, 3 Players, FD1094 317-0190)", 0 )
+GAME( 1991, ddcrewu,   ddcrew,   system18_fd1094,      ddcrew,   segas18_state, ddcrew,       ROT0,   "Sega",          "D. D. Crew (US, 4 Players, FD1094 317-0186)", 0 )
+GAME( 1991, ddcrew2,   ddcrew,   system18_fd1094,      ddcrew2p, segas18_state, ddcrew,       ROT0,   "Sega",          "D. D. Crew (World, 2 Players, FD1094 317-0184)", 0 )
+GAME( 1991, ddcrew1,   ddcrew,   system18_fd1094,      ddcrew,   segas18_state, ddcrew,       ROT0,   "Sega",          "D. D. Crew (World, 4 Players, FD1094 317-0187)", 0 )
+GAME( 1991, ddcrewj,   ddcrew,   system18_fd1094,      ddcrew,   segas18_state, ddcrew,       ROT0,   "Sega",          "D. D. Crew (Japan, 4 Players, FD1094 317-0185)", 0 )
+GAME( 1991, ddcrewj2,  ddcrew,   system18_fd1094,      ddcrew2p, segas18_state, ddcrew,       ROT0,   "Sega",          "D. D. Crew (Japan, 2 Players, FD1094 317-0182)", 0 )
+GAME( 1991, hamaway,   0,        system18,             hamaway,  segas18_state, hamaway,      ROT90,  "Sega / Santos", "Hammer Away (Japan, prototype)", 0 )
+GAME( 1990, lghost,    0,        lghost,               lghost,   segas18_state, lghost,       ROT0,   "Sega",          "Laser Ghost (World, FD1094 317-0166)", 0 )
+GAME( 1990, lghostu,   lghost,   lghost,               lghost,   segas18_state, lghost,       ROT0,   "Sega",          "Laser Ghost (US, FD1094 317-0165)", 0 )
+GAME( 1990, mwalk,     0,        system18_fd1094_i8751,mwalk,    segas18_state, generic_5874, ROT0,   "Sega",          "Michael Jackson's Moonwalker (World, FD1094/8751 317-0159)", 0 )
+GAME( 1990, mwalku,    mwalk,    system18_fd1094_i8751,mwalka,   segas18_state, generic_5874, ROT0,   "Sega",          "Michael Jackson's Moonwalker (US, FD1094/8751 317-0158)", 0 )
+GAME( 1990, mwalkj,    mwalk,    system18_fd1094_i8751,mwalk,    segas18_state, generic_5874, ROT0,   "Sega",          "Michael Jackson's Moonwalker (Japan, FD1094/8751 317-0157)", 0 )
+GAME( 1989, pontoon,   0,        system18_fd1094,      shdancer, segas18_state, generic_5874, ROT0,   "Sega",          "Pontoon (FD1094 317-0153)", GAME_NOT_WORKING ) // satellite/networked gambling game?
+GAME( 1989, shdancer,  0,        system18,             shdancer, segas18_state, generic_shad, ROT0,   "Sega",          "Shadow Dancer (World)", 0 )
+GAME( 1989, shdancerj, shdancer, system18,             shdancer, segas18_state, generic_shad, ROT0,   "Sega",          "Shadow Dancer (Japan)", 0 )
+GAME( 1989, shdancer1, shdancer, system18,             shdancer, segas18_state, generic_shad, ROT0,   "Sega",          "Shadow Dancer (US)", 0 )
+GAME( 1992, wwallyj,   0,        system18_fd1094,      wwally,   segas18_state, wwally,       ROT0,   "Sega",          "Wally wo Sagase! (rev B, Japan, FD1094 317-0197B)", 0 ) // the roms do contain an english logo so maybe there is a world / us set too
+GAME( 1992, wwallyja,  wwallyj,  system18_fd1094,      wwally,   segas18_state, wwally,       ROT0,   "Sega",          "Wally wo Sagase! (rev A, Japan, FD1094 317-0197A)", 0 )

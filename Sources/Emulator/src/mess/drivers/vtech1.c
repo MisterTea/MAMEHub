@@ -223,8 +223,8 @@ WRITE8_MEMBER( vtech1_state::vtech1_latch_w )
 		m_mc6847->gm2_w(BIT(data, 1));
 	}
 
-	// bit 2, cassette out
-	m_cassette->output( BIT(data, 2) ? +1.0 : -1.0);
+	// bit 2, cassette out (actually bits 1 and 2 perform this function, so either can be used)
+	m_cassette->output( BIT(data, 2) ? -1.0 : +1.0);
 
 	// bit 3 and 4, vdc mode control lines
 	m_mc6847->ag_w(BIT(data, 3));
@@ -415,12 +415,6 @@ INPUT_PORTS_END
 
 static const INT16 speaker_levels[] = {-32768, 0, 32767, 0};
 
-static const speaker_interface vtech1_speaker_interface =
-{
-	4,
-	speaker_levels
-};
-
 static MACHINE_CONFIG_START( laser110, vtech1_state )
 
 	// basic machine hardware
@@ -444,7 +438,7 @@ static MACHINE_CONFIG_START( laser110, vtech1_state )
 	MCFG_SOUND_WAVE_ADD(WAVE_TAG, "cassette")
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 	MCFG_SOUND_ADD("speaker", SPEAKER_SOUND, 0)
-	MCFG_SOUND_CONFIG(vtech1_speaker_interface)
+	MCFG_SPEAKER_LEVELS(4, speaker_levels)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
 	// peripheral and memory expansion slots
@@ -457,6 +451,9 @@ static MACHINE_CONFIG_START( laser110, vtech1_state )
 	MCFG_CASSETTE_ADD( "cassette" )
 	MCFG_CASSETTE_FORMATS(vtech1_cassette_formats)
 	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("vtech1_cass")
+
+	MCFG_SOFTWARE_LIST_ADD("cass_list", "vz_cass")
 MACHINE_CONFIG_END
 
 static MACHINE_CONFIG_DERIVED( laser200, laser110 )
@@ -552,7 +549,7 @@ ROM_END
 //    YEAR  NAME       PARENT    COMPAT  MACHINE    INPUT   INIT                   COMPANY                   FULLNAME                          FLAGS
 COMP( 1983, laser110,  0,        0,      laser110,  vtech1, vtech1_state, vtech1,  "Video Technology",       "Laser 110",                      0 )
 COMP( 1983, laser200,  0,        0,      laser200,  vtech1, vtech1_state, vtech1,  "Video Technology",       "Laser 200",                      0 )
-COMP( 1983, vz200de,   laser200, 0,      laser200,  vtech1, vtech1_state, vtech1,  "Video Technology",       "VZ-200 (Germany & Netherlands)", 0 )
+COMP( 1983, vz200de,   laser200, 0,      laser200,  vtech1, vtech1_state, vtech1,  "Video Technology",       "VZ-200 (Germany & Netherlands)", GAME_NOT_WORKING )
 COMP( 1983, fellow,    laser200, 0,      laser200,  vtech1, vtech1_state, vtech1,  "Salora",                 "Fellow (Finland)",               0 )
 COMP( 1983, tx8000,    laser200, 0,      laser200,  vtech1, vtech1_state, vtech1,  "Texet",                  "TX-8000 (UK)",                   0 )
 COMP( 1984, laser210,  0,        0,      laser210,  vtech1, vtech1_state, vtech1,  "Video Technology",       "Laser 210",                      0 )

@@ -1,7 +1,6 @@
 #include "emu.h"
 #include "includes/spectrum.h"
 #include "imagedev/snapquik.h"
-#include "imagedev/cartslot.h"
 #include "imagedev/cassette.h"
 #include "sound/ay8910.h"
 #include "sound/speaker.h"
@@ -121,6 +120,9 @@ WRITE8_MEMBER(pentagon_state::pentagon_port_7ffd_w)
 	if (m_port_7ffd_data & 0x20)
 		return;
 
+	if ((m_port_7ffd_data ^ data) & 0x08)
+		spectrum_UpdateScreenBitmap();
+
 	/* store new state */
 	m_port_7ffd_data = data;
 
@@ -184,7 +186,6 @@ MACHINE_RESET_MEMBER(pentagon_state,pentagon)
 	{
 		if (strcmp(machine().system().name, "pent1024")==0)
 			m_beta->enable();
-		m_beta->clear_status();
 	}
 	space.set_direct_update_handler(direct_update_delegate(FUNC(pentagon_state::pentagon_direct), this));
 
@@ -234,6 +235,14 @@ static MACHINE_CONFIG_DERIVED_CLASS( pentagon, spectrum_128, pentagon_state )
 
 	MCFG_BETA_DISK_ADD(BETA_DISK_TAG)
 	MCFG_GFXDECODE_MODIFY("gfxdecode", pentagon)
+
+	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
+
+	MCFG_SOUND_REPLACE("ay8912", AY8912, XTAL_14MHz / 8)
+	MCFG_SOUND_ROUTE(0, "lspeaker", 0.50)
+	MCFG_SOUND_ROUTE(1, "lspeaker", 0.25)
+	MCFG_SOUND_ROUTE(1, "rspeaker", 0.25)
+	MCFG_SOUND_ROUTE(2, "rspeaker", 0.50)
 
 	MCFG_SOFTWARE_LIST_ADD("cass_list_pen","pentagon_cass")
 MACHINE_CONFIG_END
@@ -292,7 +301,6 @@ ROM_START(pentagon)
 	ROM_SYSTEM_BIOS(13, "v14", "NeOS 512")
 	ROMX_LOAD("neos_512.rom", 0x010000, 0x4000, CRC(1657fa43) SHA1(647545f06257bce9b1919fcb86b2a49a21c851a7), ROM_BIOS(14))
 	ROMX_LOAD("128p-1.rom",   0x014000, 0x4000, CRC(b96a36be) SHA1(80080644289ed93d71a1103992a154cc9802b2fa), ROM_BIOS(14))
-	ROM_CART_LOAD("cart", 0x0000, 0x4000, ROM_NOCLEAR | ROM_NOMIRROR | ROM_OPTIONAL)
 ROM_END
 
 ROM_START(pent1024)
@@ -317,7 +325,6 @@ ROM_START(pent1024)
 	ROMX_LOAD( "gluk601r.rom", 0x018000, 0x4000, CRC(daf6310b) SHA1(b8945168d4d136b731b33ec4758f8510c47fb8c4), ROM_BIOS(8))
 	ROM_SYSTEM_BIOS(8, "v9", "Gluk 5.1")
 	ROMX_LOAD( "gluk51.rom",   0x018000, 0x4000, CRC(ea8c760b) SHA1(adaab28066ca46fbcdcf084c3b53d5a1b82d94a9), ROM_BIOS(9))
-	ROM_CART_LOAD("cart", 0x0000, 0x4000, ROM_NOCLEAR | ROM_NOMIRROR | ROM_OPTIONAL)
 ROM_END
 
 /*    YEAR  NAME      PARENT    COMPAT  MACHINE     INPUT       INIT    COMPANY     FULLNAME */

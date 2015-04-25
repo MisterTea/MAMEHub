@@ -268,7 +268,7 @@ void debug_command_init(running_machine &machine)
 	}
 
 	/* add all the commands */
-	debug_console_register_command(machine, "help",      CMDFLAG_NONE, 0, 0, 2, execute_help);
+	debug_console_register_command(machine, "help",      CMDFLAG_NONE, 0, 0, 1, execute_help);
 	debug_console_register_command(machine, "print",     CMDFLAG_NONE, 0, 1, MAX_COMMAND_PARAMS, execute_print);
 	debug_console_register_command(machine, "printf",    CMDFLAG_NONE, 0, 1, MAX_COMMAND_PARAMS, execute_printf);
 	debug_console_register_command(machine, "logerror",  CMDFLAG_NONE, 0, 1, MAX_COMMAND_PARAMS, execute_logerror);
@@ -678,14 +678,8 @@ static void execute_help(running_machine &machine, int ref, int params, const ch
 {
 	if (params == 0)
 		debug_console_printf_wrap(machine, 80, "%s\n", debug_get_help(""));
-	else if (params == 1)
+	else
 		debug_console_printf_wrap(machine, 80, "%s\n", debug_get_help(param[0]));
-	else if (params == 2)
-	{
-		UINT64 width;
-		debug_command_parameter_number(machine, param[1], &width);
-		debug_console_printf_wrap(machine, (int)width, "%s\n", debug_get_help(param[0]));
-	}
 }
 
 
@@ -1995,14 +1989,14 @@ static void execute_cheatinit(running_machine &machine, int ref, int params, con
 		{
 			cheat_region[region_count].offset = space->address_to_byte(entry->m_addrstart) & space->bytemask();
 			cheat_region[region_count].endoffset = space->address_to_byte(entry->m_addrend) & space->bytemask();
-			cheat_region[region_count].share = entry->m_sharetag;
+			cheat_region[region_count].share = entry->m_share;
 			cheat_region[region_count].disabled = (entry->m_write.m_type == AMH_RAM) ? FALSE : TRUE;
 
 			/* disable double share regions */
-			if (entry->m_sharetag != NULL)
+			if (entry->m_share != NULL)
 				for (i = 0; i < region_count; i++)
 					if (cheat_region[i].share != NULL)
-						if (strcmp(cheat_region[i].share, entry->m_sharetag) == 0)
+						if (strcmp(cheat_region[i].share, entry->m_share) == 0)
 							cheat_region[region_count].disabled = TRUE;
 
 			region_count++;
@@ -2074,7 +2068,10 @@ static void execute_cheatinit(running_machine &machine, int ref, int params, con
 					active_cheat++;
 				}
 
-	debug_console_printf(machine, "%u cheat initialized\n", active_cheat);
+	/* give a detailed init message to avoid searches being mistakingly carried out on the wrong CPU */
+	device_t *cpu = NULL;
+	debug_command_parameter_cpu(machine, cheat.cpu, &cpu);
+	debug_console_printf(machine, "%u cheat initialized for CPU index %s ( aka %s )\n", active_cheat, cheat.cpu, cpu->tag());
 }
 
 

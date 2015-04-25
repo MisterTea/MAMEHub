@@ -625,38 +625,6 @@ INPUT_PORTS_END
 
 /*************************************
  *
- *  34010 configuration
- *
- *************************************/
-
-static const tms340x0_config tms_config =
-{
-	FALSE,                          /* halt on reset */
-	"screen",                       /* the screen operated on */
-	VIDEO_CLOCK,                    /* pixel clock */
-	1,                              /* pixels per clock */
-	lethalj_scanline_update,        /* scanline update */
-	NULL,                           /* generate interrupt */
-	NULL,                           /* write to shiftreg function */
-	NULL                            /* read from shiftreg function */
-};
-
-static const tms340x0_config tms_config_lethalj =
-{
-	FALSE,                          /* halt on reset */
-	"screen",                       /* the screen operated on */
-	VIDEO_CLOCK_LETHALJ,            /* pixel clock */
-	1,                              /* pixels per clock */
-	lethalj_scanline_update,        /* scanline update */
-	NULL,                           /* generate interrupt */
-	NULL,                           /* write to shiftreg function */
-	NULL                            /* read from shiftreg function */
-};
-
-
-
-/*************************************
- *
  *  Machine drivers
  *
  *************************************/
@@ -665,8 +633,11 @@ static MACHINE_CONFIG_START( gameroom, lethalj_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", TMS34010, MASTER_CLOCK)
-	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(lethalj_map)
+	MCFG_TMS340X0_HALT_ON_RESET(FALSE) /* halt on reset */
+	MCFG_TMS340X0_PIXEL_CLOCK(VIDEO_CLOCK) /* pixel clock */
+	MCFG_TMS340X0_PIXELS_PER_CLOCK(1) /* pixels per clock */
+	MCFG_TMS340X0_SCANLINE_IND16_CB(lethalj_state, scanline_update)     /* scanline updater (indexed16) */
 
 	MCFG_TICKET_DISPENSER_ADD("ticket", attotime::from_msec(200), TICKET_MOTOR_ACTIVE_HIGH, TICKET_STATUS_ACTIVE_HIGH)
 
@@ -695,7 +666,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( lethalj, gameroom )
 
 	MCFG_CPU_MODIFY("maincpu")
-	MCFG_TMS340X0_CONFIG(tms_config_lethalj)
+	MCFG_TMS340X0_PIXEL_CLOCK(VIDEO_CLOCK_LETHALJ) /* pixel clock */
 
 	MCFG_SCREEN_MODIFY("screen")
 	MCFG_SCREEN_RAW_PARAMS(VIDEO_CLOCK_LETHALJ, 689, 0, 512, 259, 0, 236)
@@ -835,7 +806,7 @@ ROM_START( eggventr2 ) /* Comes from a PCB with an early serial number EV00123, 
 ROM_END
 
 
-ROM_START( eggventra ) /* Allied Leisure Australia, official license? */
+ROM_START( eggventra ) /* A.L. Australia license */
 	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* 34010 code */
 	ROM_LOAD16_BYTE( "egr8.vc8", 0x000000, 0x080000, CRC(a62c4143) SHA1(a21d6b7efdba4965285265426ed79f3249a86685) )
 	ROM_LOAD16_BYTE( "egr9.vc9", 0x000001, 0x080000, CRC(bc55bc7a) SHA1(d6e3fc76b4a0a20176af1338a32bb81f0599fdc0) )
@@ -1043,7 +1014,7 @@ GAME( 1997, eggventr,  0,        gameroom, eggventr,  driver_device, 0,        R
 GAME( 1997, eggventr8, eggventr, gameroom, eggventr,  driver_device, 0,        ROT0,  "The Game Room", "Egg Venture (Release 8)", 0 )
 GAME( 1997, eggventr7, eggventr, gameroom, eggventr,  driver_device, 0,        ROT0,  "The Game Room", "Egg Venture (Release 7)", 0 )
 GAME( 1997, eggventr2, eggventr, gameroom, eggventr2, driver_device, 0,        ROT0,  "The Game Room", "Egg Venture (Release 2)", 0 )
-GAME( 1997, eggventra, eggventr, gameroom, eggventr,  driver_device, 0,        ROT0,  "The Game Room (Allied Leisure license)", "Egg Venture (A.L. Release)", 0 )
+GAME( 1997, eggventra, eggventr, gameroom, eggventr,  driver_device, 0,        ROT0,  "The Game Room (A.L. Australia license)", "Egg Venture (A.L. Release)", 0 )
 GAME( 1997, eggventrd, eggventr, gameroom, eggvntdx,  driver_device, 0,        ROT0,  "The Game Room", "Egg Venture Deluxe", 0 )
 GAME( 1997, ripribit,  0,        gameroom, ripribit,  lethalj_state, ripribit, ROT0,  "LAI Games",     "Ripper Ribbit (Version 2.8.4)", 0 )
 GAME( 1999, cfarm,     0,        gameroom, cfarm,     lethalj_state, cfarm,    ROT90, "LAI Games",     "Chicken Farm (Version 2.0)", 0 )

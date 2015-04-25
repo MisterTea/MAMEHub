@@ -26,6 +26,7 @@ message InputPort {
 message InputState {
         repeated InputPort ports = 1;
         repeated int32 players = 2 [packed=true];
+        required int64 framecount = 3;
 }
 
 message PeerInputData {

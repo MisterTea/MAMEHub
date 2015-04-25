@@ -3049,19 +3049,6 @@ static GFXDECODE_START( fixeightbl )
 GFXDECODE_END
 
 
-WRITE_LINE_MEMBER(toaplan2_state::irqhandler)
-{
-	if (m_audiocpu != NULL)       // wouldn't tekipaki have problem without this? "mcu" is not generally added
-		m_audiocpu->set_input_line(0, state);
-}
-
-WRITE_LINE_MEMBER(toaplan2_state::bbakraid_irqhandler)
-{
-	// Not used ???  Connected to a test pin (TP082)
-	logerror("YMZ280 is generating an interrupt. State=%08x\n",state);
-}
-
-
 static MACHINE_CONFIG_START( tekipaki, toaplan2_state )
 
 	/* basic machine hardware */
@@ -3100,7 +3087,9 @@ static MACHINE_CONFIG_START( tekipaki, toaplan2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_27MHz/8)
-	MCFG_YM3812_IRQ_HANDLER(WRITELINE(toaplan2_state, irqhandler))
+#ifdef USE_HD64x180
+	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
+#endif
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -3411,7 +3400,7 @@ static MACHINE_CONFIG_START( pipibibs, toaplan2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_27MHz/8)           /* verified on pcb */
-	MCFG_YM3812_IRQ_HANDLER(WRITELINE(toaplan2_state, irqhandler))
+	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -3454,7 +3443,7 @@ static MACHINE_CONFIG_START( pipibibsbl, toaplan2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, XTAL_27MHz/8)
-	MCFG_YM3812_IRQ_HANDLER(WRITELINE(toaplan2_state, irqhandler))
+	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("audiocpu", 0))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4007,7 +3996,7 @@ static MACHINE_CONFIG_START( bbakraid, toaplan2_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(toaplan2_state, bbakraid_irqhandler))
+	// IRQ not used ???  Connected to a test pin (TP082)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4887,7 +4876,32 @@ ROM_START( bgareggabl )
 
 	ROM_REGION( 0x010000, "text", 0 )
 	ROM_LOAD( "1#-256", 0x00000, 0x08000, CRC(760dcd14) SHA1(e151e5d7ca5557277f306b9484ec021f4edf1e07) )
-	ROM_LOAD( "2#-256", 0x08000, 0x08000, CRC(456dd16e) SHA1(84779ee64d3ea33ba1ba4dee39b504a81c6811a1) )
+
+	ROM_REGION( 0x010000, "user1", 0 ) // not graphics
+	ROM_LOAD( "2#-256", 0x00000, 0x08000, CRC(456dd16e) SHA1(84779ee64d3ea33ba1ba4dee39b504a81c6811a1) )
+
+	ROM_REGION( 0x140000, "oki", 0 )        /* ADPCM Samples */
+	ROM_LOAD( "rom5.bin", 0x040000, 0x100000, CRC(f6d49863) SHA1(3a3c354852adad06e8a051511abfab7606bce382) )
+ROM_END
+
+ROM_START( bgareggabla )
+	ROM_REGION( 0x100000, "maincpu", 0 )            /* Main 68K code */
+	ROM_LOAD16_WORD_SWAP( "27c8100.mon-sys", 0x000000, 0x100000, CRC(d334e5aa) SHA1(41607b5630d7b92a96607ea95c5b55ad43745857) )
+
+	ROM_REGION( 0x20000, "audiocpu", 0 )            /* Sound Z80 code + bank */
+	ROM_LOAD( "snd.bin", 0x00000, 0x20000, CRC(68632952) SHA1(fb834db83157948e2b420b6051102a9c6ac3969b) )
+
+	ROM_REGION( 0x800000, "gp9001", 0 )
+	ROM_LOAD( "rom4.bin",  0x000000, 0x200000, CRC(b333d81f) SHA1(5481465f1304334fd55798be2f44324c57c2dbcb) )
+	ROM_LOAD( "rom3.bin",  0x200000, 0x200000, CRC(51b9ebfb) SHA1(30e0c326f5175aa436df8dba08f6f4e08130b92f) )
+	ROM_LOAD( "rom2.bin",  0x400000, 0x200000, CRC(b330e5e2) SHA1(5d48e9d56f99d093b6390e0af1609fd796df2d35) )
+	ROM_LOAD( "rom1.bin",  0x600000, 0x200000, CRC(7eafdd70) SHA1(7c8da8e86c3f9491719b1d7d5d285568d7614f38) )
+
+	ROM_REGION( 0x010000, "text", 0 )
+	ROM_LOAD( "text.bin", 0x00000, 0x08000, CRC(00d100bd) SHA1(fb6028e3519d6588a966d1b16d47453db2e51fd7))
+
+	ROM_REGION( 0x010000, "user1", 0 ) // not graphics
+	ROM_LOAD( "base.bin", 0x00000, 0x08000, CRC(456dd16e) SHA1(84779ee64d3ea33ba1ba4dee39b504a81c6811a1) )
 
 	ROM_REGION( 0x140000, "oki", 0 )        /* ADPCM Samples */
 	ROM_LOAD( "rom5.bin", 0x040000, 0x100000, CRC(f6d49863) SHA1(3a3c354852adad06e8a051511abfab7606bce382) )
@@ -5206,6 +5220,32 @@ ROM_START( bbakraid )
 ROM_END
 
 
+ROM_START( bbakraidc )
+	ROM_REGION( 0x200000, "maincpu", 0 )            /* Main 68k code */
+	ROM_LOAD16_BYTE( "prg0u022_china.bin", 0x000000, 0x080000, CRC(760be084) SHA1(096c8a2336492d7370ae25f3385faebf6e9c3eca) )
+	ROM_LOAD16_BYTE( "prg1u023.new", 0x000001, 0x080000, CRC(4ae9aa64) SHA1(45fdf72141c4c9f24a38d4218c65874799b9c868) )
+	ROM_LOAD16_BYTE( "prg2u021.bin", 0x100000, 0x080000, CRC(ffba8656) SHA1(6526bb65fad3384de3f301a7d1095cbf03757433) )
+	ROM_LOAD16_BYTE( "prg3u024.bin", 0x100001, 0x080000, CRC(834b8ad6) SHA1(0dd6223bb0749819ad29811eeb04fd08d937abb0) )
+
+	ROM_REGION( 0x20000, "audiocpu", 0 )            /* Sound Z80 code */
+	ROM_LOAD( "sndu0720.bin", 0x00000, 0x20000, CRC(e62ab246) SHA1(00d23689dd423ecd4024c58b5903d16e890f1dff) )
+
+	ROM_REGION( 0x1000000, "gp9001", 0 )
+	ROM_LOAD( "gfxu0510.bin", 0x000000, 0x400000, CRC(9cca3446) SHA1(1123f8b8bfbe59a2c572cdf61f1ad27ff37f0f0d) )
+	ROM_LOAD( "gfxu0512.bin", 0x400000, 0x400000, CRC(a2a281d5) SHA1(d9a6623f9433ad682223f9780c26cd1523ebc5c5) )
+	ROM_LOAD( "gfxu0511.bin", 0x800000, 0x400000, CRC(e16472c0) SHA1(6068d679a8b3b65e05acd58a7ce9ead90177049f) )
+	ROM_LOAD( "gfxu0513.bin", 0xc00000, 0x400000, CRC(8bb635a0) SHA1(9064f1a2d8bb88ddbca702fb8556d0dfe6a5cadc) )
+
+	ROM_REGION( 0x0c00000, "ymz", 0 )       /* YMZ280B Samples */
+	ROM_LOAD( "rom6.829", 0x000000, 0x400000, CRC(8848b4a0) SHA1(e0dce136c5d5a4c1a92b863e57848cd5927d06f1) )
+	ROM_LOAD( "rom7.830", 0x400000, 0x400000, CRC(d6224267) SHA1(5c9b7b13effbef9f707811f84bfe50ca85e605e3) )
+	ROM_LOAD( "rom8.831", 0x800000, 0x400000, CRC(a101dfb0) SHA1(4b729b0d562e09df35438e9e6b457b8de2690a6e) )
+
+	ROM_REGION( 0x200, "eeprom", 0 )
+	ROM_LOAD( "eeprom-bbakraid-new.bin", 0x000, 0x200, CRC(35c9275a) SHA1(1282034adf3c7a24545fd273729867058dc93027) )
+ROM_END
+
+
 ROM_START( bbakraidj )
 	ROM_REGION( 0x200000, "maincpu", 0 )            /* Main 68k code */
 	ROM_LOAD16_BYTE( "prg0u022.new", 0x000000, 0x080000, CRC(fa8d38d3) SHA1(aba91d87a8a62d3fe1139b4437b16e2f844264ad) )
@@ -5330,6 +5370,7 @@ GAME( 1996, bgaregganv, bgaregga, bgaregga, bgareggahk, toaplan2_state, bgaregga
 GAME( 1996, bgareggat2, bgaregga, bgaregga, bgaregga, toaplan2_state,   bgaregga, ROT270, "Raizing / Eighting", "Battle Garegga - Type 2 (Europe / USA / Japan / Asia) (Sat Mar 2 1996)" , GAME_SUPPORTS_SAVE ) // displays Type 2 only when set to Europe
 GAME( 1996, bgareggacn, bgaregga, bgaregga, bgareggacn, toaplan2_state, bgaregga, ROT270, "Raizing / Eighting", "Battle Garegga - Type 2 (Denmark / China) (Tue Apr 2 1996)", GAME_SUPPORTS_SAVE ) // displays Type 2 only when set to Denmark
 GAME( 1996, bgareggabl, bgaregga, bgareggabl,bgareggacn, toaplan2_state,bgaregga, ROT270, "bootleg", "1945 Part-2 (Chinese hack of Battle Garegga)", GAME_SUPPORTS_SAVE )
+GAME( 1996, bgareggabla,bgaregga, bgareggabl,bgareggacn, toaplan2_state,bgaregga, ROT270, "bootleg", "Lei Shen Zhuan Thunder Deity Biography (Chinese hack of Battle Garegga)", GAME_SUPPORTS_SAVE )
 
 // these are all based on Version B, even if only the Japan version states 'version B'
 GAME( 1998, batrider,   0,        batrider, batrider, toaplan2_state,  batrider, ROT270, "Raizing / Eighting", "Armed Police Batrider (Europe) (Fri Feb 13 1998)", GAME_SUPPORTS_SAVE )
@@ -5344,6 +5385,7 @@ GAME( 1998, batridert,  batrider, batrider, batrider, toaplan2_state,  batrider,
 // Battle Bakraid
 // the 'unlimited' version is a newer revision of the code
 GAME( 1999, bbakraid,   0,        bbakraid, bbakraid, toaplan2_state,  bbakraid, ROT270, "Eighting", "Battle Bakraid - Unlimited Version (USA) (Tue Jun 8 1999)", GAME_SUPPORTS_SAVE )
+GAME( 1999, bbakraidc,  bbakraid, bbakraid, bbakraid, toaplan2_state,  bbakraid, ROT270, "Eighting", "Battle Bakraid - Unlimited Version (China) (Tue Jun 8 1999)", GAME_SUPPORTS_SAVE )
 GAME( 1999, bbakraidj,  bbakraid, bbakraid, bbakraid, toaplan2_state,  bbakraid, ROT270, "Eighting", "Battle Bakraid - Unlimited Version (Japan) (Tue Jun 8 1999)", GAME_SUPPORTS_SAVE )
 // older revision of the code
 GAME( 1999, bbakraidja, bbakraid, bbakraid, bbakraid, toaplan2_state,  bbakraid, ROT270, "Eighting", "Battle Bakraid (Japan) (Wed Apr 7 1999)", GAME_SUPPORTS_SAVE )

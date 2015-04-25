@@ -25,7 +25,6 @@
 #include "cpu/z80/z80daisy.h"
 #include "formats/m5_dsk.h"
 #include "formats/sord_cas.h"
-#include "imagedev/cartslot.h"
 #include "imagedev/cassette.h"
 #include "bus/centronics/ctronics.h"
 #include "machine/i8255.h"
@@ -34,6 +33,8 @@
 #include "machine/z80ctc.h"
 #include "sound/sn76496.h"
 #include "video/tms9928a.h"
+#include "bus/generic/slot.h"
+#include "bus/generic/carts.h"
 #include "includes/m5.h"
 
 
@@ -242,7 +243,7 @@ WRITE8_MEMBER( m5_state::fd5_tc_w )
 static ADDRESS_MAP_START( m5_mem, AS_PROGRAM, 8, m5_state )
 	ADDRESS_MAP_UNMAP_HIGH
 	AM_RANGE(0x0000, 0x1fff) AM_ROM
-	AM_RANGE(0x2000, 0x6fff) AM_ROM
+	//AM_RANGE(0x2000, 0x6fff)      // mapped by the cartslot
 	AM_RANGE(0x7000, 0x7fff) AM_RAM
 	AM_RANGE(0x8000, 0xffff) AM_RAM
 ADDRESS_MAP_END
@@ -546,6 +547,9 @@ void m5_state::machine_start()
 		break;
 	}
 
+	if (m_cart->exists())
+		program.install_read_handler(0x2000, 0x6fff, read8_delegate(FUNC(generic_slot_device::read_rom),(generic_slot_device*)m_cart));
+
 	// register for state saving
 	save_item(NAME(m_fd5_data));
 	save_item(NAME(m_fd5_com));
@@ -591,7 +595,7 @@ static MACHINE_CONFIG_START( m5, m5_state )
 	// CK0 = EXINT, CK1 = GND, CK2 = TCK, CK3 = VDP INT
 	// ZC2 = EXCLK
 
-	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_devices, "printer")
 	MCFG_CENTRONICS_BUSY_HANDLER(WRITELINE(m5_state, write_centronics_busy))
 
 	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", CENTRONICS_TAG)
@@ -599,6 +603,7 @@ static MACHINE_CONFIG_START( m5, m5_state )
 	MCFG_CASSETTE_ADD("cassette")
 	MCFG_CASSETTE_FORMATS(sordm5_cassette_formats)
 	MCFG_CASSETTE_DEFAULT_STATE(CASSETTE_PLAY)
+	MCFG_CASSETTE_INTERFACE("m5_cass")
 
 	MCFG_DEVICE_ADD(I8255A_TAG, I8255, 0)
 	MCFG_I8255_IN_PORTA_CB(READ8(m5_state, ppi_pa_r))
@@ -612,13 +617,13 @@ static MACHINE_CONFIG_START( m5, m5_state )
 	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", m5_floppies, "525dd", m5_state::floppy_formats)
 
 	// cartridge
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("bin,rom")
-	MCFG_CARTSLOT_MANDATORY
-	MCFG_CARTSLOT_INTERFACE("m5_cart")
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "m5_cart")
+	MCFG_GENERIC_EXTENSIONS("bin,rom")
+	//MCFG_GENERIC_MANDATORY
 
 	// software lists
-	MCFG_SOFTWARE_LIST_ADD("cart_list", "m5")
+	MCFG_SOFTWARE_LIST_ADD("cart_list", "m5_cart")
+	MCFG_SOFTWARE_LIST_ADD("cass_list", "m5_cass")
 
 	// internal ram
 	MCFG_RAM_ADD(RAM_TAG)
@@ -667,7 +672,6 @@ MACHINE_CONFIG_END
 ROM_START( m5 )
 	ROM_REGION( 0x7000, Z80_TAG, ROMREGION_ERASEFF )
 	ROM_LOAD( "sordjap.ic21", 0x0000, 0x2000, CRC(92cf9353) SHA1(b0a4b3658fde68cb1f344dfb095bac16a78e9b3e) )
-	ROM_CART_LOAD( "cart",   0x2000, 0x5000, ROM_NOMIRROR | ROM_OPTIONAL )
 
 	ROM_REGION( 0x4000, Z80_FD5_TAG, 0 )
 	ROM_LOAD( "sordfd5.rom", 0x0000, 0x4000, CRC(7263bbc5) SHA1(b729500d3d2b2e807d384d44b76ea5ad23996f4a))
@@ -681,7 +685,6 @@ ROM_END
 ROM_START( m5p )
 	ROM_REGION( 0x7000, Z80_TAG, ROMREGION_ERASEFF )
 	ROM_LOAD( "sordint.ic21", 0x0000, 0x2000, CRC(78848d39) SHA1(ac042c4ae8272ad6abe09ae83492ef9a0026d0b2) )
-	ROM_CART_LOAD( "cart",   0x2000, 0x5000, ROM_NOMIRROR | ROM_OPTIONAL )
 
 	ROM_REGION( 0x4000, Z80_FD5_TAG, 0 )
 	ROM_LOAD( "sordfd5.rom", 0x0000, 0x4000, CRC(7263bbc5) SHA1(b729500d3d2b2e807d384d44b76ea5ad23996f4a))

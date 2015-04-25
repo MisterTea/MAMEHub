@@ -179,6 +179,10 @@ void ata_mass_storage_device::device_start()
 	ata_hle_device::device_start();
 
 	save_item(NAME(m_can_identify_device));
+	save_item(NAME(m_num_cylinders));
+	save_item(NAME(m_num_sectors));
+	save_item(NAME(m_num_heads));
+
 	save_item(NAME(m_cur_lba));
 	save_item(NAME(m_sectors_until_int));
 	save_item(NAME(m_master_password_enable));
@@ -214,6 +218,8 @@ void ata_mass_storage_device::signature()
 
 void ata_mass_storage_device::finished_command()
 {
+	int total_sectors = m_num_cylinders * m_num_heads * m_num_sectors;
+
 	switch (m_command)
 	{
 	case IDE_COMMAND_IDENTIFY_DEVICE:
@@ -258,6 +264,14 @@ void ata_mass_storage_device::finished_command()
 		break;
 
 	case IDE_COMMAND_RECALIBRATE:
+		set_irq(ASSERT_LINE);
+		break;
+
+	case IDE_COMMAND_READ_NATIVE_MAX_ADDRESS:
+		m_buffer[0] = (total_sectors & 0xff000000) >> 24;
+		m_buffer[1] = (total_sectors & 0x00ff0000) >> 16;
+		m_buffer[2] = (total_sectors & 0x0000ff00) >> 8;
+		m_buffer[3] = (total_sectors & 0x000000ff);
 		set_irq(ASSERT_LINE);
 		break;
 
@@ -710,6 +724,10 @@ void ata_mass_storage_device::process_command()
 	case IDE_COMMAND_SEEK:
 		/* signal an interrupt */
 		set_irq(ASSERT_LINE);
+		break;
+
+	case IDE_COMMAND_READ_NATIVE_MAX_ADDRESS:
+		start_busy(MINIMUM_COMMAND_TIME, PARAM_COMMAND);
 		break;
 
 	default:

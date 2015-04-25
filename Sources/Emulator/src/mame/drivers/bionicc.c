@@ -60,9 +60,6 @@
 #include "sound/2151intf.h"
 #include "includes/bionicc.h"
 
-#define MASTER_CLOCK       XTAL_24MHz
-#define EXO3_F0_CLK        XTAL_14_31818MHz
-
 
 /*************************************
  *
@@ -345,11 +342,11 @@ void bionicc_state::machine_reset()
 static MACHINE_CONFIG_START( bionicc, bionicc_state )
 
 	/* basic machine hardware */
-	MCFG_CPU_ADD("maincpu", M68000, MASTER_CLOCK / 2) /* 12 MHz - verified in schematics */
+	MCFG_CPU_ADD("maincpu", M68000, XTAL_24MHz / 2) /* 12 MHz - verified in schematics */
 	MCFG_CPU_PROGRAM_MAP(main_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", bionicc_state, bionicc_scanline, "screen", 0, 1)
 
-	MCFG_CPU_ADD("audiocpu", Z80, EXO3_F0_CLK / 4)   /* EXO3 C,B=GND, A=5V ==> Divisor 2^2 */
+	MCFG_CPU_ADD("audiocpu", Z80, XTAL_14_31818MHz / 4)   /* EXO3 C,B=GND, A=5V ==> Divisor 2^2 */
 	MCFG_CPU_PROGRAM_MAP(sound_map)
 	/* FIXME: interrupt timing
 	 * schematics indicate that nmi_line is set on  M680000 access with AB1=1
@@ -369,14 +366,16 @@ static MACHINE_CONFIG_START( bionicc, bionicc_state )
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", bionicc)
-	MCFG_PALETTE_ADD("palette", 1024)
 
+	MCFG_DEVICE_ADD("spritegen", TIGEROAD_SPRITE, 0)
+
+	MCFG_PALETTE_ADD("palette", 1024)
 
 	MCFG_BUFFERED_SPRITERAM16_ADD("spriteram")
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_YM2151_ADD("ymsnd", 3579545)
+	MCFG_YM2151_ADD("ymsnd", XTAL_14_31818MHz / 4)
 	MCFG_SOUND_ROUTE(0, "mono", 0.60)
 	MCFG_SOUND_ROUTE(1, "mono", 0.60)
 MACHINE_CONFIG_END
@@ -532,7 +531,8 @@ ROM_START( topsecrt ) /* "Not for use in any other country but Japan" */
 	ROM_LOAD( "ts_01.4e",    0x00000, 0x8000, CRC(8ea07917) SHA1(e9ace70d89482fc3669860450a41aacacbee9083) )
 
 	ROM_REGION( 0x1000, "mcu", 0 )  /* i8751 microcontroller */
-	ROM_LOAD( "c8751h-88",     0x0000, 0x1000, NO_DUMP )
+	//ROM_LOAD( "c8751h-88",     0x0000, 0x1000, NO_DUMP )
+	ROM_LOAD( "d8751h.bin",     0x0000, 0x1000, CRC(3ed7f0be) SHA1(db9e972065c8e60b5d74762dc3424271ea9524cb) )
 
 	ROM_REGION( 0x08000, "gfx1", 0 )
 	ROM_LOAD( "ts_08.8l",    0x00000, 0x8000, CRC(96ad379e) SHA1(accd3a560b259c186bc28cdc004ed8de0b12f9d5) )    /* VIDEORAM (text layer) tiles */

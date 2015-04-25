@@ -179,7 +179,7 @@ void ssv_state::update_irq_state()
 	m_maincpu->set_input_line(0, (m_requested_int & m_irq_enable)? ASSERT_LINE : CLEAR_LINE);
 }
 
-IRQ_CALLBACK_MEMBER(ssv_state::ssv_irq_callback)
+IRQ_CALLBACK_MEMBER(ssv_state::irq_callback)
 {
 	int i;
 	for ( i = 0; i <= 7; i++ )
@@ -193,7 +193,7 @@ IRQ_CALLBACK_MEMBER(ssv_state::ssv_irq_callback)
 	return 0;
 }
 
-WRITE16_MEMBER(ssv_state::ssv_irq_ack_w)
+WRITE16_MEMBER(ssv_state::irq_ack_w)
 {
 	int level = ((offset * 2) & 0x70) >> 4;
 
@@ -220,12 +220,12 @@ WRITE16_MEMBER(ssv_state::ssv_irq_ack_w)
     ultrax:     40,00 at the start then 42,4a
     twineag2:   40,00 at the start then 42,4a
 */
-WRITE16_MEMBER(ssv_state::ssv_irq_enable_w)
+WRITE16_MEMBER(ssv_state::irq_enable_w)
 {
 	COMBINE_DATA(&m_irq_enable);
 }
 
-TIMER_DEVICE_CALLBACK_MEMBER(ssv_state::ssv_interrupt)
+TIMER_DEVICE_CALLBACK_MEMBER(ssv_state::interrupt)
 {
 	int scanline = param;
 
@@ -283,7 +283,7 @@ TIMER_DEVICE_CALLBACK_MEMBER(ssv_state::gdfs_interrupt)
     survarts:   83
     sxyreact:   80
 */
-WRITE16_MEMBER(ssv_state::ssv_lockout_w)
+WRITE16_MEMBER(ssv_state::lockout_w)
 {
 //  popmessage("%02X",data & 0xff);
 	if (ACCESSING_BITS_0_7)
@@ -293,12 +293,12 @@ WRITE16_MEMBER(ssv_state::ssv_lockout_w)
 		coin_counter_w(machine(), 1, data & 0x04);
 		coin_counter_w(machine(), 0, data & 0x08);
 //                        data & 0x40?
-		ssv_enable_video(data & 0x80);
+		enable_video(data & 0x80);
 	}
 }
 
 /* Same as above but with inverted lockout lines */
-WRITE16_MEMBER(ssv_state::ssv_lockout_inv_w)
+WRITE16_MEMBER(ssv_state::lockout_inv_w)
 {
 //  popmessage("%02X",data & 0xff);
 	if (ACCESSING_BITS_0_7)
@@ -308,14 +308,13 @@ WRITE16_MEMBER(ssv_state::ssv_lockout_inv_w)
 		coin_counter_w(machine(), 1, data & 0x04);
 		coin_counter_w(machine(), 0, data & 0x08);
 //                        data & 0x40?
-		ssv_enable_video(data & 0x80);
+		enable_video(data & 0x80);
 	}
 }
 
 void ssv_state::machine_reset()
 {
 	m_requested_int = 0;
-	membank("bank1")->set_base(memregion("user1")->base());
 }
 
 
@@ -395,23 +394,23 @@ READ16_MEMBER(ssv_state::fake_r){   return ssv_scroll[offset];  }
 #define SSV_MAP( _ROM  )                                                                                            \
 	AM_RANGE(0x000000, 0x00ffff) AM_RAM AM_SHARE("mainram")                                     /*  RAM     */  \
 	AM_RANGE(0x100000, 0x13ffff) AM_RAM AM_SHARE("spriteram")                                       /*  Sprites */  \
-	AM_RANGE(0x140000, 0x15ffff) AM_RAM_WRITE(paletteram16_xrgb_swap_word_w) AM_SHARE("paletteram") /*  Palette */  \
+	AM_RANGE(0x140000, 0x15ffff) AM_RAM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette") /* Palette */\
 	AM_RANGE(0x160000, 0x17ffff) AM_RAM                                                             /*          */  \
-	AM_RANGE(0x1c0000, 0x1c0001) AM_READ(ssv_vblank_r           )                                   /*  Vblank? */  \
+	AM_RANGE(0x1c0000, 0x1c0001) AM_READ(vblank_r           )                                   /*  Vblank? */  \
 /**/AM_RANGE(0x1c0002, 0x1c007f) AM_READONLY                                    /*  Scroll  */  \
-	AM_RANGE(0x1c0000, 0x1c007f) AM_WRITE(ssv_scroll_w) AM_SHARE("scroll")                  /*  Scroll  */  \
+	AM_RANGE(0x1c0000, 0x1c007f) AM_WRITE(scroll_w) AM_SHARE("scroll")                  /*  Scroll  */  \
 	AM_RANGE(0x210002, 0x210003) AM_READ_PORT("DSW1")                                                               \
 	AM_RANGE(0x210004, 0x210005) AM_READ_PORT("DSW2")                                                               \
 	AM_RANGE(0x210008, 0x210009) AM_READ_PORT("P1")                                                                 \
 	AM_RANGE(0x21000a, 0x21000b) AM_READ_PORT("P2")                                                                 \
 	AM_RANGE(0x21000c, 0x21000d) AM_READ_PORT("SYSTEM")                                                             \
-	AM_RANGE(0x21000e, 0x21000f) AM_READNOP AM_WRITE(ssv_lockout_w)                             /*  Lockout */  \
+	AM_RANGE(0x21000e, 0x21000f) AM_READNOP AM_WRITE(lockout_w)                             /*  Lockout */  \
 	AM_RANGE(0x210010, 0x210011) AM_WRITENOP                                                                        \
 	AM_RANGE(0x230000, 0x230071) AM_WRITEONLY AM_SHARE("irq_vectors")                       /*  IRQ Vec */  \
-	AM_RANGE(0x240000, 0x240071) AM_WRITE(ssv_irq_ack_w )                                           /*  IRQ Ack */  \
-	AM_RANGE(0x260000, 0x260001) AM_WRITE(ssv_irq_enable_w)                                         /*  IRQ En  */  \
-	AM_RANGE(0x300000, 0x30007f) AM_DEVREADWRITE8("ensoniq", es5506_device, read, write, 0x00ff)         /*  Sound   */  \
-	AM_RANGE(_ROM, 0xffffff) AM_ROMBANK("bank1")                                                        /*  ROM     */
+	AM_RANGE(0x240000, 0x240071) AM_WRITE(irq_ack_w )                                           /*  IRQ Ack */  \
+	AM_RANGE(0x260000, 0x260001) AM_WRITE(irq_enable_w)                                         /*  IRQ En  */  \
+	AM_RANGE(0x300000, 0x30007f) AM_DEVREADWRITE8("ensoniq", es5506_device, read, write, 0x00ff)    /*  Sound   */  \
+	AM_RANGE(_ROM, 0xffffff) AM_ROM AM_REGION("maincpu", 0)                                         /*  ROM     */
 /***************************************************************************
                                 Drift Out '94
 ***************************************************************************/
@@ -514,7 +513,7 @@ READ16_MEMBER(ssv_state::hypreact_input_r)
 static ADDRESS_MAP_START( hypreact_map, AS_PROGRAM, 16, ssv_state )
 	AM_RANGE(0x210000, 0x210001) AM_READ(watchdog_reset16_r)            // Watchdog
 //  AM_RANGE(0x210002, 0x210003) AM_WRITENOP                      // ? 5 at the start
-	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(ssv_lockout_inv_w)            // Inverted lockout lines
+	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(lockout_inv_w)            // Inverted lockout lines
 //  AM_RANGE(0x280000, 0x280001) AM_READNOP                       // ? read at the start, value not used
 	AM_RANGE(0xc00000, 0xc00001) AM_READ(hypreact_input_r)              // Inputs
 	AM_RANGE(0xc00006, 0xc00007) AM_RAM AM_SHARE("input_sel")           //
@@ -530,7 +529,7 @@ ADDRESS_MAP_END
 static ADDRESS_MAP_START( hypreac2_map, AS_PROGRAM, 16, ssv_state )
 	AM_RANGE(0x210000, 0x210001) AM_READ(watchdog_reset16_r)                // Watchdog
 //  AM_RANGE(0x210002, 0x210003) AM_WRITENOP                          // ? 5 at the start
-	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(ssv_lockout_inv_w)                // Inverted lockout lines
+	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(lockout_inv_w)                // Inverted lockout lines
 //  AM_RANGE(0x280000, 0x280001) AM_READNOP                           // ? read at the start, value not used
 	AM_RANGE(0x500000, 0x500001) AM_READ(hypreact_input_r)                  // Inputs
 	AM_RANGE(0x500002, 0x500003) AM_READ(hypreact_input_r)                  // (again?)
@@ -588,18 +587,18 @@ ADDRESS_MAP_END
 
 /* Monster Slider needs the RAM mirrored for the gameplay logic to work correctly */
 
-READ16_MEMBER(ssv_state::ssv_mainram_r)
+READ16_MEMBER(ssv_state::mainram_r)
 {
 	return m_mainram[offset];
 }
 
-WRITE16_MEMBER(ssv_state::ssv_mainram_w)
+WRITE16_MEMBER(ssv_state::mainram_w)
 {
 	COMBINE_DATA(&m_mainram[offset]);
 }
 
 static ADDRESS_MAP_START( mslider_map, AS_PROGRAM, 16, ssv_state )
-	AM_RANGE(0x010000, 0x01ffff) AM_READWRITE(ssv_mainram_r, ssv_mainram_w) // RAM Mirror
+	AM_RANGE(0x010000, 0x01ffff) AM_READWRITE(mainram_r, mainram_w) // RAM Mirror
 //  AM_RANGE(0x210002, 0x210003) AM_WRITENOP                          // ? 1 at the start
 	AM_RANGE(0x400000, 0x47ffff) AM_WRITEONLY                           // ?
 //  AM_RANGE(0x500000, 0x500001) AM_WRITENOP                          // ? ff at the start
@@ -685,7 +684,7 @@ static ADDRESS_MAP_START( srmp7_map, AS_PROGRAM, 16, ssv_state )
 	AM_RANGE(0x010000, 0x050faf) AM_RAM                                     // More RAM
 	AM_RANGE(0x210000, 0x210001) AM_READ(watchdog_reset16_r)                // Watchdog
 //  AM_RANGE(0x210002, 0x210003) AM_WRITENOP                          // ? 0,4 at the start
-	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(ssv_lockout_inv_w)                // Coin Counters / Lockouts
+	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(lockout_inv_w)                // Coin Counters / Lockouts
 	AM_RANGE(0x300076, 0x300077) AM_READ(srmp7_irqv_r)                      // Sound
 //  0x540000, 0x540003, related to lev 5 irq?
 	AM_RANGE(0x580000, 0x580001) AM_WRITE(srmp7_sound_bank_w)               // Sound Bank
@@ -752,10 +751,10 @@ WRITE16_MEMBER(ssv_state::sxyreact_motor_w)
 }
 
 static ADDRESS_MAP_START( sxyreact_map, AS_PROGRAM, 16, ssv_state )
-//  AM_RANGE(0x020000, 0x03ffff) AM_READWRITE(ssv_mainram_r, ssv_mainram_w)             // sxyreac2 reads / writes here, why?
+//  AM_RANGE(0x020000, 0x03ffff) AM_READWRITE(mainram_r, mainram_w)             // sxyreac2 reads / writes here, why?
 	AM_RANGE(0x210000, 0x210001) AM_READ(watchdog_reset16_r)                            // Watchdog
 //  AM_RANGE(0x210002, 0x210003) AM_WRITENOP                                      // ? 1 at the start
-	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(ssv_lockout_inv_w)                            // Inverted lockout lines
+	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(lockout_inv_w)                            // Inverted lockout lines
 	AM_RANGE(0x500002, 0x500003) AM_READ(sxyreact_ballswitch_r)                         // ?
 	AM_RANGE(0x500004, 0x500005) AM_READWRITE(sxyreact_dial_r, sxyreact_motor_w)        // Dial Value (serial)
 	AM_RANGE(0x520000, 0x520001) AM_WRITE(sxyreact_dial_w)                              // Dial Value (advance 1 bit)
@@ -829,7 +828,7 @@ WRITE16_MEMBER(ssv_state::latch16_w)
 }
 
 static ADDRESS_MAP_START( jsk_map, AS_PROGRAM, 16, ssv_state )
-	AM_RANGE(0x050000, 0x05ffff) AM_READWRITE(ssv_mainram_r, ssv_mainram_w) // RAM Mirror?
+	AM_RANGE(0x050000, 0x05ffff) AM_READWRITE(mainram_r, mainram_w) // RAM Mirror?
 	AM_RANGE(0x210000, 0x210001) AM_WRITE(watchdog_reset16_w)               // Watchdog
 	AM_RANGE(0x400000, 0x47ffff) AM_RAM                                     // RAM?
 	AM_RANGE(0x900000, 0x900007) AM_READWRITE(latch16_r, latch16_w)
@@ -850,24 +849,11 @@ ADDRESS_MAP_END
   Eagle Shot Golf
 ***************************************************************************/
 
-READ16_MEMBER(ssv_state::eaglshot_gfxrom_r)
-{
-	UINT8 *rom  =   m_region_gfx1->base();
-	size_t size =   m_region_gfx1->bytes();
-
-	offset = offset * 2 + m_gfxrom_select * 0x200000;
-
-	if (offset > size)
-		return 0xffff;
-
-	return rom[offset] + (rom[offset+1]<<8);
-}
-
-WRITE16_MEMBER(ssv_state::eaglshot_gfxrom_w)
+WRITE16_MEMBER(ssv_state::eaglshot_gfxrom_bank_w)
 {
 	if (ACCESSING_BITS_0_7)
 	{
-		m_gfxrom_select = data;
+		membank("gfxrom")->set_entry(data < 6 ? data : 6);
 	}
 }
 
@@ -912,10 +898,10 @@ static ADDRESS_MAP_START( eaglshot_map, AS_PROGRAM, 16, ssv_state )
 	AM_RANGE(0x180000, 0x1bffff) AM_READWRITE(eaglshot_gfxram_r, eaglshot_gfxram_w)
 	AM_RANGE(0x210000, 0x210001) AM_READNOP /*AM_READ(watchdog_reset16_r)*/                 // Watchdog
 //  AM_RANGE(0x210002, 0x210003) AM_WRITENOP                                      // ? 0,4 at the start
-	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(ssv_lockout_inv_w)                            // Inverted lockout lines
-	AM_RANGE(0x800000, 0x800001) AM_WRITE(eaglshot_gfxrom_w)
+	AM_RANGE(0x21000e, 0x21000f) AM_WRITE(lockout_inv_w)                            // Inverted lockout lines
+	AM_RANGE(0x800000, 0x800001) AM_WRITE(eaglshot_gfxrom_bank_w)
 	AM_RANGE(0x900000, 0x900001) AM_WRITE(eaglshot_trackball_w)
-	AM_RANGE(0xa00000, 0xbfffff) AM_READ(eaglshot_gfxrom_r)
+	AM_RANGE(0xa00000, 0xbfffff) AM_ROMBANK("gfxrom")
 	AM_RANGE(0xc00000, 0xc007ff) AM_RAM AM_SHARE("nvram")   // NVRAM
 	AM_RANGE(0xd00000, 0xd00001) AM_READ(eaglshot_trackball_r)
 	SSV_MAP( 0xf00000 )
@@ -2067,7 +2053,7 @@ static INPUT_PORTS_START( stmblade )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 
 	PORT_MODIFY("DSW2") // IN1 - $210004
-	PORT_DIPNAME( 0x0001, 0x0001, DEF_STR( Flip_Screen ) )  PORT_DIPLOCATION( "DSW2:1" )
+	PORT_DIPNAME( 0x0001, 0x0000, DEF_STR( Flip_Screen ) )  PORT_DIPLOCATION( "DSW2:1" ) /* works opposite of expected, emulation issue?? */
 	PORT_DIPSETTING(      0x0001, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 	PORT_DIPNAME( 0x0002, 0x0002, DEF_STR( Demo_Sounds ) )  PORT_DIPLOCATION( "DSW2:2" )
@@ -2432,10 +2418,10 @@ static GFXDECODE_START( ssv )
 	GFXDECODE_ENTRY( "gfx1", 0, layout_16x8x6, 0, 0x8000/64 ) // [1] Sprites (64 colors)
 GFXDECODE_END
 
-static const gfx_layout layout_16x8x8_2 =
+static const gfx_layout layout_16x8x8_ram =
 {
 	16,8,
-	RGN_FRAC(1,1),
+	0x40000 * 16 / (16 * 8),
 	8,
 	{   STEP8(0,1)      },
 	{   STEP16(0,8)     },
@@ -2443,10 +2429,10 @@ static const gfx_layout layout_16x8x8_2 =
 	16*8*8
 };
 
-static const gfx_layout layout_16x8x6_2 =
+static const gfx_layout layout_16x8x6_ram =
 {
 	16,8,
-	RGN_FRAC(1,1),
+	0x40000 * 16 / (16 * 8),
 	6,
 	{   2,3,4,5,6,7     },
 	{   STEP16(0,8)     },
@@ -2455,8 +2441,8 @@ static const gfx_layout layout_16x8x6_2 =
 };
 
 static GFXDECODE_START( eaglshot )
-	GFXDECODE_ENTRY( "gfx1", 0, layout_16x8x8_2, 0, 0x8000/64 ) // [0] Sprites (256 colors, decoded from ram)
-	GFXDECODE_ENTRY( "gfx1", 0, layout_16x8x6_2, 0, 0x8000/64 ) // [1] Sprites (64 colors, decoded from ram)
+	GFXDECODE_ENTRY( NULL, 0, layout_16x8x8_ram, 0, 0x8000/64 ) // [0] Sprites (256 colors, decoded from ram)
+	GFXDECODE_ENTRY( NULL, 0, layout_16x8x6_ram, 0, 0x8000/64 ) // [1] Sprites (64 colors, decoded from ram)
 GFXDECODE_END
 
 static const gfx_layout layout_16x16x8 =
@@ -2495,7 +2481,7 @@ GFXDECODE_END
 
 ***************************************************************************/
 
-void ssv_state::init_ssv(int interrupt_ultrax)
+void ssv_state::init(int interrupt_ultrax)
 {
 	int i;
 	for (i = 0; i < 16; i++)
@@ -2503,8 +2489,11 @@ void ssv_state::init_ssv(int interrupt_ultrax)
 								( (i & 4) ? (2 << 16) : 0 ) +
 								( (i & 2) ? (4 << 16) : 0 ) +
 								( (i & 1) ? (8 << 16) : 0 ) ;
-	ssv_enable_video(1);
+	enable_video(1);
 	m_interrupt_ultrax = interrupt_ultrax;
+
+	save_item(NAME(m_requested_int));
+	save_item(NAME(m_irq_enable));
 }
 
 void ssv_state::init_hypreac2_common()
@@ -2513,6 +2502,12 @@ void ssv_state::init_hypreac2_common()
 
 	for (i = 0; i < 16; i++)
 		m_tile_code[i]   =   (i << 16);
+}
+
+void ssv_state::init_eaglshot_banking()
+{
+	init_hypreac2_common();
+	membank("gfxrom")->configure_entries(0, 6+1, memregion("gfxdata")->base(), 0x200000);
 }
 
 // massages the data from the BPMicro-compatible dump to runnable form
@@ -2536,30 +2531,30 @@ void ssv_state::init_st010()
 	}
 }
 
-DRIVER_INIT_MEMBER(ssv_state,drifto94)     {    init_ssv(0); init_st010();  }
-DRIVER_INIT_MEMBER(ssv_state,eaglshot)     {    init_ssv(0); init_hypreac2_common();    }
-DRIVER_INIT_MEMBER(ssv_state,gdfs)         {    init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,hypreact)     {    init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,hypreac2)     {    init_ssv(0); init_hypreac2_common();    }
-DRIVER_INIT_MEMBER(ssv_state,janjans1)     {    init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,keithlcy)     {    init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,meosism)       {   init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,mslider)       {   init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,ryorioh)       {   init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,srmp4)        {    init_ssv(0);
-//  ((UINT16 *)memregion("user1")->base())[0x2b38/2] = 0x037a;   /* patch to see gal test mode */
+DRIVER_INIT_MEMBER(ssv_state,drifto94)     {    init(0); init_st010();  }
+DRIVER_INIT_MEMBER(ssv_state,eaglshot)     {    init(0); init_eaglshot_banking(); save_item(NAME(m_trackball_select)); }
+DRIVER_INIT_MEMBER(ssv_state,gdfs)         {    init(0); save_item(NAME(m_gdfs_lightgun_select)); save_item(NAME(m_gdfs_eeprom_old)); }
+DRIVER_INIT_MEMBER(ssv_state,hypreact)     {    init(0); }
+DRIVER_INIT_MEMBER(ssv_state,hypreac2)     {    init(0); init_hypreac2_common();    }
+DRIVER_INIT_MEMBER(ssv_state,janjans1)     {    init(0); }
+DRIVER_INIT_MEMBER(ssv_state,keithlcy)     {    init(0); }
+DRIVER_INIT_MEMBER(ssv_state,meosism)       {   init(0); }
+DRIVER_INIT_MEMBER(ssv_state,mslider)       {   init(0); }
+DRIVER_INIT_MEMBER(ssv_state,ryorioh)       {   init(0); }
+DRIVER_INIT_MEMBER(ssv_state,srmp4)        {    init(0);
+//  ((UINT16 *)memregion("maincpu")->base())[0x2b38/2] = 0x037a;   /* patch to see gal test mode */
 }
-DRIVER_INIT_MEMBER(ssv_state,srmp7)        {    init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,stmblade)     {    init_ssv(0); init_st010(); }
-DRIVER_INIT_MEMBER(ssv_state,survarts)     {    init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,dynagear)     {    init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,sxyreact)     {    init_ssv(0); init_hypreac2_common();    }
-DRIVER_INIT_MEMBER(ssv_state,cairblad)     {    init_ssv(0); init_hypreac2_common();    }
-DRIVER_INIT_MEMBER(ssv_state,sxyreac2)     {    init_ssv(0); init_hypreac2_common();    }
-DRIVER_INIT_MEMBER(ssv_state,twineag2)     {    init_ssv(1); init_st010();  }
-DRIVER_INIT_MEMBER(ssv_state,ultrax)        {   init_ssv(1); }
-DRIVER_INIT_MEMBER(ssv_state,vasara)        {   init_ssv(0); }
-DRIVER_INIT_MEMBER(ssv_state,jsk)          {    init_ssv(0); }
+DRIVER_INIT_MEMBER(ssv_state,srmp7)        {    init(0); }
+DRIVER_INIT_MEMBER(ssv_state,stmblade)     {    init(0); init_st010(); }
+DRIVER_INIT_MEMBER(ssv_state,survarts)     {    init(0); }
+DRIVER_INIT_MEMBER(ssv_state,dynagear)     {    init(0); }
+DRIVER_INIT_MEMBER(ssv_state,sxyreact)     {    init(0); init_hypreac2_common();  save_item(NAME(m_sxyreact_serial)); save_item(NAME(m_sxyreact_dial)); }
+DRIVER_INIT_MEMBER(ssv_state,cairblad)     {    init(0); init_hypreac2_common();    }
+DRIVER_INIT_MEMBER(ssv_state,sxyreac2)     {    init(0); init_hypreac2_common();  save_item(NAME(m_sxyreact_serial)); save_item(NAME(m_sxyreact_dial)); }
+DRIVER_INIT_MEMBER(ssv_state,twineag2)     {    init(1); init_st010();  }
+DRIVER_INIT_MEMBER(ssv_state,ultrax)        {   init(1); }
+DRIVER_INIT_MEMBER(ssv_state,vasara)        {   init(0); }
+DRIVER_INIT_MEMBER(ssv_state,jsk)          {    init(0); save_item(NAME(m_latches)); }
 
 #define SSV_MASTER_CLOCK XTAL_48MHz/3
 
@@ -2575,18 +2570,19 @@ static MACHINE_CONFIG_START( ssv, ssv_state )
 
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", V60, SSV_MASTER_CLOCK) /* Based on STA-0001 & STA-0001B System boards */
-	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(ssv_state,ssv_irq_callback)
+	MCFG_CPU_IRQ_ACKNOWLEDGE_DRIVER(ssv_state,irq_callback)
 
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ssv_state, ssv_interrupt, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", ssv_state, interrupt, "screen", 0, 1)
 
 	/* video hardware */
 	MCFG_SCREEN_ADD("screen", RASTER)
 	MCFG_SCREEN_RAW_PARAMS(SSV_PIXEL_CLOCK,SSV_HTOTAL,SSV_HBEND,SSV_HBSTART,SSV_VTOTAL,SSV_VBEND,SSV_VBSTART)
-	MCFG_SCREEN_UPDATE_DRIVER(ssv_state, screen_update_ssv)
+	MCFG_SCREEN_UPDATE_DRIVER(ssv_state, screen_update)
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", ssv)
 	MCFG_PALETTE_ADD("palette", 0x8000)
+	MCFG_PALETTE_FORMAT(XRGB)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -2952,7 +2948,7 @@ AC1810E01.U32   27C160
 ***************************************************************************/
 
 ROM_START( cairblad )
-	ROM_REGION16_LE( 0x200000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x200000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "ac1810e0.u32",  0x000000, 0x200000, CRC(13a0b4c2) SHA1(3498303e9b186ab329ee761cee9d4cb8ed552455) ) // AC1810E01.U32    27C160
 
 	ROM_REGION( 0x2000000, "gfx1", 0 )  /* Sprites */
@@ -2965,7 +2961,7 @@ ROM_START( cairblad )
 	ROM_LOAD( "ac1805m0.u8",  0x1000000, 0x400000, CRC(19771f43) SHA1(d6a05392c58d3f60d666e08b3a82f06fa2c8e3a3) ) // AC1805M01.U8    32M Mask
 	ROM_LOAD( "ac1806m0.u11", 0x1400000, 0x400000, CRC(816b97dc) SHA1(3737cb37a4db720901661fa9b4e30c44181efb94) ) // AC1806M01.U11   32M Mask
 
-	ROM_FILL(                 0x1800000, 0x800000, 0          )
+	ROM_FILL(                 0x1800000, 0x800000, 0)
 
 	ROM_REGION16_BE( 0x400000, "ensoniq.0", 0 ) /* Samples */
 	ROM_LOAD16_WORD_SWAP( "ac1410m0.u41", 0x000000, 0x400000, CRC(ecf1f255) SHA1(984b1529b8f0c7d94ea713c85d71df00f54eba79) ) // AC1807M01.U41   32M Mask
@@ -3022,24 +3018,46 @@ vg003-08.d1 |
 vg003-12.d2 |
 vg003-16.d3 /
 
-GAL:
-vg003-22.u29 (16V8)
+VISCO-001B
+|-----------------------|CN1|-|
+|                             |
+|              VG003-16.D3  L |
+|              VG003-12.D2  o |
+| VG003-18.U15 VG003-08.D1  g |
+| VG003-17.U22 VG003-04.D0  i |
+|              VG003-15.C3  c |
+|              VG003-11.C2    |
+|              VG003-07.C1  c |
+| uPD4701AC    VG003-03.C0  h |
+| ADC0809      VG003-14.B3  i |
+| VG003-19.U26 VG003-10.B2  p |
+| VISCO-33.U33 VG003-06.B1  s |
+| VISCO-37.U37 VG003-02.B0    |
+|6264 VG003-22 VG003-13.A3  x |
+|    ST010     VG003-09.A2    |
+|              VG003-05.A1  1 |
+|3790 BT2* BT1 VG003-01.A0  7 |
+|                             |
+|-----------------------------|
 
-Custom chip:
-ST010 (maybe D78C10?)
-
-Others:
-Lithium battery + MB3790 + LH5168D-10L
+  VG003-22: GAL16V8B (undumped) at U29
+SETA ST010: Custom programmed uPD96050 MCU used for math caculations
+ADC0809CCN: 8bit microprocessor compatible A/D converters with 8-Channel Multiplexer
+ uPD4701AC: X, Y 2-axis Incremental Encoder Counter
+       CN1: 5-pin male header/connector
+      3790: MB3790 Bi-CMOS Battery Backup IC
+      6264: Sharp LH5168D-10L 8K x 8bit CMOS SRAM
+       BT1: CR2032 3v battery
 
 ***************************************************************************/
 
 ROM_START( drifto94 )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "vg003-19.u26", 0x000000, 0x200000, CRC(238e5e2b) SHA1(fe58f571857804263642d7d089df962327a007b6) ) // "SoundDriverV1.1a"
-	ROM_LOAD16_BYTE( "visco-37.bin", 0x200000, 0x080000, CRC(78fa3ccb) SHA1(0c79ff1aa31e7ca1eeb14fbef7774278fa83ba44) )
-	ROM_RELOAD(                      0x300000, 0x080000             )
-	ROM_LOAD16_BYTE( "visco-33.bin", 0x200001, 0x080000, CRC(88351146) SHA1(1decce44b5d244b57676177f417e4937d7088124) )
-	ROM_RELOAD(                      0x300001, 0x080000             )
+	ROM_LOAD16_BYTE( "visco-37.u37", 0x200000, 0x080000, CRC(78fa3ccb) SHA1(0c79ff1aa31e7ca1eeb14fbef7774278fa83ba44) )
+	ROM_RELOAD(                      0x300000, 0x080000)
+	ROM_LOAD16_BYTE( "visco-33.u33", 0x200001, 0x080000, CRC(88351146) SHA1(1decce44b5d244b57676177f417e4937d7088124) )
+	ROM_RELOAD(                      0x300001, 0x080000)
 
 	ROM_REGION( 0x2000000, "gfx1", 0 )  /* Sprites */
 	ROM_LOAD( "vg003-01.a0", 0x0000000, 0x200000, CRC(2812aa1a) SHA1(5046fe51a4ea50051a19cfeeb091c87f0f217fb8) )
@@ -3155,11 +3173,11 @@ This chip is used for the trackball trigger / reading / converting values
 ***************************************************************************/
 
 ROM_START( eaglshot )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "si003-09.u18",  0x000000, 0x080000, CRC(219c71ce) SHA1(4f8996b4c5b267a90073d67857358147732f8c0d) )
 	ROM_LOAD16_BYTE( "si003-10.u20",  0x000001, 0x080000, CRC(c8872e48) SHA1(c8e1e712d5fa380f8fc1447502f21d2ae592811a) )
 
-	ROM_REGION( 0x0c00000, "gfx1", /*0*/0 ) /* Sprites - Read by the CPU */
+	ROM_REGION16_LE( 0xe00000, "gfxdata", ROMREGION_ERASEFF ) /* Sprites - Read by the CPU */
 	ROM_LOAD( "si003-01.u13", 0x0000000, 0x200000, CRC(d7df0d52) SHA1(d7b79a186f4272334c2297666c52f32c05787c29) )
 	ROM_LOAD( "si003-02.u12", 0x0200000, 0x200000, CRC(92b4d50d) SHA1(9dc2f2961b088824d8370ac83dff796345fe4158) )
 	ROM_LOAD( "si003-03.u11", 0x0400000, 0x200000, CRC(6ede4012) SHA1(6663990c6ee8e500cb8c51ad2102761ee0b3351d) )
@@ -3193,7 +3211,7 @@ P1-102A (ROM board)
 ***************************************************************************/
 
 ROM_START( hypreact )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "s14-1-02.u2", 0x000000, 0x080000, CRC(d90a383c) SHA1(9945f60ce6e1f50c24c2ae3c2c5d0df9ec3b8926) )
 	ROM_LOAD16_BYTE( "s14-1-01.u1", 0x000001, 0x080000, CRC(80481401) SHA1(4b1b7050893b6659762297d0f6496c7193ea6c4e) )
 
@@ -3231,7 +3249,7 @@ P1-112A (ROM board)
 ***************************************************************************/
 
 ROM_START( hypreac2 )
-	ROM_REGION16_LE( 0x200000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x200000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "u2.bin",  0x000000, 0x080000, CRC(05c93266) SHA1(0833e80f67ccb4ac17e771fa04dc6f433554a34f) )
 	ROM_LOAD16_BYTE( "u1.bin",  0x000001, 0x080000, CRC(80cf9e59) SHA1(7025321539891e1a3354ca233255f5395d716933) )
 	ROM_LOAD16_BYTE( "u47.bin", 0x100000, 0x080000, CRC(a3e9bfee) SHA1(1e897646bafd07ab48eda2883926506c6bedab87) )
@@ -3250,7 +3268,7 @@ ROM_START( hypreac2 )
 	ROM_LOAD( "s16-1-12.u11", 0x1800000, 0x400000, CRC(87d9c748) SHA1(1332db901e50e2fd25d3323920f99e0ef0b0533d) )
 	ROM_LOAD( "s16-1-11.u14", 0x1c00000, 0x200000, CRC(70b3c0a0) SHA1(009e2f2f292ed6f10a9d54557861294156664e72) )
 
-	ROM_FILL(                 0x1e00000,0x0a00000, 0          )
+	ROM_FILL(                 0x1e00000,0x0a00000, 0)
 
 	ROM_REGION16_BE( 0x400000, "ensoniq.0", 0 ) /* Samples */
 	ROM_LOAD16_WORD_SWAP( "s16-1-06.u41", 0x000000, 0x400000, CRC(626e8a81) SHA1(45ef5b630aed575acd160ede1413e0370f4f9761) )
@@ -3272,12 +3290,12 @@ ROM_END
 ***************************************************************************/
 
 ROM_START( janjans1 )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "jj1-data.bin", 0x000000, 0x200000, CRC(6734537e) SHA1(a40f84479141a6f33ce465e66ba9313b54915002) )
 	ROM_LOAD16_BYTE( "jj1-prol.bin", 0x200000, 0x080000, CRC(4231d928) SHA1(820d1233cd1a8d0c4ece15b94bd9be976b383fe2) )
-	ROM_RELOAD(                      0x300000, 0x080000             )
+	ROM_RELOAD(                      0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "jj1-proh.bin", 0x200001, 0x080000, CRC(651383c6) SHA1(8291f86b230eee3a2ebcc926a8370777ee21ec47) )
-	ROM_RELOAD(                      0x300001, 0x080000             )
+	ROM_RELOAD(                      0x300001, 0x080000)
 
 	ROM_REGION( 0x2800000, "gfx1", 0 )  /* Sprites */
 	ROM_LOAD( "jj1-a0.bin", 0x0000000, 0x400000, CRC(39bbbc46) SHA1(77c6b5e9d4315671ea79ec838baa7ae043bcd8c4) )
@@ -3319,12 +3337,12 @@ NEC D71051 (DIP28)
 ***************************************************************************/
 
 ROM_START( janjans2 )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )        /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )        /* V60 Code */
 	ROM_LOAD16_WORD( "jan2-dat.u28",  0x000000, 0x200000, CRC(0c9c62bf) SHA1(17c6eea7cec05860c238cc22706fec1a8e3d9263) )
 	ROM_LOAD16_BYTE( "jan2-prol.u26", 0x200000, 0x080000, CRC(758a7249) SHA1(1126e8527bad000bdfbd59da46d72ed256cb0fa9) )
-	ROM_RELOAD(                       0x300000, 0x080000             )
+	ROM_RELOAD(                       0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "jan2-proh.u27", 0x200001, 0x080000, CRC(fcd5da62) SHA1(e0243e41e4ec25e82b0316f1189ed069c369e7b1) )
-	ROM_RELOAD(                       0x300001, 0x080000             )
+	ROM_RELOAD(                       0x300001, 0x080000)
 
 	ROM_REGION( 0x2000000, "gfx1", 0 )    /* Sprites */
 	ROM_LOAD( "jan2-a0.u13", 0x0000000, 0x400000, CRC(37869bea) SHA1(6259e8584775ca702ef4e9e460c6d874980ffecb) )
@@ -3392,7 +3410,7 @@ addr   old  this
 ***************************************************************************/
 
 ROM_START( jsk )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )
+	ROM_REGION( 0x100000, "maincpu", 0 )
 	ROM_LOAD16_BYTE( "jsk-u72.bin", 0x00000, 0x80000, CRC(db6b2554) SHA1(c4c6617461e1d3f8660a2b97fd2c38ef245f0d4a) )
 	ROM_LOAD16_BYTE( "jsk-u71.bin", 0x00001, 0x80000, CRC(f6774fba) SHA1(3a74e5091d9d72e4f92c7c637cfe5c0dcc60bbe1) )
 
@@ -3433,7 +3451,7 @@ STS-0001 (ROM board)
 ***************************************************************************/
 
 ROM_START( keithlcy )
-	ROM_REGION16_LE( 0x200000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x200000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "vg002-07.u28", 0x000000, 0x100000, CRC(57f80ff5) SHA1(9dcc35a79d3799407190d113e0f1b57864d6c56a) ) // "SETA SoundDriver"
 	ROM_LOAD16_BYTE( "kl-p0l.u26",   0x100000, 0x080000, CRC(d7b177fb) SHA1(2a3533b952a7b2404720916662743c144e870c0b) )
 	ROM_LOAD16_BYTE( "kl-p0h.u27",   0x100001, 0x080000, CRC(9de7add4) SHA1(16f4405b12734cb6a83cff8be21d03bb3c2e2266) )
@@ -3480,12 +3498,12 @@ KK2_SND1.BIN [e5a963e1] /
 ***************************************************************************/
 
 ROM_START( koikois2 )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 //  socket for DATA ROM is empty
 	ROM_LOAD16_BYTE( "u26.bin", 0x200000, 0x080000, CRC(4be937a1) SHA1(b2c22ec12fc110984bd1914f8e3e16a8cb866816) )
-	ROM_RELOAD(                 0x300000, 0x080000             )
+	ROM_RELOAD(                 0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "u27.bin", 0x200001, 0x080000, CRC(25f39d93) SHA1(a36bc2fe5657f6ceada724fd42843e19408b39b8) )
-	ROM_RELOAD(                 0x300001, 0x080000             )
+	ROM_RELOAD(                 0x300001, 0x080000)
 
 	ROM_REGION( 0x2000000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "kk2-a0.bin", 0x0000000, 0x400000, CRC(b94b76c2) SHA1(07ce3e3946669c1bd2f022da9861164625be9c1b) )
@@ -3530,7 +3548,7 @@ Others:     M62X42B (RTC?)
 ***************************************************************************/
 
 ROM_START( meosism )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "s15-2-2.u47", 0x000000, 0x080000, CRC(2ab0373f) SHA1(826aec3b9698ec5db5d7a72c3a24b1ef779fb227) )
 	ROM_LOAD16_BYTE( "s15-2-1.u46", 0x000001, 0x080000, CRC(a4bce148) SHA1(17ec4d91e215bd38258329b1a71e7f135c5733ad) )
 
@@ -3579,7 +3597,7 @@ Other parts:    uPD71051
 ***************************************************************************/
 
 ROM_START( mslider )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "ms-pl.bin", 0x000000, 0x080000, CRC(70b2a05d) SHA1(387cf67e3e505c4cc1b5cd0b6c9fb3bc27d07e24) )
 	ROM_LOAD16_BYTE( "ms-ph.bin", 0x000001, 0x080000, CRC(34a64e9f) SHA1(acf3d8490f3ec99b6171e71328a991fcc9c5a8b1) )
 
@@ -3593,7 +3611,7 @@ ROM_START( mslider )
 	ROM_LOAD( "ms-c0.bin", 0x500000, 0x200000, CRC(f9d3e052) SHA1(4cdde756b24ee980f3c79a35a1fe071861fdeef9) )
 	ROM_LOAD( "ms-c1.bin", 0x700000, 0x080000, CRC(7f910c5a) SHA1(23ea13b6c07d3d31a25c21704d6a3e506578b199) )
 
-	ROM_FILL(              0x780000, 0x280000, 0          )
+	ROM_FILL(              0x780000, 0x280000, 0)
 
 	ROM_REGION16_BE( 0x400000, "ensoniq.0", 0 ) /* Samples */
 	ROM_LOAD16_WORD_SWAP( "ms-snd0.bin", 0x000000, 0x200000, CRC(cda6e3a5) SHA1(28ad8f34bc4f907654582f3522b377b97234eba8) )
@@ -3610,12 +3628,12 @@ ROM_END
 ***************************************************************************/
 
 ROM_START( ryorioh )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD( "ryorioh.dat",      0x000000, 0x200000, CRC(d1335a6a) SHA1(a5670ab3c399736232baaabc59573bdb3bf762da) )
 	ROM_LOAD16_BYTE( "ryorioh.l", 0x200000, 0x080000, CRC(9ad60e7d) SHA1(572b84bab08eb8293d93e03182d9871d8973b7dd) )
-	ROM_RELOAD(                   0x300000, 0x080000             )
+	ROM_RELOAD(                   0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "ryorioh.h", 0x200001, 0x080000, CRC(0655fcff) SHA1(2c088e42323f87e01b65f9f523e258f881d4e773) )
-	ROM_RELOAD(                   0x300001, 0x080000             )
+	ROM_RELOAD(                   0x300001, 0x080000)
 
 	ROM_REGION( 0x2000000, "gfx1", 0 )  /* Sprites */
 	ROM_LOAD( "ryorioh.a0", 0x0000000, 0x400000, CRC(f76ee003) SHA1(04022238dcfd5cf0e4f97c3c3b24df574ec6b609) )
@@ -3671,7 +3689,7 @@ ST-0007 (System controller)
 ***************************************************************************/
 
 ROM_START( srmp4 )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "sx001-14.prl", 0x000000, 0x080000, CRC(19aaf46e) SHA1(0c0f5acc1880971c56e7e2c2e3ad7c2932b82d4b) )
 	ROM_LOAD16_BYTE( "sx001-15.prh", 0x000001, 0x080000, CRC(dbd31399) SHA1(a77dc85f481454b10223d7f4e0395e07d2f8d4f3) )
 
@@ -3688,15 +3706,15 @@ ROM_START( srmp4 )
 	ROM_LOAD( "sx001-06.c1", 0x0e00000, 0x200000, CRC(6fe7229e) SHA1(e1432aa500460f79b5b78ee4b249d8fc9f566ce1) )
 	ROM_LOAD( "sx001-09.c2", 0x1000000, 0x200000, CRC(91dd8218) SHA1(a500dca9eefbf93187b1dfde7ddff1d22b886d44) )
 
-	ROM_FILL(                0x1200000, 0x600000, 0          )
+	ROM_FILL(                0x1200000, 0x600000, 0)
 
 	ROM_REGION16_BE( 0x400000, "ensoniq.0", 0 ) /* Samples */
 	ROM_LOAD16_WORD_SWAP( "sx001-10.sd0", 0x000000, 0x200000, CRC(45409ef1) SHA1(327d0a63deac6f0f8b9a408a321c03dd4e965569) )
-	ROM_RELOAD(                           0x200000, 0x200000             )
+	ROM_RELOAD(                           0x200000, 0x200000)
 ROM_END
 
 ROM_START( srmp4o )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "sx001-11.prl", 0x000000, 0x080000, CRC(dede3e64) SHA1(6fe998babfd2ad8f268c59bd365115a2d7cfc8f9) )
 	ROM_LOAD16_BYTE( "sx001-12.prh", 0x000001, 0x080000, CRC(739c53c3) SHA1(68f12cf42177df208ff6499ccc7ccc1423e3ad5f) )
 
@@ -3713,11 +3731,11 @@ ROM_START( srmp4o )
 	ROM_LOAD( "sx001-06.c1", 0x0e00000, 0x200000, CRC(6fe7229e) SHA1(e1432aa500460f79b5b78ee4b249d8fc9f566ce1) )
 	ROM_LOAD( "sx001-09.c2", 0x1000000, 0x200000, CRC(91dd8218) SHA1(a500dca9eefbf93187b1dfde7ddff1d22b886d44) )
 
-	ROM_FILL(                0x1200000, 0x600000, 0          )
+	ROM_FILL(                0x1200000, 0x600000, 0)
 
 	ROM_REGION16_BE( 0x400000, "ensoniq.0", 0 ) /* Samples */
 	ROM_LOAD16_WORD_SWAP( "sx001-10.sd0", 0x000000, 0x200000, CRC(45409ef1) SHA1(327d0a63deac6f0f8b9a408a321c03dd4e965569) )
-	ROM_RELOAD(                           0x200000, 0x200000             )
+	ROM_RELOAD(                           0x200000, 0x200000)
 ROM_END
 
 
@@ -3730,12 +3748,12 @@ ROM_END
 ***************************************************************************/
 
 ROM_START( srmp7 )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "sx015-10.dat", 0x000000, 0x200000, CRC(fad3ac6a) SHA1(9a4695c06bc74ca4de0c1a83bdf38f6651c0e2a1) )
 	ROM_LOAD16_BYTE( "sx015-07.pr0", 0x200000, 0x080000, CRC(08d7f841) SHA1(67567acff0ce278576290a896005de0397605eef) )
-	ROM_RELOAD(                      0x300000, 0x080000             )
+	ROM_RELOAD(                      0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "sx015-08.pr1", 0x200001, 0x080000, CRC(90307825) SHA1(13b3f82c8854808684bd41deb0bbd442efe7b685) )
-	ROM_RELOAD(                      0x300001, 0x080000             )
+	ROM_RELOAD(                      0x300001, 0x080000)
 
 	ROM_REGION( 0x4000000, "gfx1", 0 )  /* Sprites */
 	ROM_LOAD( "sx015-26.a0", 0x0000000, 0x400000, CRC(a997be9d) SHA1(37470af24531557113f953f727f6b8cab602a7d3) )
@@ -3760,11 +3778,11 @@ ROM_START( srmp7 )
 
 	ROM_REGION16_BE( 0x800000, "ensoniq.0", ROMREGION_ERASE | 0 )   /* Samples */
 	ROM_LOAD16_BYTE( "sx015-06.s0", 0x000000, 0x200000, CRC(0d5a206c) SHA1(2fdaf2a56b6608f20a788eb79a8426102ff33e14) )
-	ROM_RELOAD(                     0x400000, 0x200000             )
+	ROM_RELOAD(                     0x400000, 0x200000)
 
 	ROM_REGION16_BE( 0x800000, "ensoniq.1", ROMREGION_ERASE | 0 )   /* Samples */
 	ROM_LOAD16_BYTE( "sx015-05.s1", 0x000000, 0x200000, CRC(bb8cebe2) SHA1(3691e5fb4e963f69c1fe01cb5d968433029c4833) )
-	ROM_RELOAD(                     0x400000, 0x200000             )
+	ROM_RELOAD(                     0x400000, 0x200000)
 
 	ROM_REGION16_BE( 0x800000, "ensoniq.2", ROMREGION_ERASE | 0 )   /* Samples */
 	ROM_LOAD16_BYTE( "sx015-04.s2", 0x000000, 0x200000, CRC(f6e933df) SHA1(7cb69515a0ffc62fbac2be3a5fb322538560bd38) )
@@ -3879,7 +3897,7 @@ SAM-5127
 ***************************************************************************/
 
 ROM_START( survarts )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "prl-r6.u4", 0x000000, 0x080000, CRC(ef5f6e17) SHA1(1857beb15d2214c7ecb60b59e696ba24b2791734) )
 	ROM_LOAD16_BYTE( "prh-r5.u3", 0x000001, 0x080000, CRC(d446f010) SHA1(fb6c349edb2e6d1fcf8ed360dbe82be6d74f91d2) )
 
@@ -3896,7 +3914,7 @@ ROM_START( survarts )
 	ROM_LOAD( "si001-06.u16", 0x0e00000, 0x200000, CRC(9a62f532) SHA1(7e7ba1224e52b33a9bd14058230efc871178c4f8) ) /* C1 */
 	ROM_LOAD( "si001-09.u15", 0x1000000, 0x200000, CRC(0955e393) SHA1(0be9134190706eaee49177034b0536b05c4bc7ac) ) /* C2 */
 
-	ROM_FILL(                0x1200000, 0x600000, 0          )
+	ROM_FILL(                0x1200000, 0x600000, 0)
 
 //  The chip seems to use REGION1 too, but produces no sound from there.
 
@@ -3911,7 +3929,7 @@ ROM_START( survarts )
 ROM_END
 
 ROM_START( survartsu )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "usa-pr-l.u4", 0x000000, 0x080000, CRC(fa328673) SHA1(f7217eaa2a8d3fb7f706fa1aecaaa5b1b8d5e32c) )
 	ROM_LOAD16_BYTE( "usa-pr-h.u3", 0x000001, 0x080000, CRC(6bee2635) SHA1(a2d0517bf599331ef47beb8a902589039e4502e0) )
 
@@ -3928,7 +3946,7 @@ ROM_START( survartsu )
 	ROM_LOAD( "si001-06.u16", 0x0e00000, 0x200000, CRC(9a62f532) SHA1(7e7ba1224e52b33a9bd14058230efc871178c4f8) ) /* C1 */
 	ROM_LOAD( "si001-09.u15", 0x1000000, 0x200000, CRC(0955e393) SHA1(0be9134190706eaee49177034b0536b05c4bc7ac) ) /* C2 */
 
-	ROM_FILL(                0x1200000, 0x600000, 0          )
+	ROM_FILL(                0x1200000, 0x600000, 0)
 
 //  The chip seems to use REGION1 too, but produces no sound from there.
 
@@ -3940,7 +3958,7 @@ ROM_START( survartsu )
 ROM_END
 
 ROM_START( survartsj )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "jpn-pr-l.u4", 0x000000, 0x080000, CRC(e5a52e8c) SHA1(0a51c16d23d99c3e6a12f8a96c62fe8c72179a22) )
 	ROM_LOAD16_BYTE( "jan-pr-h.u3", 0x000001, 0x080000, CRC(051c9bca) SHA1(b8a7c5e4cb12cb0f05b5ba15394bd1fcf0476bf0) )  // jan typo on sticker
 
@@ -3957,7 +3975,7 @@ ROM_START( survartsj )
 	ROM_LOAD( "si001-06.u16", 0x0e00000, 0x200000, CRC(9a62f532) SHA1(7e7ba1224e52b33a9bd14058230efc871178c4f8) ) /* C1 */
 	ROM_LOAD( "si001-09.u15", 0x1000000, 0x200000, CRC(0955e393) SHA1(0be9134190706eaee49177034b0536b05c4bc7ac) ) /* C2 */
 
-	ROM_FILL(                0x1200000, 0x600000, 0          )
+	ROM_FILL(                0x1200000, 0x600000, 0)
 
 //  The chip seems to use REGION1 too, but produces no sound from there.
 
@@ -4013,7 +4031,7 @@ SAM-5127
 ***************************************************************************/
 
 ROM_START( dynagear )
-	ROM_REGION16_LE( 0x100000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x100000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "si002-prl.u4", 0x000000, 0x080000, CRC(71ba29c6) SHA1(ef43ab665daa4fc9ee01996d03f2f0b4c74c8435) )
 	ROM_LOAD16_BYTE( "si002-prh.u3", 0x000001, 0x080000, CRC(d0947a12) SHA1(95b54ed9dc51c952ad123103b8633a821cde05e9) )
 
@@ -4027,7 +4045,7 @@ ROM_START( dynagear )
 	ROM_LOAD( "si002-03.u17", 0x0800000, 0x200000, CRC(4261a6b8) SHA1(df163faa84a86f126d5d405aef316ff9dd3c05eb) )
 	ROM_LOAD( "si002-06.u16", 0x0a00000, 0x200000, CRC(0e1f23f6) SHA1(ea35c75776b75131ef9133a16a36d95132dc6776) )
 
-	ROM_FILL(                0xc00000, 0x400000, 0          )
+	ROM_FILL(                0xc00000, 0x400000, 0)
 
 //  The chip seems to use REGION1 too, but produces no sound from there.
 
@@ -4054,7 +4072,7 @@ Chips:  DX-102 x2
 ***************************************************************************/
 
 ROM_START( sxyreact )
-	ROM_REGION16_LE( 0x200000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x200000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_BYTE( "ac414e00.u2",  0x000000, 0x080000, CRC(d5dd7593) SHA1(ad1c7c2f27e0423ab346172a5c91316c9c0b3620) )
 	ROM_LOAD16_BYTE( "ac413e00.u1",  0x000001, 0x080000, CRC(f46aee4a) SHA1(8336304797987321903977373dec027cfca2e211) )
 	ROM_LOAD16_BYTE( "ac416e00.u47", 0x100000, 0x080000, CRC(e0f7bba9) SHA1(5eafd72c9fa4588f18fa02113a93abdcaf8d8693) )
@@ -4073,7 +4091,7 @@ ROM_START( sxyreact )
 	ROM_LOAD( "ac1408m0.u11", 0x1800000, 0x400000, CRC(c45bab47) SHA1(d00802005e091088eabeb672a6428417db43cb66) )
 	ROM_LOAD( "ac1409m0.u14", 0x1c00000, 0x200000, CRC(be1c66c2) SHA1(6d7b60d3b4286a768eac122c3d163e6e5287adc3) )
 
-	ROM_FILL(                 0x1e00000, 0xa00000, 0          )
+	ROM_FILL(                 0x1e00000, 0xa00000, 0)
 
 	ROM_REGION16_BE( 0x400000, "ensoniq.0", 0 ) /* Samples */
 	ROM_LOAD16_WORD_SWAP( "ac1410m0.u41", 0x000000, 0x400000, CRC(2a880afc) SHA1(193235bccde28a7d693a1a1f0159260a3a63a7d5) )
@@ -4142,7 +4160,7 @@ Notes:
 ***************************************************************************/
 
 ROM_START( sxyreac2 )
-	ROM_REGION16_LE( 0x200000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x200000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "ac1714e00.u32",  0x000000, 0x200000, CRC(78075d70) SHA1(05c84bb32c6f97fceb5436d192c14cac79d9ab07) )
 
 	ROM_REGION( 0x2000000, "gfx1", 0 )  /* Sprites */
@@ -4155,7 +4173,7 @@ ROM_START( sxyreac2 )
 	ROM_LOAD( "ac1705t00.u8",  0x1000000, 0x400000, CRC(2dff0652) SHA1(3c68ec3b233f248208ea80e4799a9504318b4e7c) )
 	ROM_LOAD( "ac1706t00.u11", 0x1400000, 0x400000, CRC(e7a168e0) SHA1(b4e19cc3a1fd0f18db7476ebe7cbb397c60e01b3) )
 
-	ROM_FILL(                 0x1800000, 0x800000, 0         )
+	ROM_FILL(                 0x1800000, 0x800000, 0)
 
 	ROM_REGION16_BE( 0x400000, "ensoniq.0", 0 ) /* Samples */
 	ROM_LOAD16_WORD_SWAP( "ac1707t00.u41", 0x000000, 0x400000, CRC(28999bc4) SHA1(4cddaa4a155cc03d456e6edb20dd207f7ff3d9c4) )
@@ -4172,29 +4190,75 @@ ROM_END
 /***************************************************************************
 
                                 Storm Blade
+
+----------------------
+System SSV (STA-0001B)
+----------------------
 CPU  : NEC D70615GD-16-S (V60)
 Sound: Ensoniq ES5506 (OTTOR2)
+OSC  : 42.9545MHz(X2) 48.0000MHz(X3)
 
+Custom chips:
+ST-0004 (Video DAC?)
+ST-0005 (Parallel I/O?)
+ST-0006 (Video controller)
+ST-0007 (System controller)
 
-Rom board  001B
-SSV mother board
+Program Work RAM  : 256Kbitx2 (expandable to 1Mx2)
+Object Work RAM   : 1Mbitx2
+Color Palette RAM : 256Kbitx3 (expandable to 1Mx3)
+
+-------------------------
+SSV Subboard (VISCO-001B)
+-------------------------
+
+VISCO-001B
+|-----------------------|CN1|-|
+|                             |
+|                 D3.U2*   L  |
+|                 D2.U5*   o  |
+|         U15*    D1.U8*   g  |
+| SB-SND0.U22     D0.U12*  i  |
+|                 C3.U1*   c  |
+|              SB-C2.U4       |
+|              SB-C1.U7    c  |
+| uPD4701AC    SB-C0.U11   h  |
+| ADC0809         B3.U14*  i  |
+| SB-PD0.U26   SB-B2.U18   p  |
+| U33J.U33     SB-B1.U21   s  |
+| U37J.U37     SB-B0.U25      |
+|6264 VG003-22    A3.U28*  x  |
+|    ST010     SB-A2.U32      |
+|              SB-A1.U35   1  |
+|3790 BT2* BT1 SB-A0.U41   7  |
+|                             |
+|-----------------------------|
+
+  VG003-22: GAL16V8B (undumped) at U29 (same GAL as Drift Out '94 - The Hard Order)
+SETA ST010: Custom programmed uPD96050 MCU used for math caculations
+ADC0809CCN: 8bit microprocessor compatible A/D converters with 8-Channel Multiplexer
+ uPD4701AC: X, Y 2-axis Incremental Encoder Counter
+       CN1: 5-pin male header/connector
+      3790: MB3790 Bi-CMOS Battery Backup IC
+      6264: Sharp LH5168D-10L 8K x 8bit CMOS SRAM
+       BT1: CR2032 3v battery
+
+* Denotes unpopulated component
 
 U37, U33 = 27c040
 U22, U41, U35, U25, U21, U11, U7  = 16 MEG MASK ROMS
 U32, U18, U4 = 4 MEG MASK ROMS
 U26 = 8 MEG MASK ROM
 
-There is a battery on the rom board @ BT1 (battery # CR2032 - 3 volts)
-
 ***************************************************************************/
 
 ROM_START( stmblade )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "sb-pd0.u26",  0x000000, 0x100000, CRC(91c4fbf7) SHA1(68e57ea2a9756a95a81c6688905352d631e9f2de) )
 	ROM_LOAD16_BYTE( "s-blade.u37", 0x200000, 0x080000, CRC(a6a42cc7) SHA1(4bff79ff03b81a7ed96d3ad285242580146976be) )
-	ROM_RELOAD(                     0x300000, 0x080000             )
+	ROM_RELOAD(                     0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "s-blade.u33", 0x200001, 0x080000, CRC(16104ca6) SHA1(63835051c358dce33d92974d1de911b98835a3d9) )
-	ROM_RELOAD(                     0x300001, 0x080000             )
+	ROM_RELOAD(                     0x300001, 0x080000)
 
 	ROM_REGION( 0x1800000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "sb-a0.u41", 0x0000000, 0x200000, CRC(2a327b51) SHA1(fb1e92b7f740a80cb0c977e106d0c4bfee092dad) )
@@ -4206,7 +4270,36 @@ ROM_START( stmblade )
 	ROM_LOAD( "sb-c0.u11", 0x0c00000, 0x200000, CRC(825dd8f1) SHA1(39d32f54c97e21f92598442f05fd91ae2403a0d2) )
 	ROM_LOAD( "sb-c1.u7",  0x0e00000, 0x200000, CRC(744afcd7) SHA1(db716a1a2ad5864ebdb4865430cb637fb94ed34f) )
 	ROM_LOAD( "sb-c2.u4",  0x1000000, 0x080000, CRC(fd1d2a92) SHA1(957a8a52b79e252c7f1a4b6383107ae609dce5ef) )
-	ROM_FILL(              0x1200000, 0x600000, 0          )
+	ROM_FILL(              0x1200000, 0x600000, 0)
+
+	ROM_REGION16_BE( 0x400000, "ensoniq.0", ROMREGION_ERASE | 0 )   /* Samples */
+	ROM_LOAD16_BYTE( "sb-snd0.u22", 0x000000, 0x200000, CRC(4efd605b) SHA1(9c97be105c923c7db847d9b9aea37025edb685a0) )
+
+	ROM_REGION( 0x11000, "st010", 0)
+	ROM_LOAD( "st010.bin",    0x000000, 0x011000, CRC(aa11ee2d) SHA1(cc1984e989cb94e3dcbb5f99e085b5414e18a017) )
+	ROM_REGION( 0x10000, "dspprg", ROMREGION_ERASEFF)
+	ROM_REGION( 0x1000, "dspdata", ROMREGION_ERASEFF)
+ROM_END
+
+ROM_START( stmbladej )
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
+	ROM_LOAD16_WORD( "sb-pd0.u26",  0x000000, 0x100000, CRC(91c4fbf7) SHA1(68e57ea2a9756a95a81c6688905352d631e9f2de) )
+	ROM_LOAD16_BYTE( "u37j.u37", 0x200000, 0x080000, CRC(dce20df8) SHA1(d589bf7bebbf6b3c76ddb4b1f8d0c7d6bee34561) )
+	ROM_RELOAD(                  0x300000, 0x080000)
+	ROM_LOAD16_BYTE( "u33j.u33", 0x200001, 0x080000, CRC(12f68940) SHA1(c50caee87cdcbb3a4af3a139234ed12942cfab72) )
+	ROM_RELOAD(                  0x300001, 0x080000)
+
+	ROM_REGION( 0x1800000, "gfx1", 0 ) /* Sprites */
+	ROM_LOAD( "sb-a0.u41", 0x0000000, 0x200000, CRC(2a327b51) SHA1(fb1e92b7f740a80cb0c977e106d0c4bfee092dad) )
+	ROM_LOAD( "sb-a1.u35", 0x0200000, 0x200000, CRC(246f6f28) SHA1(09171f04452fbcf9e3333c135288fd6e5b8244f7) )
+	ROM_LOAD( "sb-a2.u32", 0x0400000, 0x080000, CRC(2049acf3) SHA1(3982b4650921da0563336060887767627f8679ab) )
+	ROM_LOAD( "sb-b0.u25", 0x0600000, 0x200000, CRC(b3aa3e68) SHA1(990be5925b6c8c0d0e83ca9064425d93853fe206) )
+	ROM_LOAD( "sb-b1.u21", 0x0800000, 0x200000, CRC(e95b38e7) SHA1(9256f027e4c496e3bf96ecb65c0f3e69791e2755) )
+	ROM_LOAD( "sb-b2.u18", 0x0a00000, 0x080000, CRC(d080e620) SHA1(a262b42214c09fccb8f4878d8566e2acd87dbd23) )
+	ROM_LOAD( "sb-c0.u11", 0x0c00000, 0x200000, CRC(825dd8f1) SHA1(39d32f54c97e21f92598442f05fd91ae2403a0d2) )
+	ROM_LOAD( "sb-c1.u7",  0x0e00000, 0x200000, CRC(744afcd7) SHA1(db716a1a2ad5864ebdb4865430cb637fb94ed34f) )
+	ROM_LOAD( "sb-c2.u4",  0x1000000, 0x080000, CRC(fd1d2a92) SHA1(957a8a52b79e252c7f1a4b6383107ae609dce5ef) )
+	ROM_FILL(              0x1200000, 0x600000, 0)
 
 	ROM_REGION16_BE( 0x400000, "ensoniq.0", ROMREGION_ERASE | 0 )   /* Samples */
 	ROM_LOAD16_BYTE( "sb-snd0.u22", 0x000000, 0x200000, CRC(4efd605b) SHA1(9c97be105c923c7db847d9b9aea37025edb685a0) )
@@ -4256,7 +4349,7 @@ All roms are 16M Mask roms
 ***************************************************************************/
 
 ROM_START( twineag2 )
-	ROM_REGION16_LE( 0x200000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x200000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "sx002-12.u22", 0x000000, 0x200000, CRC(846044dc) SHA1(c1c85de1c466fb7c3580824baa1571cd0fed6ec6) )
 
 	ROM_REGION( 0x1800000, "gfx1", 0 )  /* Sprites */
@@ -4303,7 +4396,7 @@ Hardware is almost identical to SSV system
 ****************************************************************************/
 
 ROM_START( ultrax )
-	ROM_REGION16_LE( 0x200000, "user1", 0 )  /* V60 Code */
+	ROM_REGION( 0x200000, "maincpu", 0 )  /* V60 Code */
 	ROM_LOAD16_BYTE( "71047-11.u64", 0x000000, 0x080000, CRC(593b2678) SHA1(3b24b59a21386a4688502c5f0a2dd4eb0ec92544) )
 	ROM_LOAD16_BYTE( "71047-09.u65", 0x000001, 0x080000, CRC(08ea8d91) SHA1(5d2672f6c96fbbe9d80bd6539c1400b62745892a) )
 	ROM_LOAD16_BYTE( "71047-12.u62", 0x100000, 0x080000, CRC(76a77ab2) SHA1(0cf2f293defc23c807556ff92ea99f963fafed40) )
@@ -4331,6 +4424,35 @@ ROM_START( ultrax )
 	ROM_COPY( "ensoniq.1", 0x000000, 0x000000, 0x400000 )
 ROM_END
 
+
+ROM_START( ultraxg )
+	ROM_REGION( 0x200000, "maincpu", 0 )  /* V60 Code */
+	ROM_LOAD16_BYTE( "sx010-11.5h", 0x000000, 0x080000, CRC(58554bdd) SHA1(4b35fbaca0cb458e3b21c43e4b4dfd708a7b9397) ) /* hand written label with date 2/27 & checksum "44B4" */
+	ROM_LOAD16_BYTE( "sx010-09.5c", 0x000001, 0x080000, CRC(153e79b2) SHA1(e0278267e345ebd81f66fbb9d262cbd78df2d01b) ) /* hand written label with date 2/27 & checksum "449B" */
+	ROM_LOAD16_BYTE( "sx010-12.5k", 0x100000, 0x080000, CRC(14ad58c9) SHA1(d6be82044a22eb21cac8f7e961a198e369743962) ) /* hand written label with date 2/27 & checksum "3CCF" */
+	ROM_LOAD16_BYTE( "sx010-10.5d", 0x100001, 0x080000, CRC(7e64473e) SHA1(2444ac4d95563b18c8aec077e742b0f84fd38f43) ) /* hand written label with date 2/27 & checksum "0CC5" */
+
+	ROM_REGION( 0xc00000, "gfx1", 0 ) /* Sprites */
+	ROM_LOAD( "71047-01.u73", 0x0000000, 0x200000, CRC(66662b08) SHA1(0cb683e5f85ffe21bd3367af4d3e48a484dbd4c3) )
+	ROM_LOAD( "71047-02.u74", 0x0200000, 0x100000, CRC(6b00dc0c) SHA1(6af8ceed72d13f9979175c0d907a4a8c127ca1ad) )
+	ROM_LOAD( "71047-03.u76", 0x0300000, 0x200000, CRC(00fcd6c2) SHA1(61d13cbafbc0fd6ff62cd08aa88591ed0fd0b182) )
+	ROM_LOAD( "71047-04.u77", 0x0500000, 0x100000, CRC(d9e710d1) SHA1(063459a247f9ff81cb558802e9943b3ea8a2ea3a) )
+	ROM_LOAD( "71047-05.u75", 0x0600000, 0x200000, CRC(10848193) SHA1(40b7ebb6011dc703bbf620cd22cd678c10ec67a4) )
+	ROM_LOAD( "71047-06.u88", 0x0800000, 0x100000, CRC(b8ac2942) SHA1(3e85e8f5669d469dd3114455248546d32a642315) )
+	ROM_FILL(                 0x0900000, 0x300000, 0 )
+
+	ROM_REGION16_BE( 0x400000, "ensoniq.0", ROMREGION_ERASE | 0 ) /* Samples */
+	ROM_LOAD16_BYTE( "71047-07.u59", 0x000000, 0x200000, CRC(d9828b62) SHA1(f66a388d7a00b3a45d386671c061f5b840453451) )
+
+	ROM_REGION16_BE( 0x400000, "ensoniq.1", ROMREGION_ERASE | 0 ) /* Samples */
+	ROM_LOAD16_BYTE( "71047-08.u60", 0x000000, 0x200000, CRC(30ebff6d) SHA1(53824c1fc37e22b545fd68b59722f7968f0ca1e2) )
+
+	ROM_REGION16_BE( 0x400000, "ensoniq.2", 0 ) /* Samples */
+	ROM_COPY( "ensoniq.0", 0x000000, 0x000000, 0x400000 )
+
+	ROM_REGION16_BE( 0x400000, "ensoniq.3", 0 ) /* Samples */
+	ROM_COPY( "ensoniq.1", 0x000000, 0x000000, 0x400000 )
+ROM_END
 
 /***************************************************************************
 
@@ -4419,12 +4541,12 @@ Vasara 2 has a secret character code like the Raizing games:
 ****************************************************************************/
 
 ROM_START( vasara )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "data.u34",  0x000000, 0x200000, CRC(7704cc7e) SHA1(62bb018b7f0c7ee67fee37de17bb22a73bb9e420) )
 	ROM_LOAD16_BYTE( "prg-l.u30", 0x200000, 0x080000, CRC(f0547886) SHA1(6a3717f8b89575d3cb4c7d56dd9df5052faa3c7f) )
-	ROM_RELOAD(                   0x300000, 0x080000             )
+	ROM_RELOAD(                   0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "prg-h.u31", 0x200001, 0x080000, CRC(6a39bba9) SHA1(05ede167150307d7bf59037f264b1d140f6646da) )
-	ROM_RELOAD(                   0x300001, 0x080000             )
+	ROM_RELOAD(                   0x300001, 0x080000)
 
 	ROM_REGION( 0x2000000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "a0.u1", 0x0000000, 0x800000, CRC(673230a6) SHA1(a9d1a108c0737b709854bae199499577f5ae359e) )
@@ -4440,12 +4562,12 @@ ROM_START( vasara )
 ROM_END
 
 ROM_START( vasara2 )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "data.u34",  0x000000, 0x200000, CRC(493d0103) SHA1(fda68fb089328cabb3bbd52f8703b445a9509bf1) )
 	ROM_LOAD16_BYTE( "prg-l.u30", 0x200000, 0x080000, CRC(40e6f5f6) SHA1(05fee4535ffe8403e86ba92a58e5f2d040489c8e) )
-	ROM_RELOAD(                   0x300000, 0x080000             )
+	ROM_RELOAD(                   0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "prg-h.u31", 0x200001, 0x080000, CRC(c958e146) SHA1(568878526cef76ac0ce4feeaa46e7039291e5f77) )
-	ROM_RELOAD(                   0x300001, 0x080000             )
+	ROM_RELOAD(                   0x300001, 0x080000)
 
 	ROM_REGION( 0x2000000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "a0.u1", 0x0000000, 0x800000, CRC(a6306c75) SHA1(bad715e53426a295d3571c025e0539d5f81ce5ab) )
@@ -4461,12 +4583,12 @@ ROM_START( vasara2 )
 ROM_END
 
 ROM_START( vasara2a )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "data.u34",     0x000000, 0x200000, CRC(493d0103) SHA1(fda68fb089328cabb3bbd52f8703b445a9509bf1) )
 	ROM_LOAD16_BYTE( "basara-l.u30", 0x200000, 0x080000, CRC(fd88b068) SHA1(a86e3ffc870e6f6f7f18273428b24d938d6b9c3d) )
-	ROM_RELOAD(                      0x300000, 0x080000             )
+	ROM_RELOAD(                      0x300000, 0x080000)
 	ROM_LOAD16_BYTE( "basara-h.u31", 0x200001, 0x080000, CRC(91d641e6) SHA1(4987d1771a90c9f1ce45c2dd2de5b2922d5d19c5) )
-	ROM_RELOAD(                      0x300001, 0x080000             )
+	ROM_RELOAD(                      0x300001, 0x080000)
 
 	ROM_REGION( 0x2000000, "gfx1", 0 ) /* Sprites */
 	ROM_LOAD( "a0.u1", 0x0000000, 0x800000, CRC(a6306c75) SHA1(bad715e53426a295d3571c025e0539d5f81ce5ab) )
@@ -4537,13 +4659,13 @@ Notes:
 ****************************************************************************/
 
 ROM_START( gdfs )
-	ROM_REGION16_LE( 0x400000, "user1", 0 )     /* V60 Code */
+	ROM_REGION( 0x400000, "maincpu", 0 )     /* V60 Code */
 	ROM_LOAD16_WORD( "vg004-14.u3",   0x000000, 0x100000, CRC(d88254df) SHA1(ccdfd42e4ce3941018f83e300da8bf7a5950f65c) )
-	ROM_RELOAD(0x100000,0x100000)
+	ROM_RELOAD(                       0x100000, 0x100000)
 	ROM_LOAD16_BYTE( "ssv2set0.u1",   0x200000, 0x080000, CRC(c23b9e2c) SHA1(9026e065252981fb403255ddc5782359c0088e8a) )
-	ROM_RELOAD(0x300000,0x80000)
+	ROM_RELOAD(                       0x300000, 0x80000)
 	ROM_LOAD16_BYTE( "ssv2set1.u2",   0x200001, 0x080000, CRC(d7d52570) SHA1(12e7531519a0a4331e409991265908fb518286ef) )
-	ROM_RELOAD(0x300001,0x80000)
+	ROM_RELOAD(                       0x300001, 0x80000)
 
 	ROM_REGION( 0x800000, "gfx1", 0 )
 	ROM_LOAD( "vg004-09.u43", 0x000000, 0x200000, CRC(b7382cfa) SHA1(df735470181c16f8aac0e3be76e1ed53a32dbb9c) )
@@ -4587,32 +4709,58 @@ ROM_END
 
 //     year   rom       clone     machine   inputs    init      monitor manufacturer          title                                               flags
 
-GAME( 1993,  dynagear, 0,        dynagear, dynagear, ssv_state, dynagear, ROT0,   "Sammy",              "Dyna Gear",                                        GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
-GAME( 1993,  keithlcy, 0,        keithlcy, keithlcy, ssv_state, keithlcy, ROT0,   "Visco",              "Dramatic Adventure Quiz Keith & Lucy (Japan)",     GAME_NO_COCKTAIL )
-GAME( 1993,  srmp4,    0,        srmp4,    srmp4, ssv_state,    srmp4,    ROT0,   "Seta",               "Super Real Mahjong PIV (Japan)",                   GAME_NO_COCKTAIL )
-GAME( 1993,  srmp4o,   srmp4,    srmp4,    srmp4, ssv_state,    srmp4,    ROT0,   "Seta",               "Super Real Mahjong PIV (Japan, older set)",        GAME_NO_COCKTAIL ) // by the numbering of the program roms this should be older
-GAME( 1993,  survarts, 0,        survarts, survarts, ssv_state, survarts, ROT0,   "Sammy",              "Survival Arts (World)",                            GAME_NO_COCKTAIL )
-GAME( 1993,  survartsu,survarts, survarts, survarts, ssv_state, survarts, ROT0,   "American Sammy",     "Survival Arts (USA)",                              GAME_NO_COCKTAIL )
-GAME( 1993,  survartsj,survarts, survarts, survarts, ssv_state, survarts, ROT0,   "Sammy",              "Survival Arts (Japan)",                            GAME_NO_COCKTAIL )
-GAME( 1994,  drifto94, 0,        drifto94, drifto94, ssv_state, drifto94, ROT0,   "Visco",              "Drift Out '94 - The Hard Order (Japan)",           GAME_NO_COCKTAIL )
-GAME( 1994,  eaglshot, 0,        eaglshot, eaglshot, ssv_state, eaglshot, ROT0,   "Sammy",              "Eagle Shot Golf",                                  GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
-GAME( 1995,  hypreact, 0,        hypreact, hypreact, ssv_state, hypreact, ROT0,   "Sammy",              "Mahjong Hyper Reaction (Japan)",                   GAME_NO_COCKTAIL )
-GAME( 1994,  twineag2, 0,        twineag2, twineag2, ssv_state, twineag2, ROT270, "Seta",               "Twin Eagle II - The Rescue Mission",               GAME_NO_COCKTAIL )
-GAME( 1995,  gdfs,     0,        gdfs,     gdfs, ssv_state,     gdfs,     ROT0,   "Banpresto",          "Mobil Suit Gundam Final Shooting (Japan)",         GAME_NO_COCKTAIL )
-GAME( 1995,  ultrax,   0,        ultrax,   ultrax, ssv_state,   ultrax,   ROT270, "Banpresto / Tsuburaya Productions", "Ultra X Weapons / Ultra Keibitai",  GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
-GAME( 1996,  janjans1, 0,        janjans1, janjans1, ssv_state, janjans1, ROT0,   "Visco",              "Lovely Pop Mahjong JangJang Shimasho (Japan)",     GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
-GAME( 1996?, meosism,  0,        meosism,  meosism, ssv_state,  meosism,  ROT0,   "Sammy",              "Meosis Magic (Japan)",                             GAME_NO_COCKTAIL )
-GAME( 1996,  stmblade, 0,        stmblade, stmblade, ssv_state, stmblade, ROT270, "Visco",              "Storm Blade (US)",                                 GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
-GAME( 1997,  hypreac2, 0,        hypreac2, hypreac2, ssv_state, hypreac2, ROT0,   "Sammy",              "Mahjong Hyper Reaction 2 (Japan)",                 GAME_NO_COCKTAIL )
-GAME( 1997,  jsk,      0,        jsk,      jsk, ssv_state,      jsk,      ROT0,   "Visco",              "Joryuu Syougi Kyoushitsu (Japan)",                 GAME_NO_COCKTAIL )
-GAME( 1997,  koikois2, 0,        janjans1, koikois2, ssv_state, janjans1, ROT0,   "Visco",              "Koi Koi Shimasho 2 - Super Real Hanafuda (Japan)", GAME_NO_COCKTAIL )
-GAME( 1997,  mslider,  0,        mslider,  mslider, ssv_state,  mslider,  ROT0,   "Visco / Datt Japan", "Monster Slider (Japan)",                           GAME_NO_COCKTAIL )
-GAME( 1997,  srmp7,    0,        srmp7,    srmp7, ssv_state,    srmp7,    ROT0,   "Seta",               "Super Real Mahjong P7 (Japan)",                    GAME_NO_COCKTAIL | GAME_IMPERFECT_SOUND )
-GAME( 1998,  ryorioh,  0,        ryorioh,  ryorioh, ssv_state,  ryorioh,  ROT0,   "Visco",              "Gourmet Battle Quiz Ryohrioh CooKing (Japan)",     GAME_NO_COCKTAIL )
-GAME( 1998,  sxyreact, 0,        sxyreact, sxyreact, ssv_state, sxyreact, ROT0,   "Sammy",              "Pachinko Sexy Reaction (Japan)",                   GAME_NO_COCKTAIL )
-GAME( 1999,  sxyreac2, 0,        sxyreac2, sxyreact, ssv_state, sxyreac2, ROT0,   "Sammy",              "Pachinko Sexy Reaction 2 (Japan)",                 GAME_NO_COCKTAIL )
-GAME( 1999,  cairblad, 0,        cairblad, cairblad, ssv_state, cairblad, ROT270, "Sammy",              "Change Air Blade (Japan)",                         GAME_NO_COCKTAIL )
-GAME( 2000,  janjans2, 0,        janjans1, janjans2, ssv_state, janjans1, ROT0,   "Visco",              "Lovely Pop Mahjong JangJang Shimasho 2 (Japan)",   GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS )
-GAME( 2000,  vasara,   0,        vasara,   vasara, ssv_state,   vasara,   ROT270, "Visco",              "Vasara",                                           GAME_NO_COCKTAIL )
-GAME( 2001,  vasara2,  0,        vasara,   vasara2, ssv_state,  vasara,   ROT270, "Visco",              "Vasara 2 (set 1)",                                 GAME_NO_COCKTAIL )
-GAME( 2001,  vasara2a, vasara2,  vasara,   vasara2, ssv_state,  vasara,   ROT270, "Visco",              "Vasara 2 (set 2)",                                 GAME_NO_COCKTAIL )
+GAME( 1993,  dynagear,  0,        dynagear, dynagear, ssv_state, dynagear, ROT0,   "Sammy",              "Dyna Gear",                                                              GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1993,  keithlcy,  0,        keithlcy, keithlcy, ssv_state, keithlcy, ROT0,   "Visco",              "Dramatic Adventure Quiz Keith & Lucy (Japan)",                           GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1993,  srmp4,     0,        srmp4,    srmp4,    ssv_state, srmp4,    ROT0,   "Seta",               "Super Real Mahjong PIV (Japan)",                                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1993,  srmp4o,    srmp4,    srmp4,    srmp4,    ssv_state, srmp4,    ROT0,   "Seta",               "Super Real Mahjong PIV (Japan, older set)",                              GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE ) // by the numbering of the program roms this should be older
+
+GAME( 1993,  survarts,  0,        survarts, survarts, ssv_state, survarts, ROT0,   "Sammy",              "Survival Arts (World)",                                                  GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1993,  survartsu, survarts, survarts, survarts, ssv_state, survarts, ROT0,   "American Sammy",     "Survival Arts (USA)",                                                    GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 1993,  survartsj, survarts, survarts, survarts, ssv_state, survarts, ROT0,   "Sammy",              "Survival Arts (Japan)",                                                  GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1994,  drifto94,  0,        drifto94, drifto94, ssv_state, drifto94, ROT0,   "Visco",              "Drift Out '94 - The Hard Order (Japan)",                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1994,  eaglshot,  0,        eaglshot, eaglshot, ssv_state, eaglshot, ROT0,   "Sammy",              "Eagle Shot Golf",                                                        GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1995,  hypreact,  0,        hypreact, hypreact, ssv_state, hypreact, ROT0,   "Sammy",              "Mahjong Hyper Reaction (Japan)",                                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1994,  twineag2,  0,        twineag2, twineag2, ssv_state, twineag2, ROT270, "Seta",               "Twin Eagle II - The Rescue Mission",                                     GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1995,  gdfs,      0,        gdfs,     gdfs,     ssv_state, gdfs,     ROT0,   "Banpresto",          "Mobil Suit Gundam Final Shooting (Japan)",                               GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1995,  ultrax,    0,        ultrax,   ultrax,   ssv_state, ultrax,   ROT270, "Banpresto / Tsuburaya Productions", "Ultra X Weapons / Ultra Keibitai",                        GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE ) // 95-01-30 13:27:15 on startup
+GAME( 1995,  ultraxg,   ultrax,   ultrax,   ultrax,   ssv_state, ultrax,   ROT270, "Banpresto / Tsuburaya Productions", "Ultra X Weapons / Ultra Keibitai (GAMEST review build)",  GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE ) // 95-02-16 15:30:24 on startup (newer, but could have pause functionality due to being a review build so left as clone)
+
+GAME( 1996,  janjans1,  0,        janjans1, janjans1, ssv_state, janjans1, ROT0,   "Visco",              "Lovely Pop Mahjong JangJang Shimasho (Japan)",                           GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1996?, meosism,   0,        meosism,  meosism,  ssv_state, meosism,  ROT0,   "Sammy",              "Meosis Magic (Japan)",                                                   GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1996,  stmblade,  0,        stmblade, stmblade, ssv_state, stmblade, ROT270, "Visco",              "Storm Blade (US)",                                                       GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+GAME( 1996,  stmbladej, stmblade, stmblade, stmblade, ssv_state, stmblade, ROT270, "Visco",              "Storm Blade (Japan)",                                                    GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 1997,  hypreac2,  0,        hypreac2, hypreac2, ssv_state, hypreac2, ROT0,   "Sammy",              "Mahjong Hyper Reaction 2 (Japan)",                                       GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1997,  jsk,       0,        jsk,      jsk,      ssv_state, jsk,      ROT0,   "Visco",              "Joryuu Syougi Kyoushitsu (Japan)",                                       GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1997,  koikois2,  0,        janjans1, koikois2, ssv_state, janjans1, ROT0,   "Visco",              "Koi Koi Shimasho 2 - Super Real Hanafuda (Japan)",                       GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1997,  mslider,   0,        mslider,  mslider,  ssv_state, mslider,  ROT0,   "Visco / Datt Japan", "Monster Slider (Japan)",                                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1997,  srmp7,     0,        srmp7,    srmp7,    ssv_state, srmp7,    ROT0,   "Seta",               "Super Real Mahjong P7 (Japan)",                                          GAME_NO_COCKTAIL | GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE )
+
+GAME( 1998,  ryorioh,   0,        ryorioh,  ryorioh,  ssv_state, ryorioh,  ROT0,   "Visco",              "Gourmet Battle Quiz Ryohrioh CooKing (Japan)",                           GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1998,  sxyreact,  0,        sxyreact, sxyreact, ssv_state, sxyreact, ROT0,   "Sammy",              "Pachinko Sexy Reaction (Japan)",                                         GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1999,  sxyreac2,  0,        sxyreac2, sxyreact, ssv_state, sxyreac2, ROT0,   "Sammy",              "Pachinko Sexy Reaction 2 (Japan)",                                       GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 1999,  cairblad,  0,        cairblad, cairblad, ssv_state, cairblad, ROT270, "Sammy",              "Change Air Blade (Japan)",                                               GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 2000,  janjans2,  0,        janjans1, janjans2, ssv_state, janjans1, ROT0,   "Visco",              "Lovely Pop Mahjong JangJang Shimasho 2 (Japan)",                         GAME_NO_COCKTAIL | GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE )
+
+GAME( 2000,  vasara,    0,        vasara,   vasara,   ssv_state, vasara,   ROT270, "Visco",              "Vasara",                                                                 GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+
+GAME( 2001,  vasara2,   0,        vasara,   vasara2,  ssv_state, vasara,   ROT270, "Visco",              "Vasara 2 (set 1)",                                                       GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )
+GAME( 2001,  vasara2a,  vasara2,  vasara,   vasara2,  ssv_state, vasara,   ROT270, "Visco",              "Vasara 2 (set 2)",                                                       GAME_NO_COCKTAIL | GAME_SUPPORTS_SAVE )

@@ -8,7 +8,8 @@
 
 *********************************************************************/
 
-#include "emu.h"
+#include <assert.h>
+
 #include "flopimg.h"
 #include "formats/esq16_dsk.h"
 
@@ -50,7 +51,7 @@ esqimg_format::esqimg_format()
 
 const char *esqimg_format::name() const
 {
-	return "img";
+	return "esq16";
 }
 
 const char *esqimg_format::description() const

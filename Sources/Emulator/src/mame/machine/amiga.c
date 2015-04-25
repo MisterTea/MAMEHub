@@ -134,83 +134,6 @@ const char *const amiga_custom_names[0x100] =
 
 /*************************************
  *
- *  Chipmem 16/32 bit access
- *
- *************************************/
-
-static UINT16 amiga_chip_ram16_r(amiga_state *state, offs_t offset)
-{
-	// logerror("chip ram read %08x\n", offset);
-	return (offset < state->m_chip_ram.bytes()) ? state->m_chip_ram[offset/2] : 0xffff;
-}
-
-static UINT16 amiga_chip_ram32_r(amiga_state *state, offs_t offset)
-{
-	if (offset < state->m_chip_ram.bytes())
-	{
-		UINT32 *amiga_chip_ram32 = reinterpret_cast<UINT32 *>(state->m_chip_ram.target());
-		UINT32  dat = amiga_chip_ram32[offset / 4];
-
-		if ( offset & 2 )
-			return (dat & 0xffff);
-
-		return (dat >> 16);
-	}
-
-	return 0xffff;
-}
-
-static void amiga_chip_ram16_w(amiga_state *state, offs_t offset, UINT16 data)
-{
-	if (offset < state->m_chip_ram.bytes())
-		state->m_chip_ram[offset/2] = data;
-}
-
-static void amiga_chip_ram32_w(amiga_state *state, offs_t offset, UINT16 data)
-{
-	if (offset < state->m_chip_ram.bytes())
-	{
-		UINT32 *amiga_chip_ram32 = reinterpret_cast<UINT32 *>(state->m_chip_ram.target());
-		UINT32  dat = amiga_chip_ram32[offset / 4];
-
-		if ( offset & 2 )
-		{
-			dat &= 0xffff0000;
-			dat |= data;
-		}
-		else
-		{
-			dat &= 0x0000ffff;
-			dat |= ((UINT32)data) << 16;
-		}
-
-		amiga_chip_ram32[offset / 4] = dat;
-	}
-}
-
-
-void amiga_chip_ram_w8(amiga_state *state, offs_t offset, UINT8 data)
-{
-	UINT16 dat;
-
-	dat = (*state->m_chip_ram_r)(state, offset);
-	if (offset & 0x01)
-	{
-		dat &= 0xff00;
-		dat |= data;
-	}
-	else
-	{
-		dat &= 0x00ff;
-		dat |= ((UINT16)data) << 8;
-	}
-	(*state->m_chip_ram_w)(state, offset, dat);
-}
-
-
-
-/*************************************
- *
  *  Machine reset
  *
  *************************************/
@@ -220,24 +143,14 @@ void amiga_state::machine_start()
 	// add callback for RESET instruction
 	m_maincpu->set_reset_callback(write_line_delegate(FUNC(amiga_state::m68k_reset), this));
 
-	switch (m_maincpu->space(AS_PROGRAM).data_width())
-	{
-	case 16:
-		m_chip_ram_r = amiga_chip_ram16_r;
-		m_chip_ram_w = amiga_chip_ram16_w;
-		break;
-	case 32:
-		m_chip_ram_r = amiga_chip_ram32_r;
-		m_chip_ram_w = amiga_chip_ram32_w;
-		break;
-	default:
-		fatalerror("Invalid data bus width\n");
-	}
+	// set up chip RAM access
+	memory_share *share = memshare("chip_ram");
+	if (share == NULL)
+		fatalerror("Unable to find Amiga chip RAM\n");
+	m_chip_ram.set(*share, 2);
+	m_chip_ram_mask = (m_chip_ram.bytes() - 1) & ~1;
 
-	m_chip_ram_mask = m_chip_ram.mask() & ~1;
-	m_chip_ram_mirror = ~m_chip_ram.mask() & 0x1fffff;
-
-	// setup the timers
+	// set up the timers
 	m_irq_timer = timer_alloc(TIMER_AMIGA_IRQ);
 	m_blitter_timer = timer_alloc(TIMER_AMIGA_BLITTER);
 	m_serial_timer = timer_alloc(TIMER_SERIAL);
@@ -266,6 +179,17 @@ void amiga_state::machine_reset()
 	// or directly by gayle where available
 	m_gayle_reset = true;
 	m_overlay->set_bank(1);
+}
+
+WRITE_LINE_MEMBER( amiga_state::kbreset_w )
+{
+	// this is connected to the gary chip, gary then resets the 68k, agnus, paula and the cias
+	if (!state)
+	{
+		m_sound->reset();
+		machine_reset();
+		m_maincpu->reset();
+	}
 }
 
 // simple mirror of region 0xf80000 to 0xfbffff
@@ -297,7 +221,6 @@ void amiga_state::device_timer(emu_timer &timer, device_timer_id id, int param, 
 		break;
 	default:
 		fatalerror("Invalid timer: %d\n", id);
-		break;
 	}
 }
 
@@ -337,13 +260,16 @@ TIMER_CALLBACK_MEMBER( amiga_state::scanline_callback )
 		m_cia_0->tod_w(0);
 	}
 
-	// pot counters (start counting at 7 (ntsc) or 8 (pal))
-	if (BIT(CUSTOM_REG(REG_POTGO), 0) && (scanline /2 ) > 7)
+	if (m_potgo_port)
 	{
-		m_pot0x += !(m_potgo_port->read() & 0x0100);
-		m_pot0y += !(m_potgo_port->read() & 0x0400);
-		m_pot1x += !(m_potgo_port->read() & 0x1000);
-		m_pot1y += !(m_potgo_port->read() & 0x4000);
+		// pot counters (start counting at 7 (ntsc) or 8 (pal))
+		if (BIT(CUSTOM_REG(REG_POTGO), 0) && (scanline /2 ) > 7)
+		{
+			m_pot0x += !(m_potgo_port->read() & 0x0100);
+			m_pot0y += !(m_potgo_port->read() & 0x0400);
+			m_pot1x += !(m_potgo_port->read() & 0x1000);
+			m_pot1y += !(m_potgo_port->read() & 0x4000);
+		}
 	}
 
 	// render up to this scanline
@@ -385,19 +311,37 @@ void amiga_state::set_interrupt(int interrupt)
 	custom_chip_w(m_maincpu->space(AS_PROGRAM), REG_INTREQ, interrupt, 0xffff);
 }
 
+bool amiga_state::int2_pending()
+{
+	return m_cia_0_irq;
+}
+
+bool amiga_state::int6_pending()
+{
+	return m_cia_1_irq;
+}
+
 void amiga_state::update_int2()
 {
-	set_interrupt((m_cia_0_irq ? INTENA_SETCLR : 0x0000) | INTENA_PORTS);
+	set_interrupt((int2_pending() ? INTENA_SETCLR : 0x0000) | INTENA_PORTS);
 }
 
 void amiga_state::update_int6()
 {
-	set_interrupt((m_cia_1_irq ? INTENA_SETCLR : 0x0000) | INTENA_EXTER);
+	set_interrupt((int6_pending() ? INTENA_SETCLR : 0x0000) | INTENA_EXTER);
 }
 
 void amiga_state::update_irqs()
 {
 	amiga_state *state = this;
+
+	// if the external interrupt line is still active, set the interrupt request bit
+	if (int2_pending())
+		CUSTOM_REG(REG_INTREQ) |= INTENA_PORTS;
+
+	if (int6_pending())
+		CUSTOM_REG(REG_INTREQ) |= INTENA_EXTER;
+
 	int ints = CUSTOM_REG(REG_INTENA) & CUSTOM_REG(REG_INTREQ);
 
 	// master interrupt switch
@@ -505,21 +449,21 @@ static UINT32 blit_ascending(amiga_state *state)
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0800)
 			{
 				//CUSTOM_REG(REG_BLTADAT) = state->m_maincpu->space(AS_PROGRAM).read_word(CUSTOM_REG_LONG(REG_BLTAPTH));
-				CUSTOM_REG(REG_BLTADAT) = (*state->m_chip_ram_r)(state, CUSTOM_REG_LONG(REG_BLTAPTH));
+				CUSTOM_REG(REG_BLTADAT) = state->chip_ram_r(CUSTOM_REG_LONG(REG_BLTAPTH));
 				CUSTOM_REG_LONG(REG_BLTAPTH) += 2;
 			}
 
 			/* fetch data for B */
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0400)
 			{
-				CUSTOM_REG(REG_BLTBDAT) = (*state->m_chip_ram_r)(state, CUSTOM_REG_LONG(REG_BLTBPTH));
+				CUSTOM_REG(REG_BLTBDAT) = state->chip_ram_r(CUSTOM_REG_LONG(REG_BLTBPTH));
 				CUSTOM_REG_LONG(REG_BLTBPTH) += 2;
 			}
 
 			/* fetch data for C */
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0200)
 			{
-				CUSTOM_REG(REG_BLTCDAT) = (*state->m_chip_ram_r)(state, CUSTOM_REG_LONG(REG_BLTCPTH));
+				CUSTOM_REG(REG_BLTCDAT) = state->chip_ram_r(CUSTOM_REG_LONG(REG_BLTCPTH));
 				CUSTOM_REG_LONG(REG_BLTCPTH) += 2;
 			}
 
@@ -575,7 +519,7 @@ static UINT32 blit_ascending(amiga_state *state)
 			/* write to the destination */
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0100)
 			{
-				(*state->m_chip_ram_w)(state, CUSTOM_REG_LONG(REG_BLTDPTH), tempd);
+				state->chip_ram_w(CUSTOM_REG_LONG(REG_BLTDPTH), tempd);
 				CUSTOM_REG_LONG(REG_BLTDPTH) += 2;
 			}
 		}
@@ -630,21 +574,21 @@ static UINT32 blit_descending(amiga_state *state)
 			/* fetch data for A */
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0800)
 			{
-				CUSTOM_REG(REG_BLTADAT) = (*state->m_chip_ram_r)(state, CUSTOM_REG_LONG(REG_BLTAPTH));
+				CUSTOM_REG(REG_BLTADAT) = state->chip_ram_r(CUSTOM_REG_LONG(REG_BLTAPTH));
 				CUSTOM_REG_LONG(REG_BLTAPTH) -= 2;
 			}
 
 			/* fetch data for B */
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0400)
 			{
-				CUSTOM_REG(REG_BLTBDAT) = (*state->m_chip_ram_r)(state, CUSTOM_REG_LONG(REG_BLTBPTH));
+				CUSTOM_REG(REG_BLTBDAT) = state->chip_ram_r(CUSTOM_REG_LONG(REG_BLTBPTH));
 				CUSTOM_REG_LONG(REG_BLTBPTH) -= 2;
 			}
 
 			/* fetch data for C */
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0200)
 			{
-				CUSTOM_REG(REG_BLTCDAT) = (*state->m_chip_ram_r)(state, CUSTOM_REG_LONG(REG_BLTCPTH));
+				CUSTOM_REG(REG_BLTCDAT) = state->chip_ram_r(CUSTOM_REG_LONG(REG_BLTCPTH));
 				CUSTOM_REG_LONG(REG_BLTCPTH) -= 2;
 			}
 
@@ -717,7 +661,7 @@ static UINT32 blit_descending(amiga_state *state)
 			/* write to the destination */
 			if (CUSTOM_REG(REG_BLTCON0) & 0x0100)
 			{
-				(*state->m_chip_ram_w)(state, CUSTOM_REG_LONG(REG_BLTDPTH), tempd);
+				state->chip_ram_w(CUSTOM_REG_LONG(REG_BLTDPTH), tempd);
 				CUSTOM_REG_LONG(REG_BLTDPTH) -= 2;
 			}
 		}
@@ -809,7 +753,7 @@ static UINT32 blit_line(amiga_state *state)
 
 		/* fetch data for C */
 		if (CUSTOM_REG(REG_BLTCON0) & 0x0200)
-			CUSTOM_REG(REG_BLTCDAT) = (*state->m_chip_ram_r)(state, CUSTOM_REG_LONG(REG_BLTCPTH));
+			CUSTOM_REG(REG_BLTCDAT) = state->chip_ram_r(CUSTOM_REG_LONG(REG_BLTCPTH));
 
 		/* rotate the A data according to the shift */
 		tempa = CUSTOM_REG(REG_BLTADAT) >> (CUSTOM_REG(REG_BLTCON0) >> 12);
@@ -860,7 +804,7 @@ static UINT32 blit_line(amiga_state *state)
 		blitsum |= tempd;
 
 		/* write to the destination */
-		(*state->m_chip_ram_w)(state, CUSTOM_REG_LONG(REG_BLTDPTH), tempd);
+		state->chip_ram_w(CUSTOM_REG_LONG(REG_BLTDPTH), tempd);
 
 		/* always increment along the major axis */
 		if (CUSTOM_REG(REG_BLTCON1) & 0x0010)
@@ -1240,10 +1184,12 @@ READ16_MEMBER( amiga_state::custom_chip_r )
 			return CUSTOM_REG(REG_SERDATR);
 
 		case REG_JOY0DAT:
-			return joy0dat_r();
+			if (state->m_joy0dat_port)
+				return joy0dat_r();
 
 		case REG_JOY1DAT:
-			return joy1dat_r();
+			if (state->m_joy1dat_port)
+				return joy1dat_r();
 
 		case REG_POTGOR:
 			if (state->m_potgo_port)
@@ -1340,7 +1286,6 @@ WRITE16_MEMBER( amiga_state::custom_chip_w )
 		case REG_SERDATR:   case REG_DSKBYTR:   case REG_INTENAR:   case REG_INTREQR:
 			// read-only registers
 			return;
-			break;
 
 		case REG_DSKDAT:
 			popmessage("DSKDAT W %04x, contact MESSdev",data);
@@ -1415,7 +1360,7 @@ WRITE16_MEMBER( amiga_state::custom_chip_w )
 			CUSTOM_REG(REG_BLTSIZH) = data & 0x3f;
 			if ( CUSTOM_REG(REG_BLTSIZV) == 0 ) CUSTOM_REG(REG_BLTSIZV) = 0x400;
 			if ( CUSTOM_REG(REG_BLTSIZH) == 0 ) CUSTOM_REG(REG_BLTSIZH) = 0x40;
-			blitter_setup(space);
+			blitter_setup(m_maincpu->space(AS_PROGRAM));
 			break;
 
 		case REG_BLTSIZV:
@@ -1431,7 +1376,7 @@ WRITE16_MEMBER( amiga_state::custom_chip_w )
 			{
 				CUSTOM_REG(REG_BLTSIZH) = data & 0x7ff;
 				if ( CUSTOM_REG(REG_BLTSIZH) == 0 ) CUSTOM_REG(REG_BLTSIZH) = 0x800;
-				blitter_setup(space);
+				blitter_setup(m_maincpu->space(AS_PROGRAM));
 			}
 			break;
 
@@ -1465,7 +1410,8 @@ WRITE16_MEMBER( amiga_state::custom_chip_w )
 			amiga_sprite_enable_comparitor(space.machine(), (offset - REG_SPR0DATA) / 4, TRUE);
 			break;
 
-		case REG_COP1LCH:   case REG_COP2LCH:
+		case REG_COP1LCH:
+		case REG_COP2LCH:
 			data &= ( state->m_chip_ram_mask >> 16 );
 			break;
 

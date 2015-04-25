@@ -52,18 +52,27 @@ public:
 
 	taito_f3_state(const machine_config &mconfig, device_type type, const char *tag)
 		: driver_device(mconfig, type, tag),
-		m_f3_ram(*this,"f3_ram") ,
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_oki(*this, "oki"),
 		m_gfxdecode(*this, "gfxdecode"),
 		m_screen(*this, "screen"),
 		m_palette(*this, "palette"),
+		m_f3_ram(*this,"f3_ram"),
 		m_paletteram32(*this, "paletteram") { }
+
+	required_device<cpu_device> m_maincpu;
+	optional_device<cpu_device> m_audiocpu;
+	optional_device<okim6295_device> m_oki;
+	required_device<gfxdecode_device> m_gfxdecode;
+	required_device<screen_device> m_screen;
+	required_device<palette_device> m_palette;
+
+	optional_shared_ptr<UINT32> m_f3_ram;
+	optional_shared_ptr<UINT32> m_paletteram32;
 
 	UINT16 *m_videoram;
 	UINT16 *m_spriteram;
-	optional_shared_ptr<UINT32> m_f3_ram;
 	UINT16 *m_f3_vram;
 	UINT16 *m_f3_line_ram;
 	UINT16 *m_f3_pf_data;
@@ -205,9 +214,9 @@ public:
 	struct f3_playfield_line_inf *m_pf_line_inf;
 	struct f3_spritealpha_line_inf *m_sa_line_inf;
 	const struct F3config *m_f3_game_config;
-	int (*m_dpix_n[8][16])(taito_f3_state *state, UINT32 s_pix);
-	int (**m_dpix_lp[5])(taito_f3_state *state, UINT32 s_pix);
-	int (**m_dpix_sp[9])(taito_f3_state *state, UINT32 s_pix);
+	int (taito_f3_state::*m_dpix_n[8][16])(UINT32 s_pix);
+	int (taito_f3_state::**m_dpix_lp[5])(UINT32 s_pix);
+	int (taito_f3_state::**m_dpix_sp[9])(UINT32 s_pix);
 
 	DECLARE_READ32_MEMBER(f3_control_r);
 	DECLARE_WRITE32_MEMBER(f3_control_w);
@@ -288,13 +297,6 @@ public:
 	UINT32 screen_update_f3(screen_device &screen, bitmap_rgb32 &bitmap, const rectangle &cliprect);
 	void screen_eof_f3(screen_device &screen, bool state);
 	INTERRUPT_GEN_MEMBER(f3_interrupt2);
-	required_device<cpu_device> m_maincpu;
-	optional_device<cpu_device> m_audiocpu;
-	optional_device<okim6295_device> m_oki;
-	required_device<gfxdecode_device> m_gfxdecode;
-	required_device<screen_device> m_screen;
-	required_device<palette_device> m_palette;
-	optional_shared_ptr<UINT32> m_paletteram32;
 
 protected:
 	virtual void device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr);
@@ -304,4 +306,68 @@ private:
 	inline void f3_drawgfx(bitmap_rgb32 &dest_bmp,const rectangle &clip,gfx_element *gfx,int code,int color,int flipx,int flipy,int sx,int sy,UINT8 pri_dst);
 	inline void f3_drawgfxzoom(bitmap_rgb32 &dest_bmp,const rectangle &clip,gfx_element *gfx,int code,int color,int flipx,int flipy,int sx,int sy,int scalex,int scaley,UINT8 pri_dst);
 	void draw_sprites(bitmap_rgb32 &bitmap, const rectangle &cliprect);
+	void get_sprite_info(const UINT16 *spriteram16_ptr);
+	void print_debug_info(bitmap_rgb32 &bitmap);
+	inline void f3_alpha_set_level();
+	inline void f3_alpha_blend32_s(int alphas, UINT32 s);
+	inline void f3_alpha_blend32_d(int alphas, UINT32 s);
+	inline void f3_alpha_blend_1_1(UINT32 s);
+	inline void f3_alpha_blend_1_2(UINT32 s);
+	inline void f3_alpha_blend_1_4(UINT32 s);
+	inline void f3_alpha_blend_1_5(UINT32 s);
+	inline void f3_alpha_blend_1_6(UINT32 s);
+	inline void f3_alpha_blend_1_8(UINT32 s);
+	inline void f3_alpha_blend_1_9(UINT32 s);
+	inline void f3_alpha_blend_1_a(UINT32 s);
+	inline void f3_alpha_blend_2a_0(UINT32 s);
+	inline void f3_alpha_blend_2a_4(UINT32 s);
+	inline void f3_alpha_blend_2a_8(UINT32 s);
+	inline void f3_alpha_blend_2b_0(UINT32 s);
+	inline void f3_alpha_blend_2b_4(UINT32 s);
+	inline void f3_alpha_blend_2b_8(UINT32 s);
+	inline void f3_alpha_blend_3a_0(UINT32 s);
+	inline void f3_alpha_blend_3a_1(UINT32 s);
+	inline void f3_alpha_blend_3a_2(UINT32 s);
+	inline void f3_alpha_blend_3b_0(UINT32 s);
+	inline void f3_alpha_blend_3b_1(UINT32 s);
+	inline void f3_alpha_blend_3b_2(UINT32 s);
+	int dpix_1_noalpha(UINT32 s_pix);
+	int dpix_ret1(UINT32 s_pix);
+	int dpix_ret0(UINT32 s_pix);
+	int dpix_1_1(UINT32 s_pix);
+	int dpix_1_2(UINT32 s_pix);
+	int dpix_1_4(UINT32 s_pix);
+	int dpix_1_5(UINT32 s_pix);
+	int dpix_1_6(UINT32 s_pix);
+	int dpix_1_8(UINT32 s_pix);
+	int dpix_1_9(UINT32 s_pix);
+	int dpix_1_a(UINT32 s_pix);
+	int dpix_2a_0(UINT32 s_pix);
+	int dpix_2a_4(UINT32 s_pix);
+	int dpix_2a_8(UINT32 s_pix);
+	int dpix_3a_0(UINT32 s_pix);
+	int dpix_3a_1(UINT32 s_pix);
+	int dpix_3a_2(UINT32 s_pix);
+	int dpix_2b_0(UINT32 s_pix);
+	int dpix_2b_4(UINT32 s_pix);
+	int dpix_2b_8(UINT32 s_pix);
+	int dpix_3b_0(UINT32 s_pix);
+	int dpix_3b_1(UINT32 s_pix);
+	int dpix_3b_2(UINT32 s_pix);
+	int dpix_2_0(UINT32 s_pix);
+	int dpix_2_4(UINT32 s_pix);
+	int dpix_2_8(UINT32 s_pix);
+	int dpix_3_0(UINT32 s_pix);
+	int dpix_3_1(UINT32 s_pix);
+	int dpix_3_2(UINT32 s_pix);
+	inline void dpix_1_sprite(UINT32 s_pix);
+	inline void dpix_bg(UINT32 bgcolor);
+	void init_alpha_blend_func();
+	inline void draw_scanlines(bitmap_rgb32 &bitmap, int xsize, INT16 *draw_line_num, const struct f3_playfield_line_inf **line_t, const int *sprite, UINT32 orient, int skip_layer_num);
+	void visible_tile_check(struct f3_playfield_line_inf *line_t, int line, UINT32 x_index_fx,UINT32 y_index, UINT16 *f3_pf_data_n);
+	void calculate_clip(int y, UINT16 pri, UINT32* clip0, UINT32* clip1, int* line_enable);
+	void get_spritealphaclip_info();
+	void get_line_ram_info(tilemap_t *tmap, int sx, int sy, int pos, UINT16 *f3_pf_data_n);
+	void get_vram_info(tilemap_t *vram_tilemap, tilemap_t *pixel_tilemap, int sx, int sy);
+	void scanline_draw(bitmap_rgb32 &bitmap, const rectangle &cliprect);
 };

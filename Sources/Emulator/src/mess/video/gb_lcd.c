@@ -215,6 +215,7 @@ cgb_lcd_device::cgb_lcd_device(const machine_config &mconfig, const char *tag, d
 void gb_lcd_device::common_start()
 {
 	m_screen->register_screen_bitmap(m_bitmap);
+	save_item(NAME(m_bitmap));
 	m_oam = auto_alloc_array_clear(machine(), UINT8, 0x100);
 
 	machine().save().register_postload(save_prepost_delegate(FUNC(gb_lcd_device::videoptr_restore), this));
@@ -793,7 +794,8 @@ void sgb_lcd_device::update_sprites()
 			data = (vram[adr + 1] << 8) | vram[adr];
 
 			/* Find the palette to use */
-			pal = m_sgb_pal_map[(xindex >> 3)][((yindex - SGB_YOFFSET) >> 3)] << 2;
+			// If sprite started before the start of the line we may need to pick a different pal_map entry?
+			pal = m_sgb_pal_map[(xindex < 0) ? 0 : (xindex >> 3)][((yindex - SGB_YOFFSET) >> 3)] << 2;
 
 			/* Offset to center of screen */
 			xindex += SGB_XOFFSET;
@@ -1186,14 +1188,17 @@ void cgb_lcd_device::update_sprites()
 			case 0x00:                 /* priority is not set (overlaps bgnd & wnd, don't flip x) */
 				for (bit = 0; bit < 8; bit++, xindex++)
 				{
-					register int colour = ((data & 0x8000) ? 2 : 0) | ((data & 0x0080) ? 1 : 0);
-					if ((m_bg_zbuf[xindex] & 0x80) && (m_bg_zbuf[xindex] & 0x7f) && (LCDCONT & 0x1))
-						colour = 0;
-					if (colour && xindex >= 0 && xindex < 160)
+					if (xindex >= 0 && xindex < 160)
 					{
-						if (!m_gbc_mode)
-							colour = pal ? m_gb_spal1[colour] : m_gb_spal0[colour];
-						plot_pixel(bitmap, xindex, yindex, m_cgb_spal[pal + colour]);
+						register int colour = ((data & 0x8000) ? 2 : 0) | ((data & 0x0080) ? 1 : 0);
+						if ((m_bg_zbuf[xindex] & 0x80) && (m_bg_zbuf[xindex] & 0x7f) && (LCDCONT & 0x1))
+							colour = 0;
+						if (colour)
+						{
+							if (!m_gbc_mode)
+								colour = pal ? m_gb_spal1[colour] : m_gb_spal0[colour];
+							plot_pixel(bitmap, xindex, yindex, m_cgb_spal[pal + colour]);
+						}
 					}
 					data <<= 1;
 				}

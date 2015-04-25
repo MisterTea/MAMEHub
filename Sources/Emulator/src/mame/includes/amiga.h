@@ -326,8 +326,6 @@ class amiga_state : public driver_device
 public:
 	amiga_state(const machine_config &mconfig, device_type type, const char *tag) :
 	driver_device(mconfig, type, tag),
-	m_chip_ram(*this, "chip_ram", 0),
-	m_custom_regs(*this, "custom_regs", 0),
 	m_agnus_id(AGNUS_NTSC),
 	m_denise_id(DENISE),
 	m_maincpu(*this, "maincpu"),
@@ -340,7 +338,6 @@ public:
 	m_screen(*this, "screen"),
 	m_palette(*this, "palette"),
 	m_overlay(*this, "overlay"),
-	m_kickstart(*this, "kickstart"),
 	m_input_device(*this, "input"),
 	m_joy0dat_port(*this, "joy_0_dat"),
 	m_joy1dat_port(*this, "joy_1_dat"),
@@ -354,7 +351,6 @@ public:
 	m_p2_mouse_x(*this, "p2_mouse_x"),
 	m_p2_mouse_y(*this, "p2_mouse_y"),
 	m_chip_ram_mask(0),
-	m_chip_ram_mirror(0),
 	m_cia_0_irq(0),
 	m_cia_1_irq(0),
 	m_pot0x(0), m_pot1x(0), m_pot0y(0), m_pot1y(0),
@@ -374,10 +370,16 @@ public:
 	m_rx_previous(1)
 	{ }
 
-
-	UINT16 (*m_chip_ram_r)(amiga_state *state, offs_t offset);
-	void (*m_chip_ram_w)(amiga_state *state, offs_t offset, UINT16 data);
-
+	/* chip RAM access */
+	UINT16 chip_ram_r(offs_t byteoffs)
+	{
+		return EXPECTED(byteoffs < m_chip_ram.bytes()) ? m_chip_ram.read(byteoffs >> 1) : 0xffff;
+	}
+	void chip_ram_w(offs_t byteoffs, UINT16 data)
+	{
+		if (EXPECTED(byteoffs < m_chip_ram.bytes()))
+			m_chip_ram.write(byteoffs >> 1, data);
+	}
 
 	/* sprite states */
 	UINT8 m_sprite_comparitor_enable_mask;
@@ -437,6 +439,7 @@ public:
 	DECLARE_CUSTOM_INPUT_MEMBER( floppy_drive_status );
 
 	DECLARE_WRITE_LINE_MEMBER( m68k_reset );
+	DECLARE_WRITE_LINE_MEMBER( kbreset_w );
 
 	DECLARE_READ16_MEMBER( cia_r );
 	DECLARE_WRITE16_MEMBER( cia_w );
@@ -486,13 +489,12 @@ public:
 		HBLANK = 186
 	};
 
-	required_shared_ptr<UINT16> m_chip_ram;
-	required_shared_ptr<UINT16> m_custom_regs;
-
 	emu_timer *m_blitter_timer;
 
 	UINT16 m_agnus_id;
 	UINT16 m_denise_id;
+
+	UINT16 m_custom_regs[256];
 
 	void custom_chip_w(UINT16 offset, UINT16 data, UINT16 mem_mask = 0xffff)
 	{
@@ -534,8 +536,10 @@ protected:
 
 	// interrupts
 	void set_interrupt(int interrupt);
-	virtual void update_int2();
-	virtual void update_int6();
+	virtual bool int2_pending();
+	virtual bool int6_pending();
+	void update_int2();
+	void update_int6();
 
 	virtual void vblank();
 
@@ -560,7 +564,6 @@ protected:
 	optional_device<palette_device> m_palette;
 	required_device<address_map_bank_device> m_overlay;
 
-	optional_memory_region m_kickstart;
 
 	// i/o ports
 	optional_ioport m_input_device;
@@ -576,8 +579,8 @@ protected:
 	optional_ioport m_p2_mouse_x;
 	optional_ioport m_p2_mouse_y;
 
+	memory_array m_chip_ram;
 	UINT32 m_chip_ram_mask;
-	UINT32 m_chip_ram_mirror;
 
 	int m_cia_0_irq;
 	int m_cia_1_irq;
@@ -661,8 +664,6 @@ private:
 /*----------- defined in machine/amiga.c -----------*/
 
 extern const char *const amiga_custom_names[0x100];
-
-void amiga_chip_ram_w8(amiga_state *state, offs_t offset, UINT8 data);
 
 
 /*----------- defined in video/amiga.c -----------*/

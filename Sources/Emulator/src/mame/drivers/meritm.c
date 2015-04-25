@@ -1,5 +1,5 @@
 /*
-  Merit CRT250 and CRT260 hardware
+  Merit CRT-250 and CRT-260 hardware
 
   Driver by Mariusz Wojcieszek
 
@@ -35,7 +35,7 @@ Memory: Fujitsu MB81464-12 (or compatible) all socketted. The 3rd row of memory
 
 JP6 - 3 pin jumper: ROM size (1-2 = 27256, 2-3 = 27512)
 JP7 - 3 pin jumper: RAM / ROM for U13 to U16? (1-2 = RAM, 2-3 = ROM)
-J2 - 15 pin connector for harness to connect to the optional CRT-254 Video Billboard PCB
+J2 - 15 pin connector for the optional CRT-254
 J3 - 65 Pin connector:
 
  #1 - Blue  (video out)    #23 - V-Meter Lamp              #45 - P2 Discard 3 Switch
@@ -63,12 +63,14 @@ J3 - 65 Pin connector:
 
 Power & Common Ground wires are 18 gauge, all other wires are 20 or 22 gauge.
 
-  CRT 256: addon board for CRT 250, stores question roms (aka Memory Expansion board)
+  Optional addon boards for the CRT-250:
+  - CRT-254: Connects to a Dallas DS1204 electronic key
+  - CRT-256: Stores question roms (aka Memory Expansion board)
+  - CRT-258: Microtouch touch screen controller:
+              Connects through the Z80 socket & contains a PC16550DN UART,
+              relocated Z80, 1.8432MHz OSC, PAL labeled SC3980 & RS232C port
 
-  CRT 258: addon board for CRT 250, contains UART and Microtouch touch screen controller
-
-
-  CRT 260 same basic components as CRT 250 with these additional components:
+  CRT-260 same basic components as CRT-250 with these additional components:
   - Microtouch touch screen controller (SMT-3)
   - PC16550 UART (for communication with touch screen controller)
   - DS1204 Electronic Key (for protection)
@@ -82,7 +84,8 @@ Power & Common Ground wires are 18 gauge, all other wires are 20 or 22 gauge.
 
   Known Games:
 
-  CRT 250:
+  CRT-250:
+  Americana (c) 1987
   Dodge City (c) 1988
   Pit Boss II (c)1988
   Super Pit Boss (c)1988
@@ -91,6 +94,7 @@ Power & Common Ground wires are 18 gauge, all other wires are 20 or 22 gauge.
   Pit Boss Superstar III 30 (c)1993
   Pit Boss Megastar (c)1994
   Pit Boss Supertouch 30 (c)1993/4
+  Pit Boss Megatouch (c)1994
 
 Custom Program Versions (Superstar 30 / Supertouch 30):
 
@@ -105,8 +109,7 @@ PROGRAM#    Program Version      Program Differences
 9234-00-07  New Jersey Version   Excludes Sex Trivia and includes 2-Coin Limit with Lockout Coil (Only for Supertouch 30 & Megastar)
 
 
-  CRT 260:
-  *Megatouch Video (c)1994?
+  CRT-260:
   Megatouch II (c)1994
   Megatouch III (c)1995
   Megatouch III Tournament Edition (c)1996
@@ -678,7 +681,58 @@ static INPUT_PORTS_START(dodgecty)
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_POKER_HOLD5 ) PORT_NAME( "Hold 5 / Double Up / Hi" )
 	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_GAMBLE_BET )
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_DEAL )
-	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNKNOWN )
+
+	PORT_MODIFY("PIO1_PORTB")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_IMPULSE(2)
+INPUT_PORTS_END
+
+static INPUT_PORTS_START(mtjpoker)
+	PORT_INCLUDE(meritm_crt250)
+
+	PORT_MODIFY("PIO1_PORTA")
+	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNUSED) /* Touchscreen based, no keys used for this one. */
+
+	PORT_MODIFY("PIO1_PORTB")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_IMPULSE(2)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_C) PORT_NAME("Calibrate Touchsceen")
+
+	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0x01, 0x00, "Enable Touchscreen" ) PORT_DIPLOCATION("SW1:1") /* MUST be ON or "touches" don't register */
+	PORT_DIPSETTING(    0x01, DEF_STR( Off ) )
+	PORT_DIPSETTING(    0x00, DEF_STR( On ) )
+	PORT_DIPNAME( 0x10, 0x10, "Points Per Coin" ) PORT_DIPLOCATION("SW1:5")
+	PORT_DIPSETTING(    0x10, "1 Point / Coin" )
+	PORT_DIPSETTING(    0x00, "5 Points / Coin" )
+	PORT_DIPNAME( 0xc0, 0xc0, "Max Play" )       PORT_DIPLOCATION("SW1:7,8")
+	PORT_DIPSETTING(    0x40, "10" )
+	PORT_DIPSETTING(    0xc0, "20" )
+	PORT_DIPSETTING(    0x80, "50" )
+	PORT_DIPSETTING(    0x00, "50 Raise Yes / 99 Raise No" )
+INPUT_PORTS_END
+
+static INPUT_PORTS_START(americna)
+	PORT_INCLUDE(meritm_crt250)
+
+	PORT_MODIFY("PIO1_PORTA")
+	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_POKER_HOLD1 ) PORT_NAME( "Hold 1 / Take / Lo" )
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_POKER_HOLD5 ) PORT_NAME( "Hold 5 / Double Up / Hi" )
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_GAMBLE_BET ) PORT_NAME("Bet / Raise")
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_GAMBLE_DEAL )
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_GAMBLE_STAND ) PORT_NAME( "Hi-Score" )
+
+	PORT_MODIFY("PIO1_PORTB")
+	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_IMPULSE(2)
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_S) PORT_NAME("Setup / Test")
+
+	PORT_MODIFY("DSW")
+	PORT_DIPNAME( 0x10, 0x10, "Points Per Coin" ) PORT_DIPLOCATION("SW1:5")
+	PORT_DIPSETTING(    0x10, "1 Point / Coin" )
+	PORT_DIPSETTING(    0x00, "5 Points / Coin" )
+	PORT_DIPNAME( 0xc0, 0xc0, "Max Play" )       PORT_DIPLOCATION("SW1:7,8")
+	PORT_DIPSETTING(    0x40, "10" )
+	PORT_DIPSETTING(    0xc0, "20" )
+	PORT_DIPSETTING(    0x80, "50" )
+	PORT_DIPSETTING(    0x00, "50 Raise Yes / 99 Raise No" )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START(realbrod)
@@ -789,7 +843,7 @@ static INPUT_PORTS_START(pbst30)
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_OTHER ) PORT_CODE(KEYCODE_C) PORT_NAME("Calibrate Touchsceen")
 
 	PORT_MODIFY("DSW")
-	PORT_DIPNAME( 0x01, 0x00, "Touch Screen Type" ) PORT_DIPLOCATION("SW1:1")
+	PORT_DIPNAME( 0x01, 0x00, "Touchscreen Type" ) PORT_DIPLOCATION("SW1:1")
 	PORT_DIPSETTING(    0x00, "13 Inch" )
 	PORT_DIPSETTING(    0x01, "19 Inch (Inverts Screen Coordinates)" )
 	PORT_DIPNAME( 0x20, 0x20, "Balls (Pit Pong) / Paddles (Breakin' Bricks)" ) PORT_DIPLOCATION("SW1:6")
@@ -1129,37 +1183,51 @@ static MACHINE_CONFIG_DERIVED( meritm_crt260, meritm_crt250 )
 MACHINE_CONFIG_END
 
 
+/*
+
+This set seems odd, it doesn't really have a title sequence or demo mode.
+ NOT 100% sure this is "Americana" or just a no name touch Joker poker
+
+The Touchscreen Calibration routine doesn't seem to work?
+
+*/
+ROM_START( mtjpoker ) /* Uses the CRT-258 touch controller board & Dallas DS1225Y NV SRAM */
+	ROM_REGION( 0x80000, "maincpu", 0 )
+	ROM_LOAD( "9132-00-02_u9-r0.u9", 0x00000, 0x10000, CRC(4ec683b6) SHA1(7cff76ba1517deede3dfa2a419e11fd603dcf695) ) /* 9132-00-02 R0 46  940416 */
+	ROM_LOAD( "9132-00_u10-r0.u10",  0x10000, 0x10000, CRC(d6f72934) SHA1(4f3d6a5227a3b0fc298533a03cc0a32f8e2f3840) ) // == 9131-00_u10-0.u10 from americna
+	ROM_LOAD( "9132-00_u11-r0.u11",  0x20000, 0x10000, CRC(f2db6f5d) SHA1(3f734a7e8c72c14bf4a3e6f595819311739394d3) ) // == 9131-00_u11-0.u11 from americna
+
+	ROM_REGION( 0x000022, "ds1204", 0 ) /* Connected via small CRT-254 daughter card through the J2 connector */
+	ROM_LOAD( "9132-00-r0-key", 0x000000, 0x000022, BAD_DUMP CRC(c8ab29f4) SHA1(8cd352fb9335c4acba8db1a9db8ac1e08752b072) )
+ROM_END
+
+/*
+
+Americana - Standard 5 card draw Joker Poker.
+
+Pressing Service Mode "F2" brings up a Coins in for Coin1 & Coin2 plus total coins.
+
+Entering the Setup menu "S":
+ Hold3 switches selection choice.
+ Hold5 advances through the list.
+ Hi-Score will clear the High Scores
+
+Is the "Stand" & "Hi-Score" keys the same? Without a separate Stand key, you cannot set up the "TWIN" bonus feature
+
+*/
+ROM_START( americna ) /* Uses a small daughter card CRT-251 & Dallas DS1225Y NV SRAM */
+	ROM_REGION( 0x80000, "maincpu", 0 )
+	ROM_LOAD( "9131-00_u9-2.u9",   0x00000, 0x10000, CRC(8a741fb6) SHA1(2d77c67e5a0bdaf6199c31c4055df214672db3e1) ) /* 9131-00 U9-2  888020 */
+	ROM_LOAD( "9131-00_u10-0.u10", 0x10000, 0x10000, CRC(d6f72934) SHA1(4f3d6a5227a3b0fc298533a03cc0a32f8e2f3840) )
+	ROM_LOAD( "9131-00_u11-0.u11", 0x20000, 0x10000, CRC(f2db6f5d) SHA1(3f734a7e8c72c14bf4a3e6f595819311739394d3) )
+ROM_END
+
 ROM_START( dodgecty ) /* Uses a small daughter card CRT-255 & Dallas DS1225Y NV SRAM */
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD( "9131-02_u9-2t.u9",  0x00000, 0x10000, CRC(22e73039) SHA1(368f03b31f7c3cb81a95b20d1cb954e8557d2017) ) /* 9131-02 U9-2T  880111 */
 	ROM_LOAD( "9131-02_u10-0.u10", 0x10000, 0x10000, CRC(bc3391f3) SHA1(4df46f31489bc5e3de3f6fc917e23b9bb5231e5a) )
 	ROM_LOAD( "9131-02_u11-0.u11", 0x20000, 0x10000, CRC(f137d70c) SHA1(8ec04ec17300aa3a6ef14bcca1ca1c2aec0eea18) )
 ROM_END
-
-/*
-    Pit Boss II - Merit Industries Inc. 1988
-    ----------------------------------------
-
-    All eproms are 27C512
-
-    One 8 bank dip switch.
-
-    Two YAMAHA V9938 Video Processors.
-
-    21.47727 MHz Crystal
-
-    CPU Z80
-
-    Audio AY8930
-
-    Two Z80A-PIO
-
-    One bq4010YMA-150 NVRAM
-    Eight V53C464AP80 (41464) RAMS
-
-    One PAL16L8AN
-    One PAL20L10NC
-*/
 
 ROM_START( pitboss2 )
 	ROM_REGION( 0x80000, "maincpu", 0 )
@@ -1175,7 +1243,7 @@ ROM_END
 
 ROM_START( spitboss )
 	ROM_REGION( 0x80000, "maincpu", 0 )
-	ROM_LOAD( "9221-02_u9-0a.u9",   0x00000, 0x10000, CRC(e0c45c9c) SHA1(534bff67c8fee08f1c348275de8977659efa9f69) ) /* 9221-02A   886021  (actual, but should be 880621) */
+	ROM_LOAD( "9221-02_u9-0a.u9",   0x00000, 0x10000, CRC(e0c45c9c) SHA1(534bff67c8fee08f1c348275de8977659efa9f69) ) /* 9221-02A   886021 */
 	ROM_LOAD( "9221-02_u10-0.u10",  0x10000, 0x10000, CRC(ed010c58) SHA1(02750944a28c1c27ce2a9904d11b7e46272a940e) )
 	ROM_LOAD( "9221-02_u11-0a.u11", 0x20000, 0x10000, CRC(0c65fa86) SHA1(7906a8d615116ca67bf370dfb2da8cb2389a313d) )
 	ROM_LOAD( "9221-02_u12-0.u12",  0x30000, 0x10000, CRC(0cf95b0e) SHA1(c6ffc13703892b9ae0da39a02db37c4ec890f79e) )
@@ -1199,7 +1267,7 @@ ROM_END
 
 ROM_START( pitbosssa )
 	ROM_REGION( 0x80000, "maincpu", 0 )
-	ROM_LOAD( "9221-10_u9-0a.u9",   0x00000, 0x10000, CRC(41be6b30) SHA1(c4df87a599e310ce29ee9277e5adc916ff68f060) ) /* 9221-10-00A  090370  (actual, but should be 090390) */
+	ROM_LOAD( "9221-10_u9-0a.u9",   0x00000, 0x10000, CRC(41be6b30) SHA1(c4df87a599e310ce29ee9277e5adc916ff68f060) ) /* 9221-10-00A  090370 */
 	ROM_LOAD( "9221-10_u10-0.u10",  0x10000, 0x10000, CRC(853a1a99) SHA1(45e33442aa7e51c05c9ac8b8458937ee3ff4c21d) )
 	ROM_LOAD( "9221-10_u11-0a.u11", 0x20000, 0x10000, CRC(c9137469) SHA1(618680609bdffa92b919a2417bd3ec41a4c8bf2b) )
 	ROM_LOAD( "9221-10_u12-0.u12",  0x30000, 0x10000, CRC(3577a203) SHA1(80f9c827ad9dea2c6af788bd3b46ab65e8c594eb) )
@@ -1235,12 +1303,38 @@ ROM_START( pbss330 ) /* Dallas DS1204V security key attached to CRT-254 connecte
 	ROM_LOAD( "9233-00-01_u15-r0", 0x60000, 0x10000, CRC(5810840e) SHA1(bad6457752ac212c3c11360a13a8d3473662a287) )
 
 	ROM_REGION( 0x000022, "ds1204", 0 )
-	ROM_LOAD( "9233-01_u1-ro1_c1993_mii", 0x000000, 0x000022, BAD_DUMP CRC(93459659) SHA1(73ad4c3a7c52d3db3acb43662c535f8c2ed2376a) )
+	ROM_LOAD( "9233-01_u1-r01_c1993_mii", 0x000000, 0x000022, BAD_DUMP CRC(93459659) SHA1(73ad4c3a7c52d3db3acb43662c535f8c2ed2376a) )
 
 	ROM_REGION( 0xc0000, "extra", 0 ) // question roms
 	ROM_LOAD( "qs9233-01_u7-r0",  0x00000, 0x40000, CRC(176dd688) SHA1(306cf78101219ef1122023a01d16dff5e9f2aecf) ) /* These 3 roms are on CRT-256 sattalite PCB */
 	ROM_LOAD( "qs9233-01_u6-r0",  0x40000, 0x40000, CRC(59c85a0a) SHA1(ef7f45c4e032d9dd14c4f5237f5b3c487be0cb2f) )
 	ROM_LOAD( "qs9233-01_u5-r0",  0x80000, 0x40000, CRC(740b1274) SHA1(14eab68fc137b905a5a2739c7081900a48cba562) )
+ROM_END
+
+/*
+Basically this Pit Boss Megatouch set is Pit Boss Supertouch 30 v2.0 but marks the first time Merit
+ started using the Megatouch name.
+
+NOTE: Once again U10, U12 & U13 doesn't change between this set and the Pit Boss Supertouch 30 sets
+      and the question roms are the same data with a new label and game number ID
+*/
+ROM_START( megat ) /* Dallas DS1204V security key attached to CRT-254 connected to J2 connector labeled 9234-20 U1-RO C1994 MII */
+	ROM_REGION( 0x80000, "maincpu", 0 )
+	ROM_LOAD( "9234-20-01_u9-r0a",  0x00000, 0x10000, CRC(5a9fd092) SHA1(756b6a925dafb17451e7dc37c95a26d09ecfe2d7) ) /* 9234-20-01 R0A 940519 */
+	ROM_LOAD( "9234-20-01_u10-r0a", 0x10000, 0x10000, CRC(853a1a99) SHA1(45e33442aa7e51c05c9ac8b8458937ee3ff4c21d) ) /* Also found as PBC U10 */
+	ROM_LOAD( "9234-20-01_u11-r0a", 0x20000, 0x10000, CRC(8bd5f6bb) SHA1(95b23d7d14207fcafc01ee975400ebdd1e7b5ad5) )
+	ROM_LOAD( "9234-20-01_u12-r0a", 0x30000, 0x10000, CRC(b9fb4203) SHA1(84b514d9739d9c2ab1081cfc7cdedb41155ee038) ) /* Also found as PBC U12 */
+	ROM_LOAD( "9234-20-01_u13-r0a", 0x40000, 0x10000, CRC(574fb3c7) SHA1(213741df3055b97ddd9889c2aa3d3e863e2c86d3) ) /* Also found as PBC U13 */
+	ROM_LOAD( "9234-20-01_u14-r0a", 0x50000, 0x10000, CRC(40d78506) SHA1(5e1d8e4ef8aa02faa2a323f5e988bf56d4747b60) )
+	ROM_LOAD( "9234-20-01_u15-r0a", 0x60000, 0x10000, CRC(9adc67b8) SHA1(271e6b6473eeea01f2923ef82c192a583bb5e338) )
+
+	ROM_REGION( 0x000022, "ds1204", 0 )
+	ROM_LOAD( "9234-20_u1-r0_c1994_mii", 0x000000, 0x000022, BAD_DUMP CRC(6cbdbde1) SHA1(b076ee21fc792a5e85cdaed427bc41554568811e) )
+
+	ROM_REGION( 0xc0000, "extra", 0 ) // question roms
+	ROM_LOAD( "qs9234-20_u7-r0",  0x00000, 0x40000, CRC(c0534aaa) SHA1(4b3cbf03f29fd5b4b8fd423e73c0c8147692fa75) ) /* These 3 roms are on CRT-256 sattalite PCB */
+	ROM_LOAD( "qs9234-20_u6-r0",  0x40000, 0x40000, CRC(fe2cd934) SHA1(623011dc53ed6eefefa0725dba6fd1efee2077c1) ) /* Same data as Pit Boss Supertouch 30 sets, different label - verified */
+	ROM_LOAD( "qs9234-20_u5-r0",  0x80000, 0x40000, CRC(293fe305) SHA1(8a551ae8fb4fa4bf329128be1bfd6f1c3ff5a366) )
 ROM_END
 
 ROM_START( pbst30 ) /* Dallas DS1204V security key attached to CRT-254 connected to J2 connector labeled 9234-10 U1-RO1 C1994 MII */
@@ -1254,7 +1348,7 @@ ROM_START( pbst30 ) /* Dallas DS1204V security key attached to CRT-254 connected
 	ROM_LOAD( "9234-10-01_u15-r0", 0x60000, 0x10000, CRC(9fbd8582) SHA1(c0f68c8a7cdca34c8736cefc71767c421bcaba8a) )
 
 	ROM_REGION( 0x000022, "ds1204", 0 )
-	ROM_LOAD( "9234-10_u1-ro1_c1994_mii", 0x000000, 0x000022, BAD_DUMP CRC(1c782f78) SHA1(8255afcffbe21a43f53cfb41867552681403ea47) )
+	ROM_LOAD( "9234-10_u1-r01_c1994_mii", 0x000000, 0x000022, BAD_DUMP CRC(1c782f78) SHA1(8255afcffbe21a43f53cfb41867552681403ea47) )
 
 	ROM_REGION( 0xc0000, "extra", 0 ) // question roms
 	ROM_LOAD( "qs9234-01_u7-r0",  0x00000, 0x40000, CRC(c0534aaa) SHA1(4b3cbf03f29fd5b4b8fd423e73c0c8147692fa75) ) /* These 3 roms are on CRT-256 sattalite PCB */
@@ -1262,7 +1356,7 @@ ROM_START( pbst30 ) /* Dallas DS1204V security key attached to CRT-254 connected
 	ROM_LOAD( "qs9234-01_u5-r0",  0x80000, 0x40000, CRC(293fe305) SHA1(8a551ae8fb4fa4bf329128be1bfd6f1c3ff5a366) )
 ROM_END
 
-ROM_START( pbst30b ) /* Dallas DS1204V security key attached to CRT-254 connected to J2 connector labeled 9234-01 U1-RO1 C1993 MII */
+ROM_START( pbst30a ) /* Dallas DS1204V security key attached to CRT-254 connected to J2 connector labeled 9234-01 U1-RO1 C1993 MII */
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD( "9234-00-01_u9-r0a",  0x00000, 0x10000, CRC(5f058f95) SHA1(98382935340a076bdb1b20c7f16c25b6084599fe) ) /* 9234-00-01  122293 */
 	ROM_LOAD( "9234-00-01_u10-r0",  0x10000, 0x10000, CRC(853a1a99) SHA1(45e33442aa7e51c05c9ac8b8458937ee3ff4c21d) )
@@ -1273,7 +1367,7 @@ ROM_START( pbst30b ) /* Dallas DS1204V security key attached to CRT-254 connecte
 	ROM_LOAD( "9234-00-01_u15-r0a", 0x60000, 0x10000, CRC(f10f0d39) SHA1(2b5d5a93adb5251e09160b10c067b6e70289f608) )
 
 	ROM_REGION( 0x000022, "ds1204", 0 )
-	ROM_LOAD( "9234-01_u1-ro1_c1993_mii", 0x000000, 0x000022, BAD_DUMP CRC(74bf0546) SHA1(eb44a057cf797279ee3456a74e166fa711547ea4) )
+	ROM_LOAD( "9234-01_u1-r01_c1993_mii", 0x000000, 0x000022, BAD_DUMP CRC(74bf0546) SHA1(eb44a057cf797279ee3456a74e166fa711547ea4) )
 
 	ROM_REGION( 0xc0000, "extra", 0 ) // question roms
 	ROM_LOAD( "qs9234-01_u7-r0",  0x00000, 0x40000, CRC(c0534aaa) SHA1(4b3cbf03f29fd5b4b8fd423e73c0c8147692fa75) ) /* These 3 roms are on CRT-256 sattalite PCB */
@@ -1291,7 +1385,6 @@ ROM_START( pitbossma ) /* Unprotected or patched??  The manual shows a DS1204 ke
 	ROM_RELOAD(     0x50000, 0x10000) /* U14 is unused for this set */
 	ROM_LOAD( "9243-00-01_u15-r0", 0x60000, 0x10000, CRC(27034061) SHA1(cff6be592a4a3ab01c204b081470f224e6186c4d) )
 	ROM_RELOAD(     0x70000, 0x10000)
-
 
 	ROM_REGION( 0xc0000, "extra", 0 ) // question roms
 	ROM_LOAD( "qs9243-00-01_u7-r0",  0x00000, 0x40000, CRC(35f4ca46) SHA1(87917b3017f505fae65d6bfa2c7d6fb503c2da6a) ) /* These 3 roms are on CRT-256 sattalite PCB */
@@ -1331,12 +1424,11 @@ Description of Changes:
 1- Great Draw Poker and 7 Stud Poker have been added to the program set
 2- On page 3-1 legend artwork has changed. PASS has been replaced with
    PASS/PLAY and COLLECT/QUIT has been replaced with COLLECT/QUIT/RAISE
-3- An additional Solitaire Instruction decal has beed added to the kit.
-   This new Instruction decal is to be mounted in a visivle loction for
+3- An additional Solitaire Instruction decal has been added to the kit.
+   This new Instruction decal is to be mounted in a visible location for
    players use.
 
 */
-
 ROM_START( pitbossm ) /* Dallas DS1204V security key attached to CRT-254 connected to J2 connector labeled 9244-00 U1-RO1 C1994 MII */
 	ROM_REGION( 0x80000, "maincpu", 0 )
 	ROM_LOAD( "9244-00-01_u9-r0",  0x00000, 0x10000, CRC(8317fea1) SHA1(eb84fdca7cd51883153561785571790d12d0d612) ) /* 9244-00-01 R0  940822 */
@@ -1392,11 +1484,10 @@ In the rom there is text for:
   Hi-Score             Yes / No
 
 It's unknown if the above is used for regional versions of the game or left over from previous
- versions of the game such as Dodge City which also contains many of the same text strings.
+ versions of games such as Americana or Dodge City which also contains many of the same text strings.
 It's currently unknown how to access / enable those features or if it's possible to do so.
 
 */
-
 ROM_START( realbrod ) /* Dallas DS1204U-3 security key labeled 9131-20-00-U5-R0A */
 	ROM_REGION( 0x400000, "maincpu", 0 )
 	/* U32 Empty */
@@ -1418,7 +1509,7 @@ ROM_END
 
     System Info
     -----------
-     This is a counter top Touch screen game.
+     This is a counter top Touchscreen game.
 
     processor.. Z80 (Z0840006PSC)
     sound chip Yamaha YM2149F
@@ -1427,8 +1518,8 @@ ROM_END
              one PC16550DN
              one PB255a or L5220574
              One Dallas DS1204 Data Key
-             One Dallas DS1225Y 64k Non-volitile SRAM (Mega Touch 4)
-              or Dallas DS1230Y 256K Non-volitile SRAM (Mega Touch 6)
+             One Dallas DS1225Y 64k Non-volatile SRAM (Mega Touch 4)
+              or Dallas DS1230Y 256K Non-volatile SRAM (Mega Touch 6)
               or Dallas DS1644 32K NVRAM + RTC (Tournament sets)
              Two Z80APIO (Z0842004PSC)
 
@@ -1874,8 +1965,8 @@ ROM_START( megat4s ) /* Dallas DS1204V security key at U5 labeled 9255-40-01 U5-
 	ROM_LOAD( "9255-40-01_u5-b-ro1_c1996_mii", 0x000000, 0x000022, BAD_DUMP CRC(f1de113a) SHA1(0ddd963e24a5c36f11967c2653ec5991a6eaa1a4) )
 
 	ROM_REGION( 0x1000, "user2", 0 ) // PALs
-	ROM_LOAD( "sc3943(__megat4s).u20",     0x000, 0x117, CRC(f31864ff) SHA1(ff44820379a350e7bd788ffb6926612b3483e114) )
-	ROM_LOAD( "sc3944-0a(__megat4s).u19",  0x000, 0x2dd, CRC(ad4fddaa) SHA1(10c1575dcaa5ca4af5dc630d84f43a9ed1cb3ace) )
+	ROM_LOAD( "sc3943.u20",     0x000, 0x117, CRC(f31864ff) SHA1(ff44820379a350e7bd788ffb6926612b3483e114) ) // sldh
+	ROM_LOAD( "sc3944-0a.u19",  0x000, 0x2dd, CRC(ad4fddaa) SHA1(10c1575dcaa5ca4af5dc630d84f43a9ed1cb3ace) ) // sldh
 	ROM_LOAD( "sc3980.u40",     0x000, 0x117, CRC(ee0cdab5) SHA1(216fef50a8a0f6a33b704d3501a4c5c3cbac2bad) )
 	ROM_LOAD( "sc3981-0a.u51",  0x000, 0x117, CRC(4fc750d0) SHA1(d09ff7a8c66aeb5c49e9fec84bd1521e3f5d8d0a) )
 ROM_END
@@ -1894,8 +1985,8 @@ ROM_START( megat4sa ) /* Dallas DS1204V security key at U5 labeled 9255-40-01 U5
 	ROM_LOAD( "9255-40-01_u5-b-ro1_c1996_mii", 0x000000, 0x000022, BAD_DUMP CRC(f1de113a) SHA1(0ddd963e24a5c36f11967c2653ec5991a6eaa1a4) )
 
 	ROM_REGION( 0x1000, "user2", 0 ) // PALs
-	ROM_LOAD( "sc3943(__megat4s).u20",     0x000, 0x117, CRC(f31864ff) SHA1(ff44820379a350e7bd788ffb6926612b3483e114) )
-	ROM_LOAD( "sc3944-0a(__megat4s).u19",  0x000, 0x2dd, CRC(ad4fddaa) SHA1(10c1575dcaa5ca4af5dc630d84f43a9ed1cb3ace) )
+	ROM_LOAD( "sc3943.u20",     0x000, 0x117, CRC(f31864ff) SHA1(ff44820379a350e7bd788ffb6926612b3483e114) ) // sldh
+	ROM_LOAD( "sc3944-0a.u19",  0x000, 0x2dd, CRC(ad4fddaa) SHA1(10c1575dcaa5ca4af5dc630d84f43a9ed1cb3ace) ) // sldh
 	ROM_LOAD( "sc3980.u40",     0x000, 0x117, CRC(ee0cdab5) SHA1(216fef50a8a0f6a33b704d3501a4c5c3cbac2bad) )
 	ROM_LOAD( "sc3981-0a.u51",  0x000, 0x117, CRC(4fc750d0) SHA1(d09ff7a8c66aeb5c49e9fec84bd1521e3f5d8d0a) )
 ROM_END
@@ -1914,8 +2005,8 @@ ROM_START( megat4sb ) /* Dallas DS1204V security key at U5 labeled 9255-40-01 U5
 	ROM_LOAD( "9255-40-01_u5-b-ro1_c1996_mii", 0x000000, 0x000022, BAD_DUMP CRC(f1de113a) SHA1(0ddd963e24a5c36f11967c2653ec5991a6eaa1a4) )
 
 	ROM_REGION( 0x1000, "user2", 0 ) // PALs
-	ROM_LOAD( "sc3943(__megat4s).u20",     0x000, 0x117, CRC(f31864ff) SHA1(ff44820379a350e7bd788ffb6926612b3483e114) )
-	ROM_LOAD( "sc3944-0a(__megat4s).u19",  0x000, 0x2dd, CRC(ad4fddaa) SHA1(10c1575dcaa5ca4af5dc630d84f43a9ed1cb3ace) )
+	ROM_LOAD( "sc3943.u20",     0x000, 0x117, CRC(f31864ff) SHA1(ff44820379a350e7bd788ffb6926612b3483e114) ) // sldh
+	ROM_LOAD( "sc3944-0a.u19",  0x000, 0x2dd, CRC(ad4fddaa) SHA1(10c1575dcaa5ca4af5dc630d84f43a9ed1cb3ace) ) // sldh
 	ROM_LOAD( "sc3980.u40",     0x000, 0x117, CRC(ee0cdab5) SHA1(216fef50a8a0f6a33b704d3501a4c5c3cbac2bad) )
 	ROM_LOAD( "sc3981-0a.u51",  0x000, 0x117, CRC(4fc750d0) SHA1(d09ff7a8c66aeb5c49e9fec84bd1521e3f5d8d0a) )
 ROM_END
@@ -2186,27 +2277,30 @@ DRIVER_INIT_MEMBER(meritm_state,megat3te)
 	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0xfff8, 0xffff, read8_delegate(FUNC(meritm_state::meritm_ds1644_r), this), write8_delegate(FUNC(meritm_state::meritm_ds1644_w), this));
 };
 
-/* CRT 250 */
-GAME( 1988, dodgecty,  0,        meritm_crt250, dodgecty, driver_device, 0,        ROT0, "Merit", "Dodge City (9131-02)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1988, pitboss2,  0,        meritm_crt250, pitboss2, driver_device, 0,        ROT0, "Merit", "Pit Boss II (9221-01C)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1988, spitboss,  0,        meritm_crt250, spitboss, driver_device, 0,        ROT0, "Merit", "Super Pit Boss (9221-02A)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1990, pitbosss,  0,        meritm_crt250, pitbosss, driver_device, 0,        ROT0, "Merit", "Pit Boss Superstar (9221-10-00B)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1990, pitbosssa, pitbosss, meritm_crt250, pitbosss, driver_device, 0,        ROT0, "Merit", "Pit Boss Superstar (9221-10-00A)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1992, pitbosssc, pitbosss, meritm_crt250, pitbosss, driver_device, 0,        ROT0, "Merit", "Pit Boss Superstar (9221-12-01)", GAME_IMPERFECT_GRAPHICS )
+/* CRT-250 */
+GAME( 1987, americna,  0,        meritm_crt250, americna,  driver_device, 0,        ROT0, "Merit", "Americana (9131-00)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1988, dodgecty,  0,        meritm_crt250, dodgecty,  driver_device, 0,        ROT0, "Merit", "Dodge City (9131-02)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1988, pitboss2,  0,        meritm_crt250, pitboss2,  driver_device, 0,        ROT0, "Merit", "Pit Boss II (9221-01C)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1988, spitboss,  0,        meritm_crt250, spitboss,  driver_device, 0,        ROT0, "Merit", "Super Pit Boss (9221-02A)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1990, pitbosss,  0,        meritm_crt250, pitbosss,  driver_device, 0,        ROT0, "Merit", "Pit Boss Superstar (9221-10-00B)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1990, pitbosssa, pitbosss, meritm_crt250, pitbosss,  driver_device, 0,        ROT0, "Merit", "Pit Boss Superstar (9221-10-00A)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1992, pitbosssc, pitbosss, meritm_crt250, pitbosss,  driver_device, 0,        ROT0, "Merit", "Pit Boss Superstar (9221-12-01)", GAME_IMPERFECT_GRAPHICS )
 
-/* CRT 250 + CRT 252 + CRT 256 + CRT 258 */
-GAME( 1994, pbst30,    0,      meritm_crt250_crt252_crt258, pbst30, driver_device, 0,        ROT0, "Merit", "Pit Boss Supertouch 30 (9234-10-01)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1993, pbst30b,   pbst30, meritm_crt250_crt252_crt258, pbst30, driver_device, 0,        ROT0, "Merit", "Pit Boss Supertouch 30 (9234-00-01)", GAME_IMPERFECT_GRAPHICS )
+/* CRT-250 + CRT-252 + CRT-256 + CRT-258 */
+GAME( 1994, mtjpoker,  0,        meritm_crt250_crt252_crt258, mtjpoker,   driver_device, 0,  ROT0, "Merit", "Merit Touch Joker Poker (9132-00)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, megat,     0,        meritm_crt250_crt252_crt258, pbst30,     driver_device, 0,  ROT0, "Merit", "Pit Boss Megatouch (9234-20-01)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, pbst30,    0,        meritm_crt250_crt252_crt258, pbst30,     driver_device, 0,  ROT0, "Merit", "Pit Boss Supertouch 30 (9234-10-01)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1993, pbst30a,   pbst30,   meritm_crt250_crt252_crt258, pbst30,     driver_device, 0,  ROT0, "Merit", "Pit Boss Supertouch 30 (9234-00-01)", GAME_IMPERFECT_GRAPHICS )
 
-/* CRT 250 + CRT 254 + CRT 256 */
-GAME( 1993, pbss330,   0,        meritm_crt250_questions, pbss330,  driver_device, 0,        ROT0, "Merit", "Pit Boss Superstar III 30 (9233-00-01)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1994, pitbossm,  0,        meritm_crt250_questions, pitbossm, driver_device, 0,        ROT0, "Merit", "Pit Boss Megastar (9244-00-01)", GAME_IMPERFECT_GRAPHICS )
-GAME( 1994, pitbossma, pitbossm, meritm_crt250_questions, pitbossa, driver_device, 0,        ROT0, "Merit", "Pit Boss Megastar (9243-00-01)", GAME_IMPERFECT_GRAPHICS )
+/* CRT-250 + CRT-254 + CRT-256 */
+GAME( 1993, pbss330,   0,        meritm_crt250_questions, pbss330,  driver_device, 0, ROT0, "Merit", "Pit Boss Superstar III 30 (9233-00-01)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, pitbossm,  0,        meritm_crt250_questions, pitbossm, driver_device, 0, ROT0, "Merit", "Pit Boss Megastar (9244-00-01)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1994, pitbossma, pitbossm, meritm_crt250_questions, pitbossa, driver_device, 0, ROT0, "Merit", "Pit Boss Megastar (9243-00-01)", GAME_IMPERFECT_GRAPHICS )
 
-/* CRT 260 NON-touchscreen based */
-GAME( 1995, realbrod,  0,      meritm_crt260, realbrod,      driver_device, 0,        ROT0, "Merit", "The Real Broadway (9131-20-00 R0A)", GAME_IMPERFECT_GRAPHICS )
+/* CRT-260 NON-touchscreen based */
+GAME( 1995, realbrod,  0,        meritm_crt260, realbrod,    driver_device, 0,        ROT0, "Merit", "The Real Broadway (9131-20-00 R0A)", GAME_IMPERFECT_GRAPHICS )
 
-/* CRT 260 */
+/* CRT-260 */
 GAME( 1994, megat2,    0,      meritm_crt260, meritm_crt260, driver_device, 0,        ROT0, "Merit", "Pit Boss Megatouch II (9255-10-01 ROG, Standard version)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1994, megat2a ,  megat2, meritm_crt260, meritm_crt260, driver_device, 0,        ROT0, "Merit", "Pit Boss Megatouch II (9255-10-01 ROE, Standard version)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1994, megat2b ,  megat2, meritm_crt260, meritm_crt260, driver_device, 0,        ROT0, "Merit", "Pit Boss Megatouch II (9255-10-01 ROD, Standard version)", GAME_IMPERFECT_GRAPHICS )

@@ -76,14 +76,6 @@
 #define VBEND                   (16)
 
 #define HRES_MULT                   (1)
-
-fixedfreq_interface fixedfreq_mode_atarikee = {
-	MASTER_CLOCK,
-	H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL,
-	V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL,
-	1,  /* non-interlaced */
-	0.30
-};
 // end
 
 
@@ -150,7 +142,12 @@ static MACHINE_CONFIG_START( atarikee, atarikee_state )
 	MCFG_NETLIST_SETUP(atarikee)
 
 	/* video hardware */
-	MCFG_FIXFREQ_ADD("fixfreq", "screen", fixedfreq_mode_atarikee)
+	MCFG_FIXFREQ_ADD("fixfreq", "screen")
+	MCFG_FIXFREQ_MONITOR_CLOCK(MASTER_CLOCK)
+	MCFG_FIXFREQ_HORZ_PARAMS(H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL)
+	MCFG_FIXFREQ_VERT_PARAMS(V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL)
+	MCFG_FIXFREQ_FIELDCOUNT(1)
+	MCFG_FIXFREQ_SYNC_THRESHOLD(0.30)
 MACHINE_CONFIG_END
 
 
@@ -169,7 +166,7 @@ ROM_START( antiairc )
 ROM_END
 
 
-ROM_START( crshnscr )
+ROM_START( crashnsc )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )
 
 	ROM_REGION( 0x0400, "gfx", ROMREGION_ERASE00 )
@@ -288,7 +285,7 @@ ROM_START( steeplec )
 ROM_END
 
 
-ROM_START( stntcycl )
+ROM_START( stuntcyc )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )
 
 	ROM_REGION( 0x0200, "gfx", ROMREGION_ERASE00 )
@@ -416,15 +413,15 @@ ROM_END
 
 
 GAME(1975,  antiairc,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Anti-Aircraft [TTL]",    GAME_IS_SKELETON)
-GAME(1975,  crshnscr,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Crash 'n Score [TTL]",   GAME_IS_SKELETON)
+GAME(1975,  crashnsc,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Crash 'n Score [TTL]",   GAME_IS_SKELETON)
 GAME(1976,  indy4,     0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Indy 4 [TTL]",           GAME_IS_SKELETON)
 GAME(1975,  indy800,   0,         atarikee,   0,  driver_device, 0,  ROT90, "Atari/Kee",  "Indy 800 [TTL]",         GAME_IS_SKELETON)
-GAME(1975,  jetfight,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Jet Fighter (Set1) [TTL]",      GAME_IS_SKELETON)
-GAME(1975,  jetfighta, jetfight,  atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Jet Fighter (Set2) [TTL]",      GAME_IS_SKELETON)
+GAME(1975,  jetfight,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Jet Fighter (set 1) [TTL]",      GAME_IS_SKELETON)
+GAME(1975,  jetfighta, jetfight,  atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Jet Fighter (set 2) [TTL]",      GAME_IS_SKELETON)
 GAME(1976,  outlaw,    0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Outlaw [TTL]",           GAME_IS_SKELETON)
 GAME(1975,  sharkjaw,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari/Horror Games",  "Shark JAWS [TTL]",GAME_IS_SKELETON)
 GAME(1975,  steeplec,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Steeplechase [TTL]",     GAME_IS_SKELETON)
-GAME(1976,  stntcycl,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Stunt Cycle [TTL]",      GAME_IS_SKELETON)
+GAME(1976,  stuntcyc,  0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari",      "Stunt Cycle [TTL]",      GAME_IS_SKELETON)
 GAME(1974,  tank,      0,         atarikee,   0,  driver_device, 0,  ROT0,  "Atari/Kee",  "Tank/Tank II [TTL]",     GAME_IS_SKELETON)
 
 // MISSING ROM DUMPS

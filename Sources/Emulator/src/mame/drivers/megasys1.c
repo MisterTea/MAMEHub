@@ -8,40 +8,39 @@
 To enter service mode in some games press service1+F3.
 
 
-Year + Game                         System      Protection
-----------------------------------------------------------------------------
+Year + Game                       System    Protection
+---------------------------------------------------------------------
 88  Legend of Makai (World) /       Z
     Makai Densetsu  (Japan)         Z
     P-47  (World) /                 A
     P-47  (Japan) /                 A
     P-47  (Japan, Export)           A
     Kick Off (Japan)                A
-    Takeda Shingen (Japan)          A                 Encryption (key 1)
-    Ninja Kazan (World) /           A           Yes + Encryption (key 1)
-    Iga Ninjyutsuden (Japan)        A           Yes + Encryption (key 1)
-89  Astyanax          (World) /     A           Yes + Encryption (key 2)
-    The Lord of King  (Japan)       A           Yes + Encryption (key 2)
-    Hachoo!                         A           Yes + Encryption (key 2)
-    Jitsuryoku!! Pro Yakyuu (Japan) A           Yes + Encryption (key 2)
-    Plus Alpha                      A           Yes + Encryption (key 2)
-    Saint Dragon                    A           Yes + Encryption (key 1)
-90  RodLand  (World) /              A                 Encryption (key 3)
-    RodLand  (Japan)                A                 Encryption (key 2)
-    Phantasm        (Japan) /       A                 Encryption (key 1)
-91  Avenging Spirit (World)         B           Inputs
-    Earth Defense Force             B           Inputs
-    64th Street  (World) /          C       *   Inputs
-    64th Street  (Japan)            C       *   Inputs
-92  Soldam (Japan)                  A                 Encryption (key 2)
-    Big Striker                     C           Inputs
-93  Chimera Beast                   C       *   Inputs
-    Cybattler                       C           Inputs
-    Hayaoshi Quiz Ouza Ketteisen    B           Inputs
-    Peek-a-Boo!                     D           Inputs
---------------------------------------------^-------------------------------
-                                            |
-                            The Priority Prom is missing for these games !
+    Takeda Shingen (Japan)          A             Encryption (key 1)
+    Ninja Kazan (World) /           A       Yes + Encryption (key 1)
+    Iga Ninjyutsuden (Japan)        A       Yes + Encryption (key 1)
+89  Astyanax          (World) /     A       Yes + Encryption (key 2)
+    The Lord of King  (Japan)       A       Yes + Encryption (key 2)
+    Hachoo!                         A       Yes + Encryption (key 2)
+    Jitsuryoku!! Pro Yakyuu (Japan) A       Yes + Encryption (key 2)
+    Plus Alpha                      A       Yes + Encryption (key 2)
+    Saint Dragon                    A       Yes + Encryption (key 1)
+90  RodLand  (World) /              A             Encryption (key 3)
+    RodLand  (Japan)                A             Encryption (key 2)
+    Phantasm        (Japan) /       A             Encryption (key 1)
+91  Avenging Spirit (World)         B       Inputs
+    Earth Defense Force             B       Inputs
+    64th Street  (World) /          C       Inputs
+    64th Street  (Japan)            C       Inputs
+92  Soldam (Japan)                  A             Encryption (key 2)
+    Big Striker                     C       Inputs
+93  Chimera Beast                   C       Inputs
+    Cybattler                       C       Inputs
+    Hayaoshi Quiz Ouza Ketteisen    B       Inputs
+    Peek-a-Boo!                     D       Inputs
+---------------------------------------------------------------------
 
+NOTE: Chimera Beast is the only game missing a dump of its priority PROM
 
 
 Hardware    Main CPU    Sound CPU   Sound Chips
@@ -93,8 +92,8 @@ RAM         RW      0f0000-0f3fff       0e0000-0effff?      <
                                 --------------
 
 - There is a 512 byte PROM in the video section (differs by game) that
-  controls the priorities. This prom is currently missing for two games,
-  so we have to use fake data for those two (64th Street & Chimera Beast).
+  controls the priorities. This prom is currently missing for one game,
+  so we have to use fake data for it (Chimera Beast).
 
 - Making the M6295 status register return 0 fixes the music tempo in
   avspirit, 64street, astyanax etc. but makes most of the effects in
@@ -105,8 +104,13 @@ RAM         RW      0f0000-0f3fff       0e0000-0effff?      <
 
 - Understand properly how irqs truly works, kazan / iganinju is (again) broken.
 
-- 64street: player characters in attract mode doesn't move at all, protection
-  or btanb?
+- 64street: player characters in attract mode doesn't move at all, protection?
+  they move on the real PCB
+
+- tshingen: unemulated mosaic effect when killing enemies with the flashing sword.
+  See https://youtu.be/m4ZH0v8UqWs
+  The effect can be tested in e.g. stdragon and p47 test mode:
+  See https://youtu.be/zo3FTCqkNBc and https://youtu.be/dEqH017YBzw
 
 - Understand a handful of unknown bits in video regs
 
@@ -312,6 +316,10 @@ static ADDRESS_MAP_START( megasys1D_map, AS_PROGRAM, 16, megasys1_state )
 	AM_RANGE(0x1f0000, 0x1fffff) AM_RAM AM_SHARE("ram")
 ADDRESS_MAP_END
 
+static ADDRESS_MAP_START( megasys1D_oki_map, AS_0, 8, megasys1_state )
+	AM_RANGE(0x00000, 0x1ffff) AM_ROM
+	AM_RANGE(0x20000, 0x3ffff) AM_ROMBANK("okibank")
+ADDRESS_MAP_END
 
 /*************************************
  *
@@ -390,7 +398,7 @@ READ8_MEMBER(megasys1_state::oki_status_2_r)
 	if (m_ignore_oki_status == 1)
 		return 0;
 	else
-		return m_oki1->read_status();
+		return m_oki2->read_status();
 }
 /***************************************************************************
                             [ Sound CPU - System A ]
@@ -1382,16 +1390,7 @@ WRITE16_MEMBER(megasys1_state::protection_peekaboo_w)
 	COMBINE_DATA(&m_protection_val);
 
 	if ((m_protection_val & 0x90) == 0x90)
-	{
-		UINT8 *RAM = m_region_oki1->base();
-		int new_bank = (m_protection_val & 0x7) % 7;
-
-		if (m_bank != new_bank)
-		{
-			memcpy(&RAM[0x20000],&RAM[0x40000 + 0x20000*new_bank],0x20000);
-			m_bank = new_bank;
-		}
-	}
+		membank("okibank")->set_entry(m_protection_val & 7);
 
 	m_maincpu->set_input_line(4, HOLD_LINE);
 }
@@ -1621,6 +1620,7 @@ static MACHINE_CONFIG_START( system_D, megasys1_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_OKIM6295_ADD("oki1", SYS_D_CPU_CLOCK/4, OKIM6295_PIN7_HIGH)    /* 2MHz (8MHz / 4) */
+	MCFG_DEVICE_ADDRESS_MAP(AS_0, megasys1D_oki_map)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1755,7 +1755,7 @@ ROM_START( 64street )
 	ROM_LOAD( "64th_10.rom", 0x000000, 0x040000, CRC(a3390561) SHA1(f86d5c61e3e80d30408535c2203940ca1e95ac18) )
 
 	ROM_REGION( 0x0200, "proms", 0 )        /* Priority PROM */
-	ROM_LOAD( "prom",        0x0000, 0x0200, NO_DUMP )
+	ROM_LOAD( "pr91009.12",  0x0000, 0x0200, CRC(c69423d6) SHA1(ba9644a9899df2d73a5a16bf7ceef1954c2e25f3) ) // same as pr-91044 on hayaosi1
 ROM_END
 
 
@@ -1791,7 +1791,7 @@ ROM_START( 64streetj )
 	ROM_LOAD( "64th_10.rom", 0x000000, 0x040000, CRC(a3390561) SHA1(f86d5c61e3e80d30408535c2203940ca1e95ac18) )
 
 	ROM_REGION( 0x0200, "proms", 0 )        /* Priority PROM */
-	ROM_LOAD( "prom",        0x0000, 0x0200, NO_DUMP )
+	ROM_LOAD( "pr91009.12",  0x0000, 0x0200, CRC(c69423d6) SHA1(ba9644a9899df2d73a5a16bf7ceef1954c2e25f3) ) // same as pr-91044 on hayaosi1
 ROM_END
 
 
@@ -3145,9 +3145,8 @@ ROM_START( peekaboo )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Sprites */
 	ROM_LOAD( "1",       0x000000, 0x080000, CRC(5a444ecf) SHA1(38a7a6e91d0635a7f82a1c9a04efe1586ed3d856) )
 
-	ROM_REGION( 0x120000, "oki1", 0 )       /* Samples */
-	ROM_LOAD( "peeksamp.124", 0x000000, 0x020000, CRC(e1206fa8) SHA1(339d5a4fa2af7fb4ab2e9c6c66f4848fa8774832) )
-	ROM_CONTINUE(             0x040000, 0x0e0000 )
+	ROM_REGION( 0x100000, "oki1", 0 )       /* Samples */
+	ROM_LOAD( "peeksamp.124", 0x000000, 0x100000, CRC(e1206fa8) SHA1(339d5a4fa2af7fb4ab2e9c6c66f4848fa8774832) )
 
 	ROM_REGION( 0x0200, "proms", 0 )        /* Priority PROM */
 	ROM_LOAD( "priority.69",    0x000000, 0x200, CRC(b40bff56) SHA1(39c95eed79328ef2df754988db83e07909e848f8) )
@@ -3173,9 +3172,8 @@ ROM_START( peekaboou )
 	ROM_REGION( 0x080000, "gfx4", 0 ) /* Sprites */
 	ROM_LOAD( "1",       0x000000, 0x080000, CRC(5a444ecf) SHA1(38a7a6e91d0635a7f82a1c9a04efe1586ed3d856) )
 
-	ROM_REGION( 0x120000, "oki1", 0 )       /* Samples */
-	ROM_LOAD( "peeksamp.124", 0x000000, 0x020000, CRC(e1206fa8) SHA1(339d5a4fa2af7fb4ab2e9c6c66f4848fa8774832) )
-	ROM_CONTINUE(             0x040000, 0x0e0000 )
+	ROM_REGION( 0x100000, "oki1", 0 )       /* Samples */
+	ROM_LOAD( "peeksamp.124", 0x000000, 0x100000, CRC(e1206fa8) SHA1(339d5a4fa2af7fb4ab2e9c6c66f4848fa8774832) )
 
 	ROM_REGION( 0x0200, "proms", 0 )        /* Priority PROM */
 	ROM_LOAD( "priority.69",    0x000000, 0x200, CRC(b40bff56) SHA1(39c95eed79328ef2df754988db83e07909e848f8) )
@@ -3793,8 +3791,6 @@ DRIVER_INIT_MEMBER(megasys1_state,64street)
 
 READ16_MEMBER(megasys1_state::megasys1A_mcu_hs_r)
 {
-	UINT16 *ROM  = (UINT16 *) m_region_maincpu->base();
-
 	if(m_mcu_hs && ((m_mcu_hs_ram[8/2] << 6) & 0x3ffc0) == ((offset*2) & 0x3ffc0))
 	{
 		if(MCU_HS_LOG && !space.debugger_access())
@@ -3803,7 +3799,7 @@ READ16_MEMBER(megasys1_state::megasys1A_mcu_hs_r)
 		return 0x889e;
 	}
 
-	return ROM[offset];
+	return m_rom_maincpu[offset];
 }
 
 WRITE16_MEMBER(megasys1_state::megasys1A_mcu_hs_w)
@@ -3922,8 +3918,6 @@ DRIVER_INIT_MEMBER(megasys1_state,hayaosi1)
 
 READ16_MEMBER(megasys1_state::iganinju_mcu_hs_r)
 {
-	UINT16 *ROM  = (UINT16 *) m_region_maincpu->base();
-
 	if(m_mcu_hs && ((m_mcu_hs_ram[8/2] << 6) & 0x3ffc0) == ((offset*2) & 0x3ffc0))
 	{
 		if(MCU_HS_LOG && !space.debugger_access())
@@ -3932,7 +3926,7 @@ READ16_MEMBER(megasys1_state::iganinju_mcu_hs_r)
 		return 0x835d;
 	}
 
-	return ROM[offset];
+	return m_rom_maincpu[offset];
 }
 
 WRITE16_MEMBER(megasys1_state::iganinju_mcu_hs_w)
@@ -3957,33 +3951,27 @@ WRITE16_MEMBER(megasys1_state::iganinju_mcu_hs_w)
 
 DRIVER_INIT_MEMBER(megasys1_state,iganinju)
 {
-	//UINT16 *ROM;
-
 	phantasm_rom_decode(machine(), "maincpu");
 
-	//ROM  = (UINT16 *) m_region_maincpu->base();
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00000, 0x3ffff, read16_delegate(FUNC(megasys1_state::iganinju_mcu_hs_r),this));
 	m_maincpu->space(AS_PROGRAM).install_write_handler(0x2f000, 0x2f009, write16_delegate(FUNC(megasys1_state::iganinju_mcu_hs_w),this));
 
-	//ROM[0x00006e/2] = 0x0420; // the only game that does
-								// not like lev 3 interrupts
+	//m_rom_maincpu[0x00006e/2] = 0x0420; // the only game that does
+										// not like lev 3 interrupts
 }
 
+// jitsupro writes oki commands to both the lsb and msb; it works because of byte smearing
 WRITE16_MEMBER(megasys1_state::okim6295_both_1_w)
 {
-	if (ACCESSING_BITS_0_7) m_oki1->write_command((data >> 0) & 0xff );
-	else                    m_oki1->write_command((data >> 8) & 0xff );
+	m_oki1->write_command(data & 0xff);
 }
 WRITE16_MEMBER(megasys1_state::okim6295_both_2_w)
 {
-	if (ACCESSING_BITS_0_7) m_oki2->write_command((data >> 0) & 0xff );
-	else                    m_oki2->write_command((data >> 8) & 0xff );
+	m_oki2->write_command(data & 0xff);
 }
 
 DRIVER_INIT_MEMBER(megasys1_state,jitsupro)
 {
-	//UINT16 *ROM  = (UINT16 *) m_region_maincpu->base();
-
 	astyanax_rom_decode(machine(), "maincpu");      // Code
 
 	jitsupro_gfx_unmangle("gfx1");   // Gfx
@@ -3991,13 +3979,18 @@ DRIVER_INIT_MEMBER(megasys1_state,jitsupro)
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00000, 0x3ffff, read16_delegate(FUNC(megasys1_state::megasys1A_mcu_hs_r),this));
 	m_maincpu->space(AS_PROGRAM).install_write_handler(0x20000, 0x20009, write16_delegate(FUNC(megasys1_state::megasys1A_mcu_hs_w),this));
 
-	/* the sound code writes oki commands to both the lsb and msb */
 	m_audiocpu->space(AS_PROGRAM).install_write_handler(0xa0000, 0xa0003, write16_delegate(FUNC(megasys1_state::okim6295_both_1_w),this));
 	m_audiocpu->space(AS_PROGRAM).install_write_handler(0xc0000, 0xc0003, write16_delegate(FUNC(megasys1_state::okim6295_both_2_w),this));
 }
 
 DRIVER_INIT_MEMBER(megasys1_state,peekaboo)
 {
+	UINT8 *ROM = memregion("oki1")->base();
+	memory_bank *okibank = membank("okibank");
+
+	okibank->configure_entry(7, &ROM[0x20000]);
+	okibank->configure_entries(0, 7, &ROM[0x20000], 0x20000);
+
 	m_maincpu->space(AS_PROGRAM).install_readwrite_handler(0x100000, 0x100001, read16_delegate(FUNC(megasys1_state::protection_peekaboo_r),this), write16_delegate(FUNC(megasys1_state::protection_peekaboo_w),this));
 }
 
@@ -4046,8 +4039,6 @@ DRIVER_INIT_MEMBER(megasys1_state,soldam)
 
 READ16_MEMBER(megasys1_state::stdragon_mcu_hs_r)
 {
-	UINT16 *ROM  = (UINT16 *) m_region_maincpu->base();
-
 	if(m_mcu_hs && ((m_mcu_hs_ram[8/2] << 6) & 0x3ffc0) == ((offset*2) & 0x3ffc0))
 	{
 		if(MCU_HS_LOG && !space.debugger_access())
@@ -4056,7 +4047,7 @@ READ16_MEMBER(megasys1_state::stdragon_mcu_hs_r)
 		return 0x835d;
 	}
 
-	return ROM[offset];
+	return m_rom_maincpu[offset];
 }
 
 WRITE16_MEMBER(megasys1_state::stdragon_mcu_hs_w)
@@ -4114,10 +4105,22 @@ DRIVER_INIT_MEMBER(megasys1_state,monkelf)
 {
 	DRIVER_INIT_CALL(avspirit);
 
-	UINT16 *ROM = (UINT16*)m_region_maincpu->base();
-	ROM[0x00744/2] = 0x4e71; // weird check, 0xe000e R is a port-based trap?
+	m_rom_maincpu[0x00744/2] = 0x4e71; // weird check, 0xe000e R is a port-based trap?
 
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0xe0000, 0xe000f, read16_delegate(FUNC(megasys1_state::monkelf_input_r),this));
+	m_maincpu->space(AS_PROGRAM).install_write_handler(0x44000, 0x443ff, write16_delegate(FUNC(megasys1_state::megasys1_vregs_monkelf_w),this));
+
+	// convert bootleg priority format to standard
+	{
+		int i;
+		UINT8 *ROM = memregion("proms")->base();
+
+		for (i = 0x1fe; i >= 0; i -= 2) {
+			ROM[i+0] = ROM[i+1] = (ROM[i/2] >> 4) & 0x0f;
+		}
+	}
+
+	megasys1_priority_create();
 }
 
 /*************************************
@@ -4132,8 +4135,8 @@ GAME( 1988, p47,      0,        system_A,          p47,      driver_device,  0, 
 GAME( 1988, p47j,     p47,      system_A,          p47,      driver_device,  0,        ROT0,   "Jaleco", "P-47 - The Freedom Fighter (Japan)", 0 )
 GAME( 1988, p47je,    p47,      system_A,          p47,      driver_device,  0,        ROT0,   "Jaleco", "P-47 - The Freedom Fighter (Japan, Export)", 0 )
 GAME( 1988, kickoff,  0,        system_A,          kickoff,  driver_device,  0,        ROT0,   "Jaleco", "Kick Off (Japan)", 0 )
-GAME( 1988, tshingen, 0,        system_A,          tshingen, megasys1_state, phantasm, ROT0,   "Jaleco", "Shingen Samurai-Fighter (Japan, English)", 0 )
-GAME( 1988, tshingena,tshingen, system_A,          tshingen, megasys1_state, phantasm, ROT0,   "Jaleco", "Takeda Shingen (Japan, Japanese)", 0 )
+GAME( 1988, tshingen, 0,        system_A,          tshingen, megasys1_state, phantasm, ROT0,   "Jaleco", "Shingen Samurai-Fighter (Japan, English)", GAME_IMPERFECT_GRAPHICS )
+GAME( 1988, tshingena,tshingen, system_A,          tshingen, megasys1_state, phantasm, ROT0,   "Jaleco", "Takeda Shingen (Japan, Japanese)", GAME_IMPERFECT_GRAPHICS )
 GAME( 1988, kazan,    0,        system_A,          kazan,    megasys1_state, iganinju, ROT0,   "Jaleco", "Ninja Kazan (World)", 0 )
 GAME( 1988, iganinju, kazan,    system_A,          kazan,    megasys1_state, iganinju, ROT0,   "Jaleco", "Iga Ninjyutsuden (Japan)", 0 )
 GAME( 1989, astyanax, 0,        system_A,          astyanax, megasys1_state, astyanax, ROT0,   "Jaleco", "The Astyanax", 0 )
@@ -4148,7 +4151,7 @@ GAME( 1990, rodlandj, rodland,  system_A,          rodland,  megasys1_state, rod
 GAME( 1990, rodlandjb,rodland,  system_A,          rodland,  driver_device,  0,        ROT0,   "bootleg","Rod-Land (Japan bootleg)", 0 )
 GAME( 1991, avspirit, 0,        system_B,          avspirit, megasys1_state, avspirit, ROT0,   "Jaleco", "Avenging Spirit", 0 )
 GAME( 1990, phantasm, avspirit, system_A,          phantasm, megasys1_state, phantasm, ROT0,   "Jaleco", "Phantasm (Japan)", 0 )
-GAME( 1990, monkelf,  avspirit, system_B,          avspirit, megasys1_state, monkelf,  ROT0,   "bootleg","Monky Elf (Korean bootleg of Avenging Spirit)", GAME_NOT_WORKING )
+GAME( 1990, monkelf,  avspirit, system_B,          avspirit, megasys1_state, monkelf,  ROT0,   "bootleg","Monky Elf (Korean bootleg of Avenging Spirit)", 0 )
 GAME( 1991, edf,      0,        system_B,          edf,      megasys1_state, edf,      ROT0,   "Jaleco", "E.D.F. : Earth Defense Force", 0 )
 GAME( 1991, edfu,     edf,      system_B,          edf,      megasys1_state, edf,      ROT0,   "Jaleco", "E.D.F. : Earth Defense Force (North America)", 0 )
 GAME( 1991, edfbl,    edf,      system_Bbl,        edf,      megasys1_state, edfbl,    ROT0,   "bootleg","E.D.F. : Earth Defense Force (bootleg)", GAME_NO_SOUND )

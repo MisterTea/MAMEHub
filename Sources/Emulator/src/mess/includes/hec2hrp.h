@@ -186,7 +186,6 @@ public:
 	void hector_disc2_reset();
 };
 
-/* Sound function*/
-extern const sn76477_interface hector_sn76477_interface;
-
 extern const floppy_interface minidisc_floppy_interface;
+
+MACHINE_CONFIG_EXTERN( hector_audio );

@@ -44,19 +44,17 @@
  *
  *************************************/
 
-static void update_irq_state(running_machine &machine)
+void artmagic_state::update_irq_state()
 {
-	artmagic_state *state = machine.driver_data<artmagic_state>();
-	state->m_maincpu->set_input_line(4, state->m_tms_irq  ? ASSERT_LINE : CLEAR_LINE);
-	state->m_maincpu->set_input_line(5, state->m_hack_irq ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(4, m_tms_irq  ? ASSERT_LINE : CLEAR_LINE);
+	m_maincpu->set_input_line(5, m_hack_irq ? ASSERT_LINE : CLEAR_LINE);
 }
 
 
-static void m68k_gen_int(device_t *device, int state)
+WRITE_LINE_MEMBER(artmagic_state::m68k_gen_int)
 {
-	artmagic_state *drvstate = device->machine().driver_data<artmagic_state>();
-	drvstate->m_tms_irq = state;
-	update_irq_state(device->machine());
+	m_tms_irq = state;
+	update_irq_state();
 }
 
 
@@ -83,7 +81,7 @@ void artmagic_state::machine_start()
 void artmagic_state::machine_reset()
 {
 	m_tms_irq = m_hack_irq = 0;
-	update_irq_state(machine());
+	update_irq_state();
 }
 
 
@@ -121,7 +119,7 @@ void artmagic_state::device_timer(emu_timer &timer, device_timer_id id, int para
 	{
 	case TIMER_IRQ_OFF:
 		m_hack_irq = 0;
-		update_irq_state(machine());
+		update_irq_state();
 		break;
 	default:
 		assert_always(FALSE, "Unknown id in artmagic_state::device_timer");
@@ -136,7 +134,7 @@ READ16_MEMBER(artmagic_state::ultennis_hack_r)
 	if (pc == 0x18c2 || pc == 0x18e4)
 	{
 		m_hack_irq = 1;
-		update_irq_state(machine());
+		update_irq_state();
 		timer_set(attotime::from_usec(1), TIMER_IRQ_OFF);
 	}
 	return ioport("300000")->read();
@@ -150,36 +148,35 @@ READ16_MEMBER(artmagic_state::ultennis_hack_r)
  *
  *************************************/
 
-static void ultennis_protection(running_machine &machine)
+void artmagic_state::ultennis_protection()
 {
-	artmagic_state *state = machine.driver_data<artmagic_state>();
 	/* check the command byte */
-	switch (state->m_prot_input[0])
+	switch (m_prot_input[0])
 	{
 		case 0x00:  /* reset */
-			state->m_prot_input_index = state->m_prot_output_index = 0;
-			state->m_prot_output[0] = machine.rand();
+			m_prot_input_index = m_prot_output_index = 0;
+			m_prot_output[0] = machine().rand();
 			break;
 
 		case 0x01:  /* 01 aaaa bbbb cccc dddd (xxxx) */
-			if (state->m_prot_input_index == 9)
+			if (m_prot_input_index == 9)
 			{
-				UINT16 a = state->m_prot_input[1] | (state->m_prot_input[2] << 8);
-				UINT16 b = state->m_prot_input[3] | (state->m_prot_input[4] << 8);
-				UINT16 c = state->m_prot_input[5] | (state->m_prot_input[6] << 8);
-				UINT16 d = state->m_prot_input[7] | (state->m_prot_input[8] << 8);
+				UINT16 a = m_prot_input[1] | (m_prot_input[2] << 8);
+				UINT16 b = m_prot_input[3] | (m_prot_input[4] << 8);
+				UINT16 c = m_prot_input[5] | (m_prot_input[6] << 8);
+				UINT16 d = m_prot_input[7] | (m_prot_input[8] << 8);
 				UINT16 x = a - b;
 				if ((INT16)x >= 0)
 					x = (x * c) >> 16;
 				else
 					x = -(((UINT16)-x * c) >> 16);
 				x += d;
-				state->m_prot_output[0] = x;
-				state->m_prot_output[1] = x >> 8;
-				state->m_prot_output_index = 0;
+				m_prot_output[0] = x;
+				m_prot_output[1] = x >> 8;
+				m_prot_output_index = 0;
 			}
-			else if (state->m_prot_input_index >= 11)
-				state->m_prot_input_index = 0;
+			else if (m_prot_input_index >= 11)
+				m_prot_input_index = 0;
 			break;
 
 		case 0x02:  /* 02 aaaa bbbb cccc (xxxxxxxx) */
@@ -196,67 +193,66 @@ static void ultennis_protection(running_machine &machine)
 
 			    question is: what is the 3rd value doing there?
 			*/
-			if (state->m_prot_input_index == 7)
+			if (m_prot_input_index == 7)
 			{
-				UINT16 a = (INT16)(state->m_prot_input[1] | (state->m_prot_input[2] << 8));
-				UINT16 b = (INT16)(state->m_prot_input[3] | (state->m_prot_input[4] << 8));
-				/*UINT16 c = (INT16)(state->m_prot_input[5] | (state->m_prot_input[6] << 8));*/
+				UINT16 a = (INT16)(m_prot_input[1] | (m_prot_input[2] << 8));
+				UINT16 b = (INT16)(m_prot_input[3] | (m_prot_input[4] << 8));
+				/*UINT16 c = (INT16)(m_prot_input[5] | (m_prot_input[6] << 8));*/
 				UINT32 x = a * a * (b/2);
-				state->m_prot_output[0] = x;
-				state->m_prot_output[1] = x >> 8;
-				state->m_prot_output[2] = x >> 16;
-				state->m_prot_output[3] = x >> 24;
-				state->m_prot_output_index = 0;
+				m_prot_output[0] = x;
+				m_prot_output[1] = x >> 8;
+				m_prot_output[2] = x >> 16;
+				m_prot_output[3] = x >> 24;
+				m_prot_output_index = 0;
 			}
-			else if (state->m_prot_input_index >= 11)
-				state->m_prot_input_index = 0;
+			else if (m_prot_input_index >= 11)
+				m_prot_input_index = 0;
 			break;
 
 		case 0x03:  /* 03 (xxxx) */
-			if (state->m_prot_input_index == 1)
+			if (m_prot_input_index == 1)
 			{
-				UINT16 x = state->m_prot_save;
-				state->m_prot_output[0] = x;
-				state->m_prot_output[1] = x >> 8;
-				state->m_prot_output_index = 0;
+				UINT16 x = m_prot_save;
+				m_prot_output[0] = x;
+				m_prot_output[1] = x >> 8;
+				m_prot_output_index = 0;
 			}
-			else if (state->m_prot_input_index >= 3)
-				state->m_prot_input_index = 0;
+			else if (m_prot_input_index >= 3)
+				m_prot_input_index = 0;
 			break;
 
 		case 0x04:  /* 04 aaaa */
-			if (state->m_prot_input_index == 3)
+			if (m_prot_input_index == 3)
 			{
-				UINT16 a = state->m_prot_input[1] | (state->m_prot_input[2] << 8);
-				state->m_prot_save = a;
-				state->m_prot_input_index = state->m_prot_output_index = 0;
+				UINT16 a = m_prot_input[1] | (m_prot_input[2] << 8);
+				m_prot_save = a;
+				m_prot_input_index = m_prot_output_index = 0;
 			}
 			break;
 
 		default:
-			logerror("protection command %02X: unknown\n", state->m_prot_input[0]);
-			state->m_prot_input_index = state->m_prot_output_index = 0;
+			logerror("protection command %02X: unknown\n", m_prot_input[0]);
+			m_prot_input_index = m_prot_output_index = 0;
 			break;
 	}
 }
 
 
-static void cheesech_protection(running_machine &machine)
+void artmagic_state::cheesech_protection()
 {
-	artmagic_state *state = machine.driver_data<artmagic_state>();
 	/* check the command byte */
-	switch (state->m_prot_input[0])
+	switch (m_prot_input[0])
 	{
 		case 0x00:  /* reset */
-			state->m_prot_input_index = state->m_prot_output_index = 0;
-			state->m_prot_output[0] = machine.rand();
+			m_prot_input_index = m_prot_output_index = 0;
+			m_prot_output[0] = machine().rand();
 			break;
 
 		case 0x01:  /* 01 aaaa bbbb (xxxx) */
-			if (state->m_prot_input_index == 5)
+			if (m_prot_input_index == 5)
 			{
-				UINT16 a = state->m_prot_input[1] | (state->m_prot_input[2] << 8);
-				UINT16 b = state->m_prot_input[3] | (state->m_prot_input[4] << 8);
+				UINT16 a = m_prot_input[1] | (m_prot_input[2] << 8);
+				UINT16 b = m_prot_input[3] | (m_prot_input[4] << 8);
 				UINT16 c = 0x4000;      /* seems to be hard-coded */
 				UINT16 d = 0x00a0;      /* seems to be hard-coded */
 				UINT16 x = a - b;
@@ -265,106 +261,105 @@ static void cheesech_protection(running_machine &machine)
 				else
 					x = -(((UINT16)-x * c) >> 16);
 				x += d;
-				state->m_prot_output[0] = x;
-				state->m_prot_output[1] = x >> 8;
-				state->m_prot_output_index = 0;
+				m_prot_output[0] = x;
+				m_prot_output[1] = x >> 8;
+				m_prot_output_index = 0;
 			}
-			else if (state->m_prot_input_index >= 7)
-				state->m_prot_input_index = 0;
+			else if (m_prot_input_index >= 7)
+				m_prot_input_index = 0;
 			break;
 
 		case 0x03:  /* 03 (xxxx) */
-			if (state->m_prot_input_index == 1)
+			if (m_prot_input_index == 1)
 			{
-				UINT16 x = state->m_prot_save;
-				state->m_prot_output[0] = x;
-				state->m_prot_output[1] = x >> 8;
-				state->m_prot_output_index = 0;
+				UINT16 x = m_prot_save;
+				m_prot_output[0] = x;
+				m_prot_output[1] = x >> 8;
+				m_prot_output_index = 0;
 			}
-			else if (state->m_prot_input_index >= 3)
-				state->m_prot_input_index = 0;
+			else if (m_prot_input_index >= 3)
+				m_prot_input_index = 0;
 			break;
 
 		case 0x04:  /* 04 aaaa */
-			if (state->m_prot_input_index == 3)
+			if (m_prot_input_index == 3)
 			{
-				UINT16 a = state->m_prot_input[1] | (state->m_prot_input[2] << 8);
-				state->m_prot_save = a;
-				state->m_prot_input_index = state->m_prot_output_index = 0;
+				UINT16 a = m_prot_input[1] | (m_prot_input[2] << 8);
+				m_prot_save = a;
+				m_prot_input_index = m_prot_output_index = 0;
 			}
 			break;
 
 		default:
-			logerror("protection command %02X: unknown\n", state->m_prot_input[0]);
-			state->m_prot_input_index = state->m_prot_output_index = 0;
+			logerror("protection command %02X: unknown\n", m_prot_input[0]);
+			m_prot_input_index = m_prot_output_index = 0;
 			break;
 	}
 }
 
 
-static void stonebal_protection(running_machine &machine)
+void artmagic_state::stonebal_protection()
 {
-	artmagic_state *state = machine.driver_data<artmagic_state>();
 	/* check the command byte */
-	switch (state->m_prot_input[0])
+	switch (m_prot_input[0])
 	{
 		case 0x01:  /* 01 aaaa bbbb cccc dddd (xxxx) */
-			if (state->m_prot_input_index == 9)
+			if (m_prot_input_index == 9)
 			{
-				UINT16 a = state->m_prot_input[1] | (state->m_prot_input[2] << 8);
-				UINT16 b = state->m_prot_input[3] | (state->m_prot_input[4] << 8);
-				UINT16 c = state->m_prot_input[5] | (state->m_prot_input[6] << 8);
-				UINT16 d = state->m_prot_input[7] | (state->m_prot_input[8] << 8);
+				UINT16 a = m_prot_input[1] | (m_prot_input[2] << 8);
+				UINT16 b = m_prot_input[3] | (m_prot_input[4] << 8);
+				UINT16 c = m_prot_input[5] | (m_prot_input[6] << 8);
+				UINT16 d = m_prot_input[7] | (m_prot_input[8] << 8);
 				UINT16 x = a - b;
 				if ((INT16)x >= 0)
 					x = (x * d) >> 16;
 				else
 					x = -(((UINT16)-x * d) >> 16);
 				x += c;
-				state->m_prot_output[0] = x;
-				state->m_prot_output[1] = x >> 8;
-				state->m_prot_output_index = 0;
+				m_prot_output[0] = x;
+				m_prot_output[1] = x >> 8;
+				m_prot_output_index = 0;
 			}
-			else if (state->m_prot_input_index >= 11)
-				state->m_prot_input_index = 0;
+			else if (m_prot_input_index >= 11)
+				m_prot_input_index = 0;
 			break;
 
 		case 0x02:  /* 02 aaaa (xx) */
-			if (state->m_prot_input_index == 3)
+			if (m_prot_input_index == 3)
 			{
-				/*UINT16 a = state->m_prot_input[1] | (state->m_prot_input[2] << 8);*/
+				/*UINT16 a = m_prot_input[1] | (m_prot_input[2] << 8);*/
 				UINT8 x = 0xa5;
-				state->m_prot_output[0] = x;
-				state->m_prot_output_index = 0;
+				m_prot_output[0] = x;
+				m_prot_output_index = 0;
 			}
-			else if (state->m_prot_input_index >= 4)
-				state->m_prot_input_index = 0;
+			else if (m_prot_input_index >= 4)
+				m_prot_input_index = 0;
 			break;
 
 		case 0x03:  /* 03 (xxxx) */
-			if (state->m_prot_input_index == 1)
+			if (m_prot_input_index == 1)
 			{
-				UINT16 x = state->m_prot_save;
-				state->m_prot_output[0] = x;
-				state->m_prot_output[1] = x >> 8;
-				state->m_prot_output_index = 0;
+				UINT16 x = m_prot_save;
+				m_prot_output[0] = x;
+				m_prot_output[1] = x >> 8;
+				m_prot_output_index = 0;
 			}
-			else if (state->m_prot_input_index >= 3)
-				state->m_prot_input_index = 0;
+			else if (m_prot_input_index >= 3)
+				m_prot_input_index = 0;
 			break;
 
 		case 0x04:  /* 04 aaaa */
-			if (state->m_prot_input_index == 3)
+			if (m_prot_input_index == 3)
 			{
-				UINT16 a = state->m_prot_input[1] | (state->m_prot_input[2] << 8);
-				state->m_prot_save = a;
-				state->m_prot_input_index = state->m_prot_output_index = 0;
+				UINT16 a = m_prot_input[1] | (m_prot_input[2] << 8);
+				m_prot_save = a;
+				m_prot_input_index = m_prot_output_index = 0;
 			}
 			break;
 
 		default:
-			logerror("protection command %02X: unknown\n", state->m_prot_input[0]);
-			state->m_prot_input_index = state->m_prot_output_index = 0;
+			logerror("protection command %02X: unknown\n", m_prot_input[0]);
+			m_prot_input_index = m_prot_output_index = 0;
 			break;
 	}
 }
@@ -395,7 +390,7 @@ WRITE16_MEMBER(artmagic_state::protection_bit_w)
 		m_prot_bit_index = 0;
 
 		/* update the protection state */
-		(*m_protection_handler)(machine());
+		(this->*m_protection_handler)();
 	}
 }
 
@@ -474,20 +469,6 @@ ADDRESS_MAP_END
  *  Slave CPU memory handlers
  *
  *************************************/
-
-static const tms340x0_config tms_config =
-{
-	TRUE,                           /* halt on reset */
-	"screen",                       /* the screen operated on */
-	MASTER_CLOCK_40MHz/6,           /* pixel clock */
-	1,                              /* pixels per clock */
-	NULL,                           /* scanline update (indexed16) */
-	artmagic_scanline,              /* scanline update (rgb32) */
-	m68k_gen_int,                   /* generate interrupt */
-	artmagic_to_shiftreg,           /* write to shiftreg function */
-	artmagic_from_shiftreg          /* read from shiftreg function */
-};
-
 
 static ADDRESS_MAP_START( tms_map, AS_PROGRAM, 16, artmagic_state )
 	AM_RANGE(0x00000000, 0x001fffff) AM_RAM AM_SHARE("vram0")
@@ -827,8 +808,14 @@ static MACHINE_CONFIG_START( artmagic, artmagic_state )
 	MCFG_CPU_PROGRAM_MAP(main_map)
 
 	MCFG_CPU_ADD("tms", TMS34010, MASTER_CLOCK_40MHz)
-	MCFG_TMS340X0_CONFIG(tms_config)
 	MCFG_CPU_PROGRAM_MAP(tms_map)
+	MCFG_TMS340X0_HALT_ON_RESET(TRUE) /* halt on reset */
+	MCFG_TMS340X0_PIXEL_CLOCK(MASTER_CLOCK_40MHz/6) /* pixel clock */
+	MCFG_TMS340X0_PIXELS_PER_CLOCK(1) /* pixels per clock */
+	MCFG_TMS340X0_SCANLINE_RGB32_CB(artmagic_state, scanline)              /* scanline update (rgb32) */
+	MCFG_TMS340X0_OUTPUT_INT_CB(WRITELINE(artmagic_state, m68k_gen_int))
+	MCFG_TMS340X0_TO_SHIFTREG_CB(artmagic_state, to_shiftreg)           /* write to shiftreg function */
+	MCFG_TMS340X0_FROM_SHIFTREG_CB(artmagic_state, from_shiftreg)          /* read from shiftreg function */
 
 	MCFG_QUANTUM_TIME(attotime::from_hz(6000))
 	MCFG_NVRAM_ADD_1FILL("nvram")
@@ -1112,45 +1099,39 @@ ROM_END
  *
  *************************************/
 
-static void decrypt_ultennis(running_machine &machine)
+void artmagic_state::decrypt_ultennis()
 {
-	artmagic_state *state = machine.driver_data<artmagic_state>();
-	int i;
-
 	/* set up the parameters for the blitter data decryption which will happen at runtime */
-	for (i = 0;i < 16;i++)
+	for (int i = 0; i < 16; i++)
 	{
-		state->m_xor[i] = 0x0462;
-		if (i & 1) state->m_xor[i] ^= 0x0011;
-		if (i & 2) state->m_xor[i] ^= 0x2200;
-		if (i & 4) state->m_xor[i] ^= 0x4004;
-		if (i & 8) state->m_xor[i] ^= 0x0880;
+		m_xor[i] = 0x0462;
+		if (i & 1) m_xor[i] ^= 0x0011;
+		if (i & 2) m_xor[i] ^= 0x2200;
+		if (i & 4) m_xor[i] ^= 0x4004;
+		if (i & 8) m_xor[i] ^= 0x0880;
 	}
 }
 
 
-static void decrypt_cheesech(running_machine &machine)
+void artmagic_state::decrypt_cheesech()
 {
-	artmagic_state *state = machine.driver_data<artmagic_state>();
-	int i;
-
 	/* set up the parameters for the blitter data decryption which will happen at runtime */
-	for (i = 0;i < 16;i++)
+	for (int i = 0; i < 16; i++)
 	{
-		state->m_xor[i] = 0x0891;
-		if (i & 1) state->m_xor[i] ^= 0x1100;
-		if (i & 2) state->m_xor[i] ^= 0x0022;
-		if (i & 4) state->m_xor[i] ^= 0x0440;
-		if (i & 8) state->m_xor[i] ^= 0x8008;
+		m_xor[i] = 0x0891;
+		if (i & 1) m_xor[i] ^= 0x1100;
+		if (i & 2) m_xor[i] ^= 0x0022;
+		if (i & 4) m_xor[i] ^= 0x0440;
+		if (i & 8) m_xor[i] ^= 0x8008;
 	}
 }
 
 
 DRIVER_INIT_MEMBER(artmagic_state,ultennis)
 {
-	decrypt_ultennis(machine());
+	decrypt_ultennis();
 	m_is_stoneball = 0;
-	m_protection_handler = ultennis_protection;
+	m_protection_handler = &artmagic_state::ultennis_protection;
 
 	/* additional (protection?) hack */
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x300000, 0x300001, read16_delegate(FUNC(artmagic_state::ultennis_hack_r),this));
@@ -1159,25 +1140,25 @@ DRIVER_INIT_MEMBER(artmagic_state,ultennis)
 
 DRIVER_INIT_MEMBER(artmagic_state,cheesech)
 {
-	decrypt_cheesech(machine());
+	decrypt_cheesech();
 	m_is_stoneball = 0;
-	m_protection_handler = cheesech_protection;
+	m_protection_handler = &artmagic_state::cheesech_protection;
 }
 
 
 DRIVER_INIT_MEMBER(artmagic_state,stonebal)
 {
-	decrypt_ultennis(machine());
+	decrypt_ultennis();
 	m_is_stoneball = 1; /* blits 1 line high are NOT encrypted, also different first pixel decrypt */
-	m_protection_handler = stonebal_protection;
+	m_protection_handler = &artmagic_state::stonebal_protection;
 }
 
 DRIVER_INIT_MEMBER(artmagic_state,shtstar)
 {
 	/* wrong */
-	decrypt_ultennis(machine());
+	decrypt_ultennis();
 	m_is_stoneball =0;
-	m_protection_handler = stonebal_protection;
+	m_protection_handler = &artmagic_state::stonebal_protection;
 }
 
 

@@ -6,6 +6,8 @@
 
 *********************************************************************/
 
+#include <assert.h>
+
 #include "formats/msx_dsk.h"
 #include "formats/basicdsk.h"
 
@@ -66,6 +68,10 @@ const msx_format::format msx_format::formats[] = {
 	{   /*  3 1/2 inch double density */
 		floppy_image::FF_35,  floppy_image::DSDD, floppy_image::MFM,
 		2000,  9, 80, 2, 512, {}, 1, {}, 26, 24, 28, 80
+	},
+	{   /*  3 1/2 inch double density - 81 tracks */
+		floppy_image::FF_35,  floppy_image::DSDD, floppy_image::MFM,
+		2000,  9, 81, 2, 512, {}, 1, {}, 26, 24, 28, 80
 	},
 	{}
 };

@@ -6,7 +6,6 @@
 
 #include "emu.h"
 #include "includes/concept.h"
-#include "cpu/m68000/m68000.h"
 
 
 #define VERBOSE 1
@@ -43,31 +42,18 @@ void concept_state::machine_start()
 	/* initialize clock interface */
 	m_clock_enable = FALSE /*TRUE*/;
 
-	/* clear keyboard interface state */
-	m_KeyQueueHead = m_KeyQueueLen = 0;
-	memset(m_KeyStateSave, 0, sizeof(m_KeyStateSave));
-
-	m_exp[0] = machine().device<concept_exp_port_device>("exp1");
-	m_exp[1] = machine().device<concept_exp_port_device>("exp2");
-	m_exp[2] = machine().device<concept_exp_port_device>("exp3");
-	m_exp[3] = machine().device<concept_exp_port_device>("exp4");
-
-	for (int i = 0; i < 6; i++)
-	{
-		char str[5];
-		sprintf(str, "KEY%i", i);
-		m_key[i] = ioport(str);
-	}
-
 	save_item(NAME(m_pending_interrupts));
 	save_item(NAME(m_clock_enable));
 	save_item(NAME(m_clock_address));
-	save_item(NAME(m_KeyQueue));
-	save_item(NAME(m_KeyQueueHead));
-	save_item(NAME(m_KeyQueueLen));
-	save_item(NAME(m_KeyStateSave));
 }
 
+
+void concept_state::machine_reset()
+{
+	// OS will not boot if TDRE is clear on ACIA 0; this fixes that
+	m_acia0->write_cts(CLEAR_LINE);
+	m_acia1->write_cts(CLEAR_LINE);
+}
 
 void concept_state::video_start()
 {
@@ -84,7 +70,7 @@ UINT32 concept_state::screen_update_concept(screen_device &screen, bitmap_ind16 
 	{
 		line = &bitmap.pix16(560-1-y);
 		for (x = 0; x < 720; x++)
-			line[720-1-x] = (videoram[(x+48+y*768)>>4] & (0x8000 >> ((x+48+y*768) & 0xf))) ? 0 : 1;
+			line[720-1-x] = (videoram[(x+48+y*768)>>4] & (0x8000 >> ((x+48+y*768) & 0xf))) ? 1 : 0;
 	}
 	return 0;
 }
@@ -106,56 +92,10 @@ void concept_state::concept_set_interrupt(int level, int state)
 		/* assert interrupt */
 		m_maincpu->set_input_line_and_vector(M68K_IRQ_1 + final_level - 1, ASSERT_LINE, M68K_INT_ACK_AUTOVECTOR);
 	else
-		/* clear all interrupts */
-		m_maincpu->set_input_line_and_vector(M68K_IRQ_1, CLEAR_LINE, M68K_INT_ACK_AUTOVECTOR);
-}
-
-inline void concept_state::post_in_KeyQueue(int keycode)
-{
-	m_KeyQueue[(m_KeyQueueHead+m_KeyQueueLen) % KeyQueueSize] = keycode;
-	m_KeyQueueLen++;
-}
-
-void concept_state::poll_keyboard()
-{
-	UINT32 keystate;
-	UINT32 key_transitions;
-	int i, j;
-	int keycode;
-
-	for(i = 0; (i < /*4*/3) && (m_KeyQueueLen <= (KeyQueueSize-MaxKeyMessageLen)); i++)
 	{
-		keystate = m_key[2 * i]->read() | (m_key[2 * i + 1]->read() << 16);
-		key_transitions = keystate ^ m_KeyStateSave[i];
-		if(key_transitions)
-		{
-			for(j = 0; (j < 32) && (m_KeyQueueLen <= (KeyQueueSize-MaxKeyMessageLen)); j++)
-			{
-				if((key_transitions >> j) & 1)
-				{
-					keycode = (i << 5) | j;
-
-					if (((keystate >> j) & 1))
-					{
-						/* key is pressed */
-						m_KeyStateSave[i] |= (1 << j);
-						keycode |= 0x80;
-					}
-					else
-						/* key is released */
-						m_KeyStateSave[i] &= ~ (1 << j);
-
-					post_in_KeyQueue(keycode);
-					concept_set_interrupt(KEYINT_level, 1);
-				}
-			}
-		}
+		/* clear all interrupts */
+		m_maincpu->set_input_line_and_vector(M68K_IRQ_1 + level - 1, CLEAR_LINE, M68K_INT_ACK_AUTOVECTOR);
 	}
-}
-
-INTERRUPT_GEN_MEMBER(concept_state::concept_interrupt)
-{
-	poll_keyboard();
 }
 
 /*
@@ -211,9 +151,11 @@ WRITE8_MEMBER(concept_state::via_out_b)
 /*
     VIA CB2: used as sound output
 */
+
 WRITE_LINE_MEMBER(concept_state::via_out_cb2)
 {
-	LOG(("via_out_cb2: Sound control written: data=0x%2.2x\n", state));
+//  LOG(("via_out_cb2: Sound control written: data=0x%2.2x\n", state));
+	m_speaker->level_w(state);
 }
 
 /*
@@ -239,12 +181,22 @@ READ16_MEMBER(concept_state::concept_io_r)
 			case 2: // IO2 registers
 			case 3: // IO3 registers
 			case 4: // IO4 registers
-				return m_exp[((offset >> 4) & 7) - 1]->reg_r(space, offset & 0x0f);
-			break;
+				{
+					int slot = ((offset >> 4) & 7);
+					device_a2bus_card_interface *card = m_a2bus->get_a2bus_card(slot);
+
+					if (card)
+					{
+						return card->read_c0nx(space, offset & 0x0f);
+					}
+
+					return 0xff;
+				}
+				break;
 
 			default: // ???
 				logerror("concept_io_r: Slot I/O memory accessed for unknown purpose at address 0x03%4.4x\n", offset << 1);
-			break;
+				break;
 		}
 		break;
 
@@ -252,8 +204,15 @@ READ16_MEMBER(concept_state::concept_io_r)
 	case 2: // IO2 ROM
 	case 3: // IO3 ROM
 	case 4: // IO4 ROM
-		LOG(("concept_io_r: Slot ROM memory accessed for slot %d at address 0x03%4.4x\n", ((offset >> 8) & 7) - 1, offset << 1));
-		return m_exp[((offset >> 8) & 7) - 1]->rom_r(space, offset & 0xff);
+		{
+			int slot = (offset >> 8) & 7;
+			device_a2bus_card_interface *card = m_a2bus->get_a2bus_card(slot);
+
+			if (card)
+			{
+				return card->read_cnxx(space, offset & 0xff);
+			}
+		}
 		break;
 
 	case 5:
@@ -274,51 +233,23 @@ READ16_MEMBER(concept_state::concept_io_r)
 		{
 		case 0:
 			/* NKBP keyboard */
-			switch (offset & 0xf)
-			{
-				int reply;
-
-			case 0:
-				/* data */
-				reply = 0;
-
-				if (m_KeyQueueLen)
-				{
-					reply = m_KeyQueue[m_KeyQueueHead];
-					m_KeyQueueHead = (m_KeyQueueHead + 1) % KeyQueueSize;
-					m_KeyQueueLen--;
-				}
-
-				if (!m_KeyQueueLen)
-					concept_set_interrupt(KEYINT_level, 0);
-
-				return reply;
-
-			case 1:
-				/* always tell transmit is empty */
-				reply = m_KeyQueueLen ? 0x98 : 0x10;
-				break;
-			}
-			break;
+			return m_kbdacia->read(space, (offset & 3));
 
 		case 1:
 			/* NSR0 data comm port 0 */
 			return m_acia0->read(space, (offset & 3));
-			break;
 
 		case 2:
 			/* NSR1 data comm port 1 */
 			return m_acia1->read(space, (offset & 3));
-			break;
 
 		case 3:
 			/* NVIA versatile system interface */
-			LOG(("concept_io_r: VIA read at address 0x03%4.4x\n", offset << 1));
+//  LOG(("concept_io_r: VIA read at address 0x03%4.4x\n", offset << 1));
 			{
 				via6522_device *via_0 = machine().device<via6522_device>("via6522_0");
 				return via_0->read(space, offset & 0xf);
 			}
-			break;
 
 		case 4:
 			/* NCALM clock calendar address and strobe register */
@@ -364,7 +295,15 @@ WRITE16_MEMBER(concept_state::concept_io_w)
 			case 2: // IO2 registers
 			case 3: // IO3 registers
 			case 4: // IO4 registers
-				return m_exp[((offset >> 4) & 7) - 1]->reg_w(space, offset & 0x0f, data);
+				{
+					int slot = (offset >> 4) & 7;
+					device_a2bus_card_interface *card = m_a2bus->get_a2bus_card(slot);
+
+					if (card)
+					{
+						return card->write_c0nx(space, offset & 0x0f, data);
+					}
+				}
 				break;
 
 			default:    // ???
@@ -377,8 +316,15 @@ WRITE16_MEMBER(concept_state::concept_io_w)
 	case 2: // IO2 ROM
 	case 3: // IO3 ROM
 	case 4: // IO4 ROM
-		LOG(("concept_io_w: Slot ROM memory written to for slot %d at address 0x03%4.4x, data: 0x%4.4x\n", ((offset >> 8) & 7) - 1, offset << 1, data));
-		return m_exp[((offset >> 8) & 7) - 1]->rom_w(space, offset & 0xff, data);
+		{
+			int slot = (offset >> 8) & 7;
+			device_a2bus_card_interface *card = m_a2bus->get_a2bus_card(slot);
+
+			if (card)
+			{
+				return card->write_cnxx(space, offset & 0xff, data);
+			}
+		}
 		break;
 
 	case 5:
@@ -399,6 +345,7 @@ WRITE16_MEMBER(concept_state::concept_io_w)
 		{
 		case 0:
 			/* NKBP keyboard */
+			m_kbdacia->write(space, (offset & 3), data);
 			break;
 
 		case 1:

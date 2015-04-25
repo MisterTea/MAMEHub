@@ -13,9 +13,10 @@
 
 #include "emu.h"
 #include "cpu/sm8500/sm8500.h"
-#include "imagedev/cartslot.h"
-#include "rendlay.h"
 #include "sound/dac.h"
+#include "bus/generic/slot.h"
+#include "bus/generic/carts.h"
+#include "machine/nvram.h"
 
 /* SM8521 register addresses */
 enum
@@ -210,58 +211,30 @@ class gamecom_state : public driver_device
 {
 public:
 	gamecom_state(const machine_config &mconfig, device_type type, const char *tag)
-		: driver_device(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
-		m_dac(*this, "dac"),
-		m_p_nvram(*this,"p_nvram"),
-		m_p_videoram(*this,"p_videoram"),
-		m_bank1(*this, "bank1"),
-		m_bank2(*this, "bank2"),
-		m_bank3(*this, "bank3"),
-		m_bank4(*this, "bank4"),
-		m_region_maincpu(*this, "maincpu"),
-		m_region_kernel(*this, "kernel"),
-		m_io_in0(*this, "IN0"),
-		m_io_in1(*this, "IN1"),
-		m_io_in2(*this, "IN2"),
-		m_io_styx(*this, "STYX"),
-		m_io_styy(*this, "STYY")
+		: driver_device(mconfig, type, tag)
+		, m_p_videoram(*this,"videoram")
+		, m_p_nvram(*this,"nvram")
+		, m_maincpu(*this, "maincpu")
+		, m_dac(*this, "dac")
+		, m_cart1(*this, "cartslot1")
+		, m_cart2(*this, "cartslot2")
+		, m_bank1(*this, "bank1")
+		, m_bank2(*this, "bank2")
+		, m_bank3(*this, "bank3")
+		, m_bank4(*this, "bank4")
+		, m_region_maincpu(*this, "maincpu")
+		, m_region_kernel(*this, "kernel")
+		, m_io_in0(*this, "IN0")
+		, m_io_in1(*this, "IN1")
+		, m_io_in2(*this, "IN2")
+		, m_io_grid(*this, "GRID")
 		{ }
 
-	required_device<cpu_device> m_maincpu;
-	required_device<dac_device> m_dac;
 	DECLARE_READ8_MEMBER( gamecom_internal_r );
 	DECLARE_READ8_MEMBER( gamecom_pio_r );
 	DECLARE_WRITE8_MEMBER( gamecom_internal_w );
 	DECLARE_WRITE8_MEMBER( gamecom_pio_w );
-	required_shared_ptr<UINT8> m_p_nvram;
-	UINT8 *m_p_ram;
-	required_shared_ptr<UINT8> m_p_videoram;
-	UINT8 *m_cartridge1;
-	UINT8 *m_cartridge2;
-	UINT8 *m_cartridge;
-	emu_timer *m_clock_timer;
-	emu_timer *m_scanline_timer;
-	GAMECOM_DMA m_dma;
-	GAMECOM_TIMER m_timer[2];
-	gamecom_sound_t m_sound;
-	int m_stylus_x;
-	int m_stylus_y;
-	int m_scanline;
-	unsigned int m_base_address;
-	bitmap_ind16 m_bitmap;
-	void gamecom_set_mmu(UINT8 mmu, UINT8 data);
-	void handle_stylus_press(int column);
-	UINT8 m_lcdc_reg;
-	UINT8 m_lch_reg;
-	UINT8 m_lcv_reg;
-	void recompute_lcd_params();
-	void handle_input_press(UINT16 mux_data);
-
-	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	DECLARE_DRIVER_INIT(gamecom);
-	virtual void machine_reset();
-	virtual void video_start();
 	DECLARE_PALETTE_INIT(gamecom);
 	INTERRUPT_GEN_MEMBER(gamecom_interrupt);
 	TIMER_CALLBACK_MEMBER(gamecom_clock_timer_callback);
@@ -270,8 +243,36 @@ public:
 	DECLARE_WRITE8_MEMBER( gamecom_update_timers );
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( gamecom_cart1 );
 	DECLARE_DEVICE_IMAGE_LOAD_MEMBER( gamecom_cart2 );
-
-protected:
+	UINT32 screen_update(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
+private:
+	UINT8 *m_p_ram;
+	UINT8 *m_cart_ptr;
+	UINT8 m_lcdc_reg;
+	UINT8 m_lch_reg;
+	UINT8 m_lcv_reg;
+	UINT16 m_scanline;
+	UINT16 m_base_address;
+	memory_region *m_cart1_rom;
+	memory_region *m_cart2_rom;
+	emu_timer *m_clock_timer;
+	emu_timer *m_scanline_timer;
+	GAMECOM_DMA m_dma;
+	GAMECOM_TIMER m_timer[2];
+	gamecom_sound_t m_sound;
+	bitmap_ind16 m_bitmap;
+	void gamecom_set_mmu(UINT8 mmu, UINT8 data);
+	void handle_stylus_press(int column);
+	void recompute_lcd_params();
+	void handle_input_press(UINT16 mux_data);
+	int common_load(device_image_interface &image, generic_slot_device *slot);
+	virtual void machine_reset();
+	virtual void video_start();
+	required_shared_ptr<UINT8> m_p_videoram;
+	required_shared_ptr<UINT8> m_p_nvram;
+	required_device<cpu_device> m_maincpu;
+	required_device<dac_device> m_dac;
+	required_device<generic_slot_device> m_cart1;
+	required_device<generic_slot_device> m_cart2;
 	required_memory_bank m_bank1;
 	required_memory_bank m_bank2;
 	required_memory_bank m_bank3;
@@ -281,8 +282,7 @@ protected:
 	required_ioport m_io_in0;
 	required_ioport m_io_in1;
 	required_ioport m_io_in2;
-	required_ioport m_io_styx;
-	required_ioport m_io_styy;
+	required_ioport_array<13> m_io_grid;
 };
 
 #endif /* GAMECOM_H_ */

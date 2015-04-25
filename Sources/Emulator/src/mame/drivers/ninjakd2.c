@@ -151,7 +151,6 @@ TODO:
 #include "emu.h"
 #include "cpu/z80/z80.h"
 #include "sound/2203intf.h"
-#include "sound/samples.h"
 #include "machine/mc8123.h"
 #include "includes/ninjakd2.h"
 
@@ -169,24 +168,21 @@ TODO:
 #define NE555_FREQUENCY 16300   // measured on PCB
 //#define NE555_FREQUENCY   (1.0f / (0.693 * (560 + 2*51) * 0.1e-6))    // theoretical: this gives 21.8kHz which is too high
 
-static SAMPLES_START( ninjakd2_init_samples )
+SAMPLES_START_CB_MEMBER(ninjakd2_state::ninjakd2_init_samples)
 {
-	ninjakd2_state *state = device.machine().driver_data<ninjakd2_state>();
-	running_machine &machine = device.machine();
-	const UINT8* const rom = state->memregion("pcm")->base();
-	const int length = state->memregion("pcm")->bytes();
-	INT16* sampledata = auto_alloc_array(machine, INT16, length);
+	const UINT8* const rom = memregion("pcm")->base();
+	const int length = memregion("pcm")->bytes();
+	INT16* sampledata = auto_alloc_array(machine(), INT16, length);
 
 	// convert unsigned 8-bit PCM to signed 16-bit
 	for (int i = 0; i < length; ++i)
 		sampledata[i] = rom[i] << 7;
 
-	state->m_sampledata = sampledata;
+	m_sampledata = sampledata;
 }
 
 WRITE8_MEMBER(ninjakd2_state::ninjakd2_pcm_play_w)
 {
-	samples_device *samples = machine().device<samples_device>("pcm");
 	const UINT8* const rom = memregion("pcm")->base();
 
 	// only Ninja Kid II uses this
@@ -201,9 +197,9 @@ WRITE8_MEMBER(ninjakd2_state::ninjakd2_pcm_play_w)
 			++end;
 
 		if (end - start)
-			samples->start_raw(0, &m_sampledata[start], end - start, NE555_FREQUENCY);
+			m_pcm->start_raw(0, &m_sampledata[start], end - start, NE555_FREQUENCY);
 		else
-			samples->stop(0);
+			m_pcm->stop(0);
 	}
 }
 
@@ -870,15 +866,6 @@ WRITE_LINE_MEMBER(ninjakd2_state::irqhandler)
 	m_soundcpu->set_input_line(0, state ? ASSERT_LINE : CLEAR_LINE);
 }
 
-static const samples_interface ninjakd2_samples_interface =
-{
-	1,  /* 1 channel */
-	NULL,
-	ninjakd2_init_samples
-};
-
-
-
 /*************************************
  *
  *  Machine drivers
@@ -961,7 +948,9 @@ static MACHINE_CONFIG_START( ninjakd2, ninjakd2_state )
 	MCFG_SOUND_ROUTE(2, "mono", 0.10)
 	MCFG_SOUND_ROUTE(3, "mono", 0.50)
 
-	MCFG_SAMPLES_ADD("pcm", ninjakd2_samples_interface)
+	MCFG_SOUND_ADD("pcm", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_START_CB(ninjakd2_state, ninjakd2_init_samples)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.80)
 MACHINE_CONFIG_END
 
@@ -1143,6 +1132,47 @@ ROM_START( rdaction )
 	ROM_REGION( 0x10000, "pcm", 0 )
 	ROM_LOAD( "nk2_09.rom",   0x0000, 0x10000, CRC(c1d2d170) SHA1(0f325815086fde90fd85360d3660042b0b68ba96) )   // 9.6c  unsigned 8-bit pcm samples
 ROM_END
+
+// Is this official? works with any program rom set, but nowhere in any program roms is the title JT-104 mentioned.
+// It was found on a board with RAD ACTION program roms.
+//
+// In addition to the title screen text change the new graphic ROM has 'UNITED AMUSEMENTS' license text replacing
+// the regular UPL copyright (used on the interludes) however because it is using the RAD ACTION program roms the
+// title screen still shows the 'World Games' license text.
+//
+// Did this board have incorrect program roms, or is this just how it was?
+
+
+ROM_START( jt104 ) // identical to radaction set with different gfx rom and decrypted sound rom
+	ROM_REGION( 0x30000, "maincpu", 0 )
+	ROM_LOAD( "1.3u",         0x00000, 0x8000, CRC(5c475611) SHA1(2da88a95b5d68b259c8ae48af1438a82a1d601c1) )
+	ROM_LOAD( "2.3s",         0x10000, 0x8000, CRC(a1e23bd2) SHA1(c3b6574dc9fa66b4f41c37754a0d20a865f8bc28) )   // banked at 8000-bfff
+	ROM_LOAD( "nk2_03.rom",   0x18000, 0x8000, CRC(ad275654) SHA1(7d29a17132adb19aeee9b98be5b76bd6e91f308e) )   // 3.3r
+	ROM_LOAD( "nk2_04.rom",   0x20000, 0x8000, CRC(e7692a77) SHA1(84beb8b02c564bffa9cc00313214e8f109bd40f9) )   // 4.3p
+	ROM_LOAD( "nk2_05.bin",   0x28000, 0x8000, CRC(960725fb) SHA1(160c8bfaf089cbeeef2023f12379793079bff93b) )   // 5.3m
+
+	ROM_REGION( 2*0x10000, "soundcpu", 0 )
+	ROM_LOAD( "nk2_06.bin",   0x10000, 0x8000, CRC(7bfe6c9e) SHA1(aef8cbeb0024939bf65f77113a5cf777f6613722) )   // decrypted opcodes
+	ROM_CONTINUE(             0x00000, 0x8000 )                                                                 // decrypted data
+
+	ROM_REGION( 0x2000, "user1", 0 ) /* MC8123 key */
+	ROM_LOAD( "ninjakd2.key",  0x0000, 0x2000, CRC(ec25318f) SHA1(619da3f69f9919e1457f79ee1d38e7ec80c4ebb0) )
+
+	ROM_REGION( 0x08000, "gfx1", 0 )    // fg tiles (need lineswapping)
+	ROM_LOAD( "jt_104_12.bin",        0x00000, 0x08000, CRC(c038fadb) SHA1(59e9b125ead3e9bdc9d66de75dffd58956eb922e) )  // this rom contains the new title / license
+
+	ROM_REGION( 0x20000, "gfx2", 0 )    // sprites (need lineswapping)
+	ROM_LOAD( "nk2_08.rom",   0x00000, 0x10000, CRC(1b79c50a) SHA1(8954bc51cb9fbbe16b09381f35c84ccc56a803f3) )
+	ROM_LOAD( "nk2_07.rom",   0x10000, 0x10000, CRC(0be5cd13) SHA1(8f94a8fef6668aaf13329715fee81302dbd6c685) )
+
+	ROM_REGION( 0x20000, "gfx3", 0 )    // bg tiles (need lineswapping)
+	ROM_LOAD( "nk2_11.rom",   0x00000, 0x10000, CRC(41a714b3) SHA1(b05f48d71a9837914c12c13e0b479c8a6dc8c25e) )
+	ROM_LOAD( "nk2_10.rom",   0x10000, 0x10000, CRC(c913c4ab) SHA1(f822c5621b3e32c1a284f6367bdcace81c1c74b3) )
+
+	ROM_REGION( 0x10000, "pcm", 0 )
+	ROM_LOAD( "nk2_09.rom",   0x0000, 0x10000, CRC(c1d2d170) SHA1(0f325815086fde90fd85360d3660042b0b68ba96) )   // unsigned 8-bit pcm samples
+ROM_END
+
 
 ROM_START( mnight )
 	ROM_REGION( 0x30000, "maincpu", 0 )
@@ -1501,7 +1531,8 @@ DRIVER_INIT_MEMBER(ninjakd2_state,robokidj)
 GAME( 1987, ninjakd2,  0,        ninjakd2, ninjakd2, ninjakd2_state, ninjakd2, ROT0,   "UPL", "Ninja-Kid II / NinjaKun Ashura no Shou (set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1987, ninjakd2a, ninjakd2, ninjakd2, ninjakd2, ninjakd2_state, bootleg,  ROT0,   "UPL", "Ninja-Kid II / NinjaKun Ashura no Shou (set 2, bootleg?)", GAME_SUPPORTS_SAVE )
 GAME( 1987, ninjakd2b, ninjakd2, ninjakd2, rdaction, ninjakd2_state, bootleg,  ROT0,   "UPL", "Ninja-Kid II / NinjaKun Ashura no Shou (set 3, bootleg?)", GAME_SUPPORTS_SAVE )
-GAME( 1987, rdaction,  ninjakd2, ninjakd2, rdaction, ninjakd2_state, ninjakd2, ROT0,   "UPL (World Games license)", "Rad Action / NinjaKun Ashura no Shou", GAME_SUPPORTS_SAVE )
+GAME( 1987, rdaction,  ninjakd2, ninjakd2, rdaction, ninjakd2_state, ninjakd2, ROT0,   "UPL (World Games license)",       "Rad Action / NinjaKun Ashura no Shou", GAME_SUPPORTS_SAVE )
+GAME( 1987, jt104,     ninjakd2, ninjakd2, rdaction, ninjakd2_state, bootleg,  ROT0,   "UPL (United Amusements license)", "JT-104 (title screen modification of Rad Action)", GAME_SUPPORTS_SAVE )
 GAME( 1987, mnight,    0,        mnight,   mnight,   ninjakd2_state, mnight,   ROT0,   "UPL (Kawakus license)", "Mutant Night", GAME_SUPPORTS_SAVE )
 GAME( 1988, arkarea,   0,        arkarea,  arkarea,  ninjakd2_state, mnight,   ROT0,   "UPL", "Ark Area", GAME_SUPPORTS_SAVE )
 GAME( 1988, robokid,   0,        robokid,  robokid,  ninjakd2_state, robokid,  ROT0,   "UPL", "Atomic Robo-kid", GAME_SUPPORTS_SAVE )

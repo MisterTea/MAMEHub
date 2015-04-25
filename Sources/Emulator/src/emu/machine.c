@@ -51,7 +51,7 @@
 
             - calls config_load_settings() [config.c] to load the configuration file
             - calls nvram_load [machine/generic.c] to load NVRAM
-            - calls ui_display_startup_screens() [ui.c] to display the the startup screens
+            - calls ui_display_startup_screens() [ui.c] to display the startup screens
             - begins resource tracking (level 2)
             - calls soft_reset() [mame.c] to reset all systems
 
@@ -116,6 +116,11 @@ static char giant_string_buffer[65536] = { 0 };
 //  RUNNING MACHINE
 //**************************************************************************
 
+osd_interface &running_machine::osd() const
+{
+	return m_manager.osd();
+}
+
 //-------------------------------------------------
 //  running_machine - constructor
 //-------------------------------------------------
@@ -147,6 +152,7 @@ running_machine::running_machine(const machine_config &_config, machine_manager 
 		m_save(*this),
 		m_memory(*this),
 		m_ioport(*this),
+		m_parameters(*this),
 		m_scheduler(*this)
 {
 	memset(&m_base_time, 0, sizeof(m_base_time));
@@ -280,6 +286,9 @@ void running_machine::start()
 	save().save_item(NAME(m_watchdog_enabled));
 	save().save_item(NAME(m_watchdog_counter));
 
+	// save the random seed or save states might be broken in drivers that use the rand() method
+	save().save_item(NAME(m_rand_seed));
+
 	// initialize image devices
 	image_init(*this);
 	m_tilemap.reset(global_alloc(tilemap_manager(*this)));
@@ -384,13 +393,17 @@ void running_machine::processNetworkBuffer(PeerInputData *inputData,int peerID)
             }
 
             // Check if the input states are equal.
-            std::string s1;
+            std::string s1string;
+            std::string s2string;
             //cout << "First serialize\n";
-            inputData->inputstate().SerializeToString(&s1);
-            std::string s2;
+            ::nsm::InputState s1 = inputData->inputstate();
+            ::nsm::InputState s2 = it->second;
+            s1.set_framecount(0);
+            s2.set_framecount(0);
+            s1.SerializeToString(&s1string);
             //cout << "Second serialize\n";
-            it->second.SerializeToString(&s2);
-            if (s1 != s2) {
+            s2.SerializeToString(&s2string);
+            if (s1string != s2string) {
               attotime currentMachineTime = machine_time();
               if (currentMachineTime > tmptime) {
                 if (doRollback) {
@@ -471,6 +484,7 @@ void running_machine::processNetworkBuffer(PeerInputData *inputData,int peerID)
 }
 
 RakNet::Time emulationStartTime=0;
+UINT64 inputFrameNumber = 0;
 
 int running_machine::run(bool firstrun)
 {
@@ -572,9 +586,21 @@ int running_machine::run(bool firstrun)
 
 		// perform a soft reset -- this takes us to the running phase
 		soft_reset();
+
+#ifdef MAME_DEBUG
+		g_tagmap_finds = 0;
+		if (strcmp(config().m_gamedrv.name, "___empty") != 0)
+			g_tagmap_counter_enabled = true;
+#endif
+		// handle initial load
+		if (m_saveload_schedule != SLS_NONE)
+			handle_saveload();
+
     printf("SOFT RESET FINISHED\n");
 
     emulationStartTime = RakNet::GetTimeMS();
+
+    UINT64 trackFrameNumber=0;
 
 		// run the CPUs until a reset or exit
 		m_hard_reset_pending = false;
@@ -589,17 +615,23 @@ int running_machine::run(bool firstrun)
 			js_set_main_loop(this);
 			#endif
 
-      attotime timeBefore = time();
+			manager().web()->serve();
+      attotime timeBefore = m_scheduler.first_device_time();
       attotime machineTimeBefore = machine_time();
 
 			// execute CPUs if not paused
 			if (!m_paused)
 				m_scheduler.timeslice();
+
 			// otherwise, just pump video updates through
 			else
 				m_video->frame_update();
 
-      attotime timeAfter = time();
+      attotime timeAfter = m_scheduler.first_device_time();
+      if (timeBefore > timeAfter) {
+        cout << "OOPS! WE WENT BACK IN TIME SOMEHOW\n";
+        exit(1);
+      }
       if (timeAfter > largestEmulationTime) {
         largestEmulationTime = timeAfter;
         catchingUp = false;
@@ -609,6 +641,7 @@ int running_machine::run(bool firstrun)
       bool tenthSecondPassed = false;
 
       if (timePassed) {
+        cout << "TIME MOVED FROM " << timeBefore << " TO " << timeAfter << endl;
         m_machine_time += (timeAfter - timeBefore);
         attotime machineTimeAfter = machine_time();
         secondPassed = machineTimeBefore.seconds != machineTimeAfter.seconds;
@@ -691,10 +724,10 @@ int running_machine::run(bool firstrun)
           else
           {
             //The client should update sync check just in case the server didn't have an anon timer
-            m_save.doPreSave();
+            m_save.dispatch_presave();
             netClient->updateSyncCheck();
             cout << "RAND/TIME AT SYNC: " << m_rand_seed << ' ' << machine_time().seconds << '.' << machine_time().attoseconds << endl;
-            m_save.doPostLoad();
+            m_save.dispatch_postload();
           }
         }
 
@@ -744,14 +777,19 @@ int running_machine::run(bool firstrun)
       if (timePassed && m_saveload_schedule != SLS_NONE) {
 				handle_saveload();
       } else if (timePassed && netCommon && netCommon->isRollback()) {
+        if (trackFrameNumber>0 && m_scheduler.can_save() && trackFrameNumber != inputFrameNumber) {
+          isRollback = true;
+          immediate_save("test");
+          cout << "SAVING AT TIME " << m_machine_time << endl;
+          isRollback = false;
+          trackFrameNumber=0;
+        }
         if(m_machine_time.seconds>0 && m_scheduler.can_save() && tenthSecondPassed) {
-          cout << "Tenth second passed" << endl;
+          cout << "Tenth second passed: " << m_machine_time << endl;
           if (secondPassed) {
             cout << "Second passed" << endl;
           }
-          isRollback = true;
-          immediate_save("test");
-          isRollback = false;
+          trackFrameNumber = inputFrameNumber;
 
           /*
           static int biggestSecond=0;
@@ -784,6 +822,15 @@ int running_machine::run(bool firstrun)
 		// and out via the exit phase
 		m_current_phase = MACHINE_PHASE_EXIT;
 
+#ifdef MAME_DEBUG
+		if (g_tagmap_counter_enabled)
+		{
+			g_tagmap_counter_enabled = false;
+			if (*(options().command()) == 0)
+				osd_printf_info("%d tagmap lookups\n", g_tagmap_finds);
+		}
+#endif
+
 		// save the NVRAM and configuration
 		sound().ui_mute(true);
 		nvram_save();
@@ -806,6 +853,11 @@ int running_machine::run(bool firstrun)
 		osd_printf_error("Error performing a late bind of type %s to %s\n", btex.m_actual_type.name(), btex.m_target_type.name());
 		error = MAMERR_FATALERROR;
 	}
+	catch (add_exception &aex)
+	{
+		osd_printf_error("Tag '%s' already exists in tagged_list\n", aex.tag());
+		error = MAMERR_FATALERROR;
+	}
 	catch (std::exception &ex)
 	{
 		osd_printf_error("Caught unhandled %s exception: %s\n", typeid(ex).name(), ex.what());
@@ -820,6 +872,15 @@ int running_machine::run(bool firstrun)
 	// make sure our phase is set properly before cleaning up,
 	// in case we got here via exception
 	m_current_phase = MACHINE_PHASE_EXIT;
+
+#ifdef MAME_DEBUG
+	if (g_tagmap_counter_enabled)
+	{
+		g_tagmap_counter_enabled = false;
+		if (*(options().command()) == 0)
+			osd_printf_info("%d tagmap lookups\n", g_tagmap_finds);
+	}
+#endif
 
 	// call all exit callbacks registered
 	call_notifiers(MACHINE_NOTIFY_EXIT);
@@ -837,10 +898,19 @@ int running_machine::run(bool firstrun)
 
 void running_machine::schedule_exit()
 {
-		m_exit_pending = true;
+	m_exit_pending = true;
 
 	// if we're executing, abort out immediately
 	m_scheduler.eat_all_cycles();
+
+#ifdef MAME_DEBUG
+	if (g_tagmap_counter_enabled)
+	{
+		g_tagmap_counter_enabled = false;
+		if (*(options().command()) == 0)
+			osd_printf_info("%d tagmap lookups\n", g_tagmap_finds);
+	}
+#endif
 
 	// if we're autosaving on exit, schedule a save as well
 	if (options().autosave() && (m_system.flags & GAME_SUPPORTS_SAVE) && this->time() > attotime::zero)
@@ -1237,7 +1307,7 @@ int onState = 0;
 void running_machine::handle_saveload()
 {
   if (!m_scheduler.can_save()) {
-    cout << "CANNOT SAVE!\n";
+    throw emu_fatalerror("CANNOT SAVE!");
   }
 
 	UINT32 openflags = (m_saveload_schedule == SLS_LOAD) ? OPEN_FLAG_READ : (OPEN_FLAG_WRITE | OPEN_FLAG_CREATE | OPEN_FLAG_CREATE_PATHS);
@@ -1269,7 +1339,7 @@ void running_machine::handle_saveload()
 
 	// open the file
   if (!isRollback) {
-  filerr = file.open(m_saveload_pending_file);
+	filerr = file.open(m_saveload_pending_file);
   } else {
   if (m_saveload_schedule == SLS_LOAD) {
     int bestState = -1;
@@ -1298,6 +1368,7 @@ void running_machine::handle_saveload()
       exit(1);
     }
     cout << "Opening save file: " << states[nextBestState].first.seconds << "." << states[nextBestState].first.attoseconds << " < " << this->machine_time().seconds << "." << this->machine_time().attoseconds << endl;
+    cout << "ROLLBACK TIME: " << rollbackTime << endl;
     vector<unsigned char> &v = states[nextBestState].second;
     filerr = file.open_ram(&v[0],v.size());
   } else {
@@ -1833,7 +1904,7 @@ void system_time::full_time::set(struct tm &t)
 	weekday = t.tm_wday;
 	day     = t.tm_yday;
 	is_dst  = t.tm_isdst;
-  }
+}
 }
 
 
@@ -1851,7 +1922,7 @@ void js_main_loop() {
 	attotime stoptime = scheduler->time() + attotime(0,HZ_TO_ATTOSECONDS(60));
 	while (scheduler->time() < stoptime) {
 		scheduler->timeslice();
-}
+	}
 }
 
 void js_set_main_loop(running_machine * machine) {

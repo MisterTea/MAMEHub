@@ -183,6 +183,9 @@ private:
 	attotime            m_avi_next_frame_time;      // time of next frame
 	UINT32              m_avi_frame;                // current movie frame number
 
+	// movie recording - dummy
+	bool                m_dummy_recording;          // indicates if snapshot should be created of every frame
+
 	// movie recording - WEBM
     WebMEncoder*        m_webmencoder;
 	attotime            m_webm_frame_period;         // period of a single movie frame

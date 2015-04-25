@@ -1158,7 +1158,7 @@
 #include "includes/namcos22.h"
 #include "cpu/m68000/m68000.h"
 #include "cpu/tms32025/tms32025.h"
-#include "cpu/m37710/m37710.h"
+#include "machine/namcomcu.h"
 #include "sound/c352.h"
 
 #define SS22_MASTER_CLOCK   (XTAL_49_152MHz)    /* info from Guru */
@@ -2714,7 +2714,6 @@ READ8_MEMBER(namcos22_state::iomcu_port4_s22_r)
 static ADDRESS_MAP_START( mcu_s22_program, AS_PROGRAM, 16, namcos22_state )
 	AM_RANGE(0x002000, 0x002fff) AM_DEVREADWRITE("c352", c352_device, read, write)
 	AM_RANGE(0x004000, 0x00bfff) AM_READWRITE(s22mcu_shared_r, s22mcu_shared_w )
-	AM_RANGE(0x00c000, 0x00ffff) AM_ROM AM_REGION("mcu_c74", 0)
 	AM_RANGE(0x080000, 0x0fffff) AM_ROM AM_REGION("mcu", 0)
 	AM_RANGE(0x200000, 0x27ffff) AM_ROM AM_REGION("mcu", 0)
 	AM_RANGE(0x280000, 0x2fffff) AM_ROM AM_REGION("mcu", 0)
@@ -2723,7 +2722,7 @@ static ADDRESS_MAP_START( mcu_s22_program, AS_PROGRAM, 16, namcos22_state )
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( iomcu_s22_program, AS_PROGRAM, 16, namcos22_state )
-	AM_RANGE(0x00c000, 0x00ffff) AM_ROM AM_REGION("iomcu", 0)
+	// is there any external memory or MMIO on this one?
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mcu_s22_io, AS_IO, 8, namcos22_state )
@@ -2797,11 +2796,8 @@ READ8_MEMBER(namcos22_state::mcu_port7_r)
 
 READ8_MEMBER(namcos22_state::namcos22s_mcu_adc_r)
 {
-	static const char *const portnames[] = { "ADC0", "ADC1", "ADC2", "ADC3" };
-	if (offset & 1)
-		return (ioport(portnames[offset >> 1 & 3])->read_safe(0) << 2) >> 8 & 0xff;
-	else
-		return (ioport(portnames[offset >> 1 & 3])->read_safe(0) << 2) & 0xff;
+	UINT16 adc = m_adc_ports[offset >> 1 & 7]->read_safe(0) << 2;
+	return (offset & 1) ? adc >> 8 : adc;
 }
 
 static ADDRESS_MAP_START( mcu_program, AS_PROGRAM, 16, namcos22_state )
@@ -2820,8 +2816,7 @@ static ADDRESS_MAP_START( mcu_io, AS_IO, 8, namcos22_state )
 	AM_RANGE(M37710_PORT5, M37710_PORT5) AM_READWRITE(mcu_port5_r, mcu_port5_w)
 	AM_RANGE(M37710_PORT6, M37710_PORT6) AM_READWRITE(mcu_port6_r, mcu_port6_w)
 	AM_RANGE(M37710_PORT7, M37710_PORT7) AM_READWRITE(mcu_port7_r, mcu_port7_w)
-	AM_RANGE(M37710_ADC0_L, M37710_ADC3_H) AM_READ(namcos22s_mcu_adc_r)
-	AM_RANGE(M37710_ADC4_L, M37710_ADC7_H) AM_READNOP
+	AM_RANGE(M37710_ADC0_L, M37710_ADC7_H) AM_READ(namcos22s_mcu_adc_r)
 ADDRESS_MAP_END
 
 /*********************************************************************************************/
@@ -3097,17 +3092,17 @@ static INPUT_PORTS_START( ridgera )
 	    2 4 6   Standard (default) setup uses a racing shifter like in Ace Driver. */
 	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_JOYSTICK_UP   ) PORT_NAME("Shift Down")
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN ) PORT_NAME("Shift Up")
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_NAME("Shift Left")    // not used in Standard
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT) PORT_NAME("Shift Right")   // not used in Standard
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("Clutch Pedal")        // not used in Standard
+	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT ) PORT_NAME("Shift Left")    // not used in Standard Cabinet
+	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT) PORT_NAME("Shift Right")   // not used in Standard Cabinet
+	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_BUTTON3 ) PORT_NAME("Clutch Pedal")        // not used in Standard Cabinet
 	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNKNOWN )
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_UNKNOWN )
-	PORT_DIPNAME( 0x0100, 0x0000, DEF_STR( Cabinet ) )
-	PORT_DIPSETTING(      0x0000, DEF_STR( Standard ) )
-	PORT_DIPSETTING(      0x0100, "Deluxe" )
+	PORT_CONFNAME( 0x0100, 0x0000, DEF_STR( Cabinet ) ) // @ JAMMA pins
+	PORT_CONFSETTING(      0x0000, DEF_STR( Standard ) )
+	PORT_CONFSETTING(      0x0100, "Deluxe" )
 	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_COIN2 )
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_UNKNOWN ) // also service mode?
+	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_SERVICE3 ) // also service mode?
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_SERVICE1 )
 	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_COIN1 )
 	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_UNKNOWN )
@@ -3166,11 +3161,11 @@ static INPUT_PORTS_START( ridgera2 )
 	PORT_INCLUDE( ridgera )
 
 	PORT_MODIFY("INPUTS")
-	PORT_DIPNAME( 0x2100, 0x2000, DEF_STR( Cabinet ) )
-	PORT_DIPSETTING(      0x0000, "50 Inch" )
-	PORT_DIPSETTING(      0x0100, "Twin" )
-	PORT_DIPSETTING(      0x2000, DEF_STR( Standard ) )
-	PORT_DIPSETTING(      0x2100, "Deluxe" )
+	PORT_CONFNAME( 0x2100, 0x2000, DEF_STR( Cabinet ) ) // @ JAMMA pins
+	PORT_CONFSETTING(      0x0000, "50 Inch" )
+	PORT_CONFSETTING(      0x0100, "Twin" )
+	PORT_CONFSETTING(      0x2000, DEF_STR( Standard ) )
+	PORT_CONFSETTING(      0x2100, "Deluxe" )
 
 	/* Some dipswitches seem to be for debug purposes, for example:
 	    2-4 : background drawing related
@@ -3192,11 +3187,11 @@ static INPUT_PORTS_START( raveracw )
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_BUTTON4 ) PORT_NAME("View Change")
 	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_UNKNOWN ) // no coin2
 
-	PORT_DIPNAME( 0x2100, 0x2000, DEF_STR( Cabinet ) )
-	PORT_DIPSETTING(      0x0000, "50 Inch" )
-	PORT_DIPSETTING(      0x0100, "Twin" )
-	PORT_DIPSETTING(      0x2000, DEF_STR( Standard ) )
-	PORT_DIPSETTING(      0x2100, "Deluxe" )
+	PORT_CONFNAME( 0x2100, 0x2000, DEF_STR( Cabinet ) ) // @ JAMMA pins
+	PORT_CONFSETTING(      0x0000, "50 Inch" )
+	PORT_CONFSETTING(      0x0100, "Twin" )
+	PORT_CONFSETTING(      0x2000, DEF_STR( Standard ) )
+	PORT_CONFSETTING(      0x2100, "Deluxe" )
 INPUT_PORTS_END
 
 
@@ -3353,10 +3348,10 @@ static INPUT_PORTS_START( alpiner )
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH,IPT_SPECIAL ) PORT_CUSTOM_MEMBER(DEVICE_SELF, namcos22_state,alpine_motor_read, (void *)1) // steps are locked
 	PORT_BIT( 0xfe, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("ADC0")
+	PORT_START("ADC.0")
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_NAME("Steps Swing")
 
-	PORT_START("ADC1")
+	PORT_START("ADC.1")
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4) PORT_NAME("Steps Edge")
 INPUT_PORTS_END
 
@@ -3385,13 +3380,13 @@ static INPUT_PORTS_START( airco22 )
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("ADC0")
+	PORT_START("ADC.0")
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_X ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
 
-	PORT_START("ADC1")
+	PORT_START("ADC.1")
 	PORT_BIT( 0xff, 0x80, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
 
-	PORT_START("ADC2")
+	PORT_START("ADC.2")
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0x00, 0xff) PORT_SENSITIVITY(100) PORT_KEYDELTA(4)
 INPUT_PORTS_END
 
@@ -3422,13 +3417,13 @@ static INPUT_PORTS_START( cybrcycc )
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("ADC0")
+	PORT_START("ADC.0")
 	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
 
-	PORT_START("ADC1")
+	PORT_START("ADC.1")
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
 
-	PORT_START("ADC2")
+	PORT_START("ADC.2")
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
 INPUT_PORTS_END
 
@@ -3457,13 +3452,13 @@ static INPUT_PORTS_START( dirtdash )
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("ADC0")
+	PORT_START("ADC.0")
 	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(3) PORT_NAME("Steering Wheel")
 
-	PORT_START("ADC1")
+	PORT_START("ADC.1")
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
 
-	PORT_START("ADC2")
+	PORT_START("ADC.2")
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
 INPUT_PORTS_END
 
@@ -3494,13 +3489,13 @@ static INPUT_PORTS_START( tokyowar )
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("ADC0")
+	PORT_START("ADC.0")
 	PORT_BIT( 0xff, 0x80, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Steering Wheel")
 
-	PORT_START("ADC2")
+	PORT_START("ADC.2")
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL )  PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Gas Pedal")
 
-	PORT_START("ADC3")
+	PORT_START("ADC.3")
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL2 ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_NAME("Brake Pedal")
 INPUT_PORTS_END
 
@@ -3531,13 +3526,13 @@ static INPUT_PORTS_START( aquajet )
 	PORT_START("MCUP5B")
 	PORT_BIT( 0xff, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("ADC0")
+	PORT_START("ADC.0")
 	PORT_BIT( 0xff, 0x7f, IPT_PADDLE ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
 
-	PORT_START("ADC1")
+	PORT_START("ADC.1")
 	PORT_BIT( 0xff, 0x00, IPT_PEDAL ) PORT_MINMAX(0x00, 0x80) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
 
-	PORT_START("ADC2")
+	PORT_START("ADC.2")
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_Y ) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
 INPUT_PORTS_END
 
@@ -3611,10 +3606,10 @@ static INPUT_PORTS_START( propcycl )
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_START )
 	PORT_BIT( 0xfe, IP_ACTIVE_LOW, IPT_UNKNOWN )
 
-	PORT_START("ADC0")
+	PORT_START("ADC.0")
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_X ) PORT_MINMAX(0x00, 0xfe) PORT_SENSITIVITY(100) PORT_KEYDELTA(10) PORT_REVERSE
 
-	PORT_START("ADC1")
+	PORT_START("ADC.1")
 	PORT_BIT( 0xff, 0x7f, IPT_AD_STICK_Y ) PORT_MINMAX(0x00, 0xfe) PORT_SENSITIVITY(100) PORT_KEYDELTA(10)
 
 	PORT_START("PEDAL")
@@ -3762,11 +3757,11 @@ static MACHINE_CONFIG_START( namcos22, namcos22_state )
 	MCFG_CPU_IO_MAP(slave_dsp_io)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("slave_st", namcos22_state, dsp_slave_serial_irq, "screen", 0, 1)
 
-	MCFG_CPU_ADD("mcu", M37702, SS22_MASTER_CLOCK/3) // C74 on the CPU board has no periodic interrupts, it runs entirely off Timer A0
+	MCFG_CPU_ADD("mcu", NAMCO_C74, SS22_MASTER_CLOCK/3) // C74 on the CPU board has no periodic interrupts, it runs entirely off Timer A0
 	MCFG_CPU_PROGRAM_MAP( mcu_s22_program)
 	MCFG_CPU_IO_MAP( mcu_s22_io)
 
-	MCFG_CPU_ADD("iomcu", M37702, XTAL_6_144MHz) // 6.144MHz XTAL on I/O board, not sure if it has a divider
+	MCFG_CPU_ADD("iomcu", NAMCO_C74, XTAL_6_144MHz) // 6.144MHz XTAL on I/O board, not sure if it has a divider
 	MCFG_CPU_PROGRAM_MAP( iomcu_s22_program)
 	MCFG_CPU_IO_MAP( iomcu_s22_io)
 
@@ -3780,7 +3775,6 @@ static MACHINE_CONFIG_START( namcos22, namcos22_state )
 
 	MCFG_PALETTE_ADD("palette", 0x8000)
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", namcos22)
-	MCFG_VIDEO_START_OVERRIDE(namcos22_state,namcos22)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3813,7 +3807,7 @@ static MACHINE_CONFIG_START( namcos22s, namcos22_state )
 	MCFG_CPU_IO_MAP(slave_dsp_io)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("slave_st", namcos22_state, dsp_slave_serial_irq, "screen", 0, 1)
 
-	MCFG_CPU_ADD("mcu", M37710, SS22_MASTER_CLOCK/3)
+	MCFG_CPU_ADD("mcu", M37710S4, SS22_MASTER_CLOCK/3)
 	MCFG_CPU_PROGRAM_MAP(mcu_program)
 	MCFG_CPU_IO_MAP(mcu_io)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("mcu_st", namcos22_state, mcu_irq, "screen", 0, 1)
@@ -3830,7 +3824,6 @@ static MACHINE_CONFIG_START( namcos22s, namcos22_state )
 
 	MCFG_PALETTE_ADD("palette", 0x8000)
 	MCFG_GFXDECODE_ADD("gfxdecode", "palette", super)
-	MCFG_VIDEO_START_OVERRIDE(namcos22_state,namcos22s)
 
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
@@ -3908,12 +3901,6 @@ ROM_START( ridgerac )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rr1data.6r", 0, 0x080000, CRC(18f5f748) SHA1(e0d149a66de36156edd9b55f604c9a9801aaefa8) )
 
@@ -3959,12 +3946,6 @@ ROM_START( ridgeracb )
 
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
-
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rr1data.6r", 0, 0x080000, CRC(18f5f748) SHA1(e0d149a66de36156edd9b55f604c9a9801aaefa8) )
@@ -4012,12 +3993,6 @@ ROM_START( ridgeracj )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rr1data.6r", 0, 0x080000, CRC(18f5f748) SHA1(e0d149a66de36156edd9b55f604c9a9801aaefa8) )
 
@@ -4064,12 +4039,6 @@ ROM_START( ridgerac3 )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rr1data.6r", 0, 0x080000, CRC(18f5f748) SHA1(e0d149a66de36156edd9b55f604c9a9801aaefa8) )
 
@@ -4115,12 +4084,6 @@ ROM_START( ridgeracf )
 
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
-
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rrf1data.6r", 0, 0x080000, CRC(ce3c6ed6) SHA1(23e033364bc967c10c49fd1d5413dda837670633) )
@@ -4170,12 +4133,6 @@ ROM_START( ridgera2 )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rrs1data.6r", 0, 0x080000, CRC(b7063aa8) SHA1(08ff689e8dd529b91eee423c93f084945c6de417) )
 
@@ -4221,12 +4178,6 @@ ROM_START( ridgera2j )
 
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
-
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rrs1data.6r", 0, 0x080000, CRC(b7063aa8) SHA1(08ff689e8dd529b91eee423c93f084945c6de417) )
@@ -4274,12 +4225,6 @@ ROM_START( ridgera2ja )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rrs1data.6r", 0, 0x080000, CRC(b7063aa8) SHA1(08ff689e8dd529b91eee423c93f084945c6de417) )
 
@@ -4326,12 +4271,6 @@ ROM_START( raveracw )
 
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
-
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rv1data.6r", 0, 0x080000, CRC(d358ec20) SHA1(140c513349240417bb546dd2d151f3666b818e91) )
@@ -4392,12 +4331,6 @@ ROM_START( raveracj )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rv1data.6r", 0, 0x080000, CRC(d358ec20) SHA1(140c513349240417bb546dd2d151f3666b818e91) )
 
@@ -4456,12 +4389,6 @@ ROM_START( raveracja )
 
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
-
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "rv1data.6r", 0, 0x080000, CRC(d358ec20) SHA1(140c513349240417bb546dd2d151f3666b818e91) )
@@ -4523,12 +4450,6 @@ ROM_START( cybrcomm )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "cy1data.6r", 0x00000, 0x20000, CRC(10d0005b) SHA1(10508eeaf74d24a611b44cd3bb12417ceb78904f) )
 	ROM_RELOAD(             0x20000, 0x20000)
@@ -4589,12 +4510,6 @@ ROM_START( acedrvrw )
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
 
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "ad1data.6r", 0, 0x080000, CRC(82024f74) SHA1(711ab0c4f027716aeab18e3a5d3d06fa82af8007) )
 
@@ -4641,12 +4556,6 @@ ROM_START( victlapw )
 
 	ROM_REGION( 0x10000*2, "slave", 0 ) /* Slave DSP */
 	ROM_LOAD16_WORD( "c71.bin", 0,0x1000*2, CRC(47c623ab) SHA1(e363ac50f5556f83308d4cc191b455e9b62bcfc8) )
-
-	ROM_REGION16_LE( 0x4000, "iomcu", 0 ) /* I/O MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
-
-	ROM_REGION16_LE( 0x4000, "mcu_c74", 0 ) /* SUB/SOUND MCU BIOS */
-	ROM_LOAD( "c74.bin", 0x0000, 0x4000, CRC(a3dce360) SHA1(8f3248b1890abb2e649927240ae46f73bb171e3b) )
 
 	ROM_REGION16_LE( 0x80000, "mcu", 0 ) /* sound data */
 	ROM_LOAD( "adv1data.6r", 0, 0x080000, CRC(10eecdb4) SHA1(aaedeed166614e6670e765e0d7e4e9eb5f38ad10) )

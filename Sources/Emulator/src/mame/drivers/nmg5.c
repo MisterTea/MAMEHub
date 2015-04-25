@@ -287,7 +287,6 @@ public:
 	virtual void video_start();
 	UINT32 screen_update_nmg5(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	void draw_bitmap( bitmap_ind16 &bitmap );
-	DECLARE_WRITE_LINE_MEMBER(soundirq);
 };
 
 
@@ -516,11 +515,15 @@ static INPUT_PORTS_START( searchey )
 	PORT_DIPSETTING(      0x0200, DEF_STR( Off ) )
 	PORT_DIPSETTING(      0x0000, DEF_STR( On ) )
 	PORT_DIPUNUSED_DIPLOC( 0x0400, IP_ACTIVE_LOW, "SW2:6" )
-	PORT_DIPUNUSED_DIPLOC( 0x0800, IP_ACTIVE_LOW, "SW2:5" )
-	PORT_DIPUNUSED_DIPLOC( 0x1000, IP_ACTIVE_LOW, "SW2:4" )
-	PORT_DIPNAME( 0x2000, 0x0000, DEF_STR( Language ) )     PORT_DIPLOCATION("SW2:3")
-	PORT_DIPSETTING(      0x0000, DEF_STR( English ) )
+	PORT_DIPNAME( 0x3800, 0x3000, DEF_STR( Language ) )     PORT_DIPLOCATION("SW2:5,4,3")
+	PORT_DIPSETTING(      0x0000, "Korean Duplicate 1" )
+	PORT_DIPSETTING(      0x0800, "Korean Duplicate 2" )
+	PORT_DIPSETTING(      0x1000, "Korean Duplicate 3" )
+	PORT_DIPSETTING(      0x1800, DEF_STR( Italian ) )
 	PORT_DIPSETTING(      0x2000, DEF_STR( Korean ) )
+	PORT_DIPSETTING(      0x2800, DEF_STR( Japanese ) )
+	PORT_DIPSETTING(      0x3000, DEF_STR( English ) )
+	PORT_DIPSETTING(      0x3800, "Korean Duplicate 4" )
 	PORT_DIPUNUSED_DIPLOC( 0x4000, IP_ACTIVE_LOW, "SW2:2" )
 	PORT_DIPNAME( 0x8000, 0x8000, "Items to find" )         PORT_DIPLOCATION("SW2:1")     // See notes
 	PORT_DIPSETTING(      0x0000, "Less" )
@@ -535,85 +538,55 @@ static INPUT_PORTS_START( searchey )
 	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_PLAYER(1) PORT_8WAY
 	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_PLAYER(1) PORT_8WAY
 	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(1) PORT_8WAY
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1)
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1)
+	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1) PORT_NAME( "Spot" )
+	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1) PORT_NAME( "Help" )
 	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNUSED )           // tested in service mode
 	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_START1 )
 	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )    PORT_PLAYER(2) PORT_8WAY
 	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_PLAYER(2) PORT_8WAY
 	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_PLAYER(2) PORT_8WAY
 	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2) PORT_8WAY
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
+	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2) PORT_NAME( "Spot" )
+	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2) PORT_NAME( "Help" )
 	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNUSED )           // tested in service mode
 	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_START2 )
 INPUT_PORTS_END
 
+static INPUT_PORTS_START( searcheya )
+	PORT_INCLUDE(searchey)
+
+	PORT_MODIFY("DSW")
+	PORT_DIPUNUSED_DIPLOC( 0x0800, IP_ACTIVE_LOW, "SW2:5" )
+	PORT_DIPUNUSED_DIPLOC( 0x1000, IP_ACTIVE_LOW, "SW2:4" )
+	PORT_DIPNAME( 0x2000, 0x0000, DEF_STR( Language ) )     PORT_DIPLOCATION("SW2:3")
+	PORT_DIPSETTING(      0x0000, DEF_STR( English ) )
+	PORT_DIPSETTING(      0x2000, DEF_STR( Korean ) )
+INPUT_PORTS_END
+
 static INPUT_PORTS_START( searchp2 )
-	PORT_START("DSW")
-	PORT_DIPNAME( 0x0003, 0x0003, "Timer Speed" )           PORT_DIPLOCATION("SW1:8,7")
-	PORT_DIPSETTING(      0x0003, "Slowest" )
-	PORT_DIPSETTING(      0x0002, "Slow" )
-	PORT_DIPSETTING(      0x0001, "Fast" )
-	PORT_DIPSETTING(      0x0000, "Fastest" )
-	PORT_DIPNAME( 0x000c, 0x0000, "Helps" )                 PORT_DIPLOCATION("SW1:6,5")
-	PORT_DIPSETTING(      0x000c, "1" )
-	PORT_DIPSETTING(      0x0008, "2" )
-	PORT_DIPSETTING(      0x0004, "3" )
-	PORT_DIPSETTING(      0x0000, "4" )
-	PORT_DIPNAME( 0x0030, 0x0030, DEF_STR( Lives ) )        PORT_DIPLOCATION("SW1:4,3")
-	PORT_DIPSETTING(      0x0020, "3" )
-	PORT_DIPSETTING(      0x0010, "4" )
-	PORT_DIPSETTING(      0x0030, "5" )
-	PORT_DIPSETTING(      0x0000, "6" )
-	PORT_DIPNAME( 0x00c0, 0x00c0, DEF_STR( Coinage ) )      PORT_DIPLOCATION("SW1:2,1")
-	PORT_DIPSETTING(      0x0000, DEF_STR( 3C_1C ) )
-	PORT_DIPSETTING(      0x0040, DEF_STR( 2C_1C ) )
-	PORT_DIPSETTING(      0x00c0, DEF_STR( 1C_1C ) )
-	PORT_DIPSETTING(      0x0080, DEF_STR( 1C_2C ) )
-	PORT_SERVICE_DIPLOC( 0x0100, IP_ACTIVE_LOW, "SW2:8" )
+	PORT_INCLUDE(searchey)
+
+	PORT_MODIFY("DSW")
 	PORT_DIPNAME( 0x0600, 0x0600, "Lucky Chance" )          PORT_DIPLOCATION("SW2:7,6")   // See notes
 	PORT_DIPSETTING(      0x0600, "Table 1" )
 	PORT_DIPSETTING(      0x0400, "Table 2" )
 	PORT_DIPSETTING(      0x0200, "Table 3" )
 	PORT_DIPSETTING(      0x0000, "Table 4" )
 	PORT_DIPNAME( 0x3800, 0x3000, DEF_STR( Language ) )     PORT_DIPLOCATION("SW2:5,4,3") // See notes
-//  PORT_DIPSETTING(      0x3800, DEF_STR( Korean ) )
-	PORT_DIPSETTING(      0x3000, DEF_STR( English ) )
-	PORT_DIPSETTING(      0x2800, DEF_STR( Japanese ) )
-	PORT_DIPSETTING(      0x2000, DEF_STR( Chinese ) )
-	PORT_DIPSETTING(      0x1800, DEF_STR( Italian ) )
+	PORT_DIPSETTING(      0x0000, "Korean Duplicate 1" )
+	PORT_DIPSETTING(      0x0800, "Korean Duplicate 2" )
 	PORT_DIPSETTING(      0x1000, DEF_STR( Korean ) )
-//  PORT_DIPSETTING(      0x0800, DEF_STR( Korean ) )
-//  PORT_DIPSETTING(      0x0000, DEF_STR( Korean ) )
+	PORT_DIPSETTING(      0x1800, DEF_STR( Italian ) )
+	PORT_DIPSETTING(      0x2000, DEF_STR( Chinese ) )
+	PORT_DIPSETTING(      0x2800, DEF_STR( Japanese ) )
+	PORT_DIPSETTING(      0x3000, DEF_STR( English ) )
+	PORT_DIPSETTING(      0x3800, "Korean Duplicate 3" )
 	PORT_DIPNAME( 0x4000, 0x4000, "Lucky Timer" )           PORT_DIPLOCATION("SW2:2")     // See notes
 	PORT_DIPSETTING(      0x0000, "Less" )
 	PORT_DIPSETTING(      0x4000, "More" )
 	PORT_DIPNAME( 0x8000, 0x8000, "Items to find" )         PORT_DIPLOCATION("SW2:1")     // See notes
 	PORT_DIPSETTING(      0x0000, "Less" )
 	PORT_DIPSETTING(      0x8000, "More" )
-
-	PORT_START("SYSTEM")    /* Coins */
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW,  IPT_COIN1 )
-	PORT_BIT( 0xfffe, IP_ACTIVE_LOW,  IPT_UNUSED )
-
-	PORT_START("INPUTS")
-	PORT_BIT( 0x0001, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )    PORT_PLAYER(1) PORT_8WAY
-	PORT_BIT( 0x0002, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_PLAYER(1) PORT_8WAY
-	PORT_BIT( 0x0004, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_PLAYER(1) PORT_8WAY
-	PORT_BIT( 0x0008, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(1) PORT_8WAY
-	PORT_BIT( 0x0010, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(1)
-	PORT_BIT( 0x0020, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(1)
-	PORT_BIT( 0x0040, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x0080, IP_ACTIVE_LOW, IPT_START1 )
-	PORT_BIT( 0x0100, IP_ACTIVE_LOW, IPT_JOYSTICK_UP )    PORT_PLAYER(2) PORT_8WAY
-	PORT_BIT( 0x0200, IP_ACTIVE_LOW, IPT_JOYSTICK_DOWN )  PORT_PLAYER(2) PORT_8WAY
-	PORT_BIT( 0x0400, IP_ACTIVE_LOW, IPT_JOYSTICK_LEFT )  PORT_PLAYER(2) PORT_8WAY
-	PORT_BIT( 0x0800, IP_ACTIVE_LOW, IPT_JOYSTICK_RIGHT ) PORT_PLAYER(2) PORT_8WAY
-	PORT_BIT( 0x1000, IP_ACTIVE_LOW, IPT_BUTTON1 ) PORT_PLAYER(2)
-	PORT_BIT( 0x2000, IP_ACTIVE_LOW, IPT_BUTTON2 ) PORT_PLAYER(2)
-	PORT_BIT( 0x4000, IP_ACTIVE_LOW, IPT_UNUSED )
-	PORT_BIT( 0x8000, IP_ACTIVE_LOW, IPT_START2 )
 INPUT_PORTS_END
 
 static INPUT_PORTS_START( pclubys )
@@ -978,11 +951,6 @@ static GFXDECODE_START( pclubys )
 GFXDECODE_END
 
 
-WRITE_LINE_MEMBER(nmg5_state::soundirq)
-{
-	m_soundcpu->set_input_line(0, state);
-}
-
 void nmg5_state::machine_start()
 {
 	save_item(NAME(m_gfx_bank));
@@ -1037,7 +1005,7 @@ static MACHINE_CONFIG_START( nmg5, nmg5_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("ymsnd", YM3812, 4000000) /* 4MHz */
-	MCFG_YM3812_IRQ_HANDLER(WRITELINE(nmg5_state, soundirq))
+	MCFG_YM3812_IRQ_HANDLER(INPUTLINE("soundcpu", 0))
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_OKIM6295_ADD("oki", 1000000 , OKIM6295_PIN7_HIGH)
@@ -1180,7 +1148,6 @@ ROM_START( nmg5a )
 	ROM_LOAD( "m5_oki.xra1", 0x00000, 0x20000, CRC(c74a4f3e) SHA1(2f6165c1d5bdd3e816b95ffd9303dd4bd07f7ac8) )
 ROM_END
 
-
 ROM_START( nmg5e )
 	ROM_REGION( 0x100000, "maincpu", 0 )        /* 68000 Code */
 	ROM_LOAD16_BYTE( "ub15.rom", 0x000000, 0x80000, CRC(578516e2) SHA1(87785e0071c62f17664e875d95cd6124984b8080) )
@@ -1210,10 +1177,38 @@ ROM_START( nmg5e )
 	ROM_LOAD( "xra1.bin", 0x00000, 0x20000, CRC(c74a4f3e) SHA1(2f6165c1d5bdd3e816b95ffd9303dd4bd07f7ac8) )
 ROM_END
 
-
 ROM_START( searchey )
 	ROM_REGION( 0x100000, "maincpu", 0 )        /* 68000 Code */
-	ROM_LOAD16_BYTE( "u7.bin", 0x000000, 0x40000, CRC(287ce3dd) SHA1(32305f7b09c58b7f126d41b5b1991e349884cc02) )
+	ROM_LOAD16_BYTE( "se.u7", 0x000000, 0x40000, CRC(332b0d83) SHA1(8b79f792a0e4bfd0c64744cdcf3be1daf29910d3) ) /* World set?? Supports 4 languages */
+	ROM_LOAD16_BYTE( "se.u2", 0x000001, 0x40000, CRC(bd16114e) SHA1(596fb8841168af88a02dc5f028f5731be5fa08a6) ) /* English, Korean, Japanese & Italian */
+
+	ROM_REGION( 0x10000, "soundcpu", 0 )        /* Z80 Code */
+	ROM_LOAD( "u128.bin", 0x00000, 0x10000, CRC(85bae10c) SHA1(a1e58d8b8c8718cc346aae400bb4eadf6873b86d) )
+
+	ROM_REGION( 0x400000, "gfx1", 0 )   /* 8x8x8 */
+	ROM_LOAD( "u63.bin", 0x000000, 0x80000, CRC(1b0b7b7d) SHA1(092855407fef95da69fcd6e608b8b3aa720d8bcd) )
+	ROM_LOAD( "u68.bin", 0x080000, 0x80000, CRC(ae18b2aa) SHA1(f1b2d3c1bafe99ec8b7e8e587ae0a0f9fa410a5a) )
+	ROM_LOAD( "u73.bin", 0x100000, 0x80000, CRC(ab7f8716) SHA1(c8cc3c1e9c37add31af28c43130b66f7fdd28042) )
+	ROM_LOAD( "u79.bin", 0x180000, 0x80000, CRC(7f2c8b83) SHA1(4f25bf5652ad3327efe63d960b987e581d20afbb) )
+	ROM_LOAD( "se.u64",  0x200000, 0x80000, CRC(32b7e4f3) SHA1(76a01b802bd4f13926cc0c5f8388962a89e45c6e) )
+	ROM_LOAD( "u69.bin", 0x280000, 0x80000, CRC(d546eaf8) SHA1(de6c80b733c31ef2c0c64d25d46f1cff9a262c42) )
+	ROM_LOAD( "u74.bin", 0x300000, 0x80000, CRC(e6134d84) SHA1(d639f44ef404e206b25a0b4f71ded3854836c60f) )
+	ROM_LOAD( "u80.bin", 0x380000, 0x80000, CRC(9a160918) SHA1(aac63dcb6005eaad7088d4e4e584825a6e232764) )
+
+	ROM_REGION( 0x0a0000, "gfx2", 0 )   /* 16x16x5 */
+	ROM_LOAD( "u83.bin", 0x000000, 0x20000, CRC(c5a1c647) SHA1(c8d1cc631b0286a4caa35dce6552c4206e58b620) )
+	ROM_LOAD( "u82.bin", 0x020000, 0x20000, CRC(25b2ae62) SHA1(02a1bd8719ca1792c2e4ff52fd5d4845e19fedb7) )
+	ROM_LOAD( "u105.bin",0x040000, 0x20000, CRC(b4207ef0) SHA1(e70a73b98e5399221208d81a324fab6b942470c8) )
+	ROM_LOAD( "u96.bin", 0x060000, 0x20000, CRC(8c40818a) SHA1(fe2c0da42154261ae1734ddb6cb9ddf33dd58510) )
+	ROM_LOAD( "u97.bin", 0x080000, 0x20000, CRC(5dc7f231) SHA1(5e57e436a24dfa14228bac7b8ae5f000393926b9) )
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* Samples */
+	ROM_LOAD( "u137.bin", 0x00000, 0x40000,  CRC(49105e23) SHA1(99543fbbccf5df5b15a0470eac641b4158024c6a) )
+ROM_END
+
+ROM_START( searcheya )
+	ROM_REGION( 0x100000, "maincpu", 0 )        /* 68000 Code */
+	ROM_LOAD16_BYTE( "u7.bin", 0x000000, 0x40000, CRC(287ce3dd) SHA1(32305f7b09c58b7f126d41b5b1991e349884cc02) ) /* Korean set?? only supports English & Korean */
 	ROM_LOAD16_BYTE( "u2.bin", 0x000001, 0x40000, CRC(b574f033) SHA1(8603926cef9df2495e97a071f08bbf418b9e01a8) )
 
 	ROM_REGION( 0x10000, "soundcpu", 0 )        /* Z80 Code */
@@ -1547,13 +1542,14 @@ DRIVER_INIT_MEMBER(nmg5_state,prot_val_40)
 	m_prot_val = 0x40;
 }
 
-GAME( 1998, nmg5,     0,       nmg5,     nmg5, nmg5_state,     prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 1)", GAME_SUPPORTS_SAVE )
-GAME( 1998, nmg5a,    nmg5,    nmg5,     nmg5, nmg5_state,     prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 2)", GAME_SUPPORTS_SAVE )
-GAME( 1997, nmg5e,    nmg5,    nmg5,     nmg5, nmg5_state,     prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 3, earlier)", GAME_SUPPORTS_SAVE )
-GAME( 1999, searchey, 0,       nmg5,     searchey, nmg5_state, prot_val_10, ROT0, "Yun Sung", "Search Eye", GAME_SUPPORTS_SAVE )
-GAME( 1999, searchp2, 0,       searchp2, searchp2, nmg5_state, prot_val_10, ROT0, "Yun Sung", "Search Eye Plus V2.0", GAME_SUPPORTS_SAVE )
-GAME( 2000, pclubys,  0,       pclubys,  pclubys, nmg5_state,  prot_val_10, ROT0, "Yun Sung", "Puzzle Club (Yun Sung, set 1)", GAME_SUPPORTS_SAVE )
-GAME( 2000, pclubysa, pclubys, pclubys,  pclubys, nmg5_state,  prot_val_10, ROT0, "Yun Sung", "Puzzle Club (Yun Sung, set 2)", GAME_SUPPORTS_SAVE )
-GAME( 2000, garogun,  0,       garogun,  garogun, nmg5_state,  prot_val_40, ROT0, "Yun Sung", "Garogun Seroyang (Korea)", GAME_SUPPORTS_SAVE )
-GAME( 2002, 7ordi,    0,       7ordi,    7ordi, nmg5_state,    prot_val_20, ROT0, "Yun Sung", "7 Ordi (Korea)", GAME_SUPPORTS_SAVE )
-GAME( ????, wondstck, 0,       nmg5,     wondstck, nmg5_state, prot_val_00, ROT0, "Yun Sung", "Wonder Stick", GAME_SUPPORTS_SAVE )
+GAME( 1998, nmg5,      0,        nmg5,     nmg5,      nmg5_state, prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1998, nmg5a,     nmg5,     nmg5,     nmg5,      nmg5_state, prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 2)", GAME_SUPPORTS_SAVE )
+GAME( 1997, nmg5e,     nmg5,     nmg5,     nmg5,      nmg5_state, prot_val_10, ROT0, "Yun Sung", "Multi 5 / New Multi Game 5 (set 3, earlier)", GAME_SUPPORTS_SAVE )
+GAME( 1999, searchey,  0,        nmg5,     searchey,  nmg5_state, prot_val_10, ROT0, "Yun Sung", "Search Eye (English / Korean / Japanese / Italian)", GAME_SUPPORTS_SAVE )
+GAME( 1999, searcheya, searchey, nmg5,     searcheya, nmg5_state, prot_val_10, ROT0, "Yun Sung", "Search Eye (English / Korean)", GAME_SUPPORTS_SAVE )
+GAME( 1999, searchp2,  0,        searchp2, searchp2,  nmg5_state, prot_val_10, ROT0, "Yun Sung", "Search Eye Plus V2.0", GAME_SUPPORTS_SAVE )
+GAME( 2000, pclubys,   0,        pclubys,  pclubys,   nmg5_state, prot_val_10, ROT0, "Yun Sung", "Puzzle Club (Yun Sung, set 1)", GAME_SUPPORTS_SAVE )
+GAME( 2000, pclubysa,  pclubys,  pclubys,  pclubys,   nmg5_state, prot_val_10, ROT0, "Yun Sung", "Puzzle Club (Yun Sung, set 2)", GAME_SUPPORTS_SAVE )
+GAME( 2000, garogun,   0,        garogun,  garogun,   nmg5_state, prot_val_40, ROT0, "Yun Sung", "Garogun Seroyang (Korea)", GAME_SUPPORTS_SAVE )
+GAME( 2002, 7ordi,     0,        7ordi,    7ordi,     nmg5_state, prot_val_20, ROT0, "Yun Sung", "7 Ordi (Korea)", GAME_SUPPORTS_SAVE )
+GAME( ????, wondstck,  0,        nmg5,     wondstck,  nmg5_state, prot_val_00, ROT0, "Yun Sung", "Wonder Stick", GAME_SUPPORTS_SAVE )

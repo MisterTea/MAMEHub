@@ -940,7 +940,7 @@ TIMER_CALLBACK_MEMBER(pce_cd_device::data_timer_callback)
 		}
 		else
 		{
-			logerror("Succesfully read mode1 frame #%d\n", m_current_frame);
+			logerror("Successfully read mode1 frame #%d\n", m_current_frame);
 		}
 
 		m_data_buffer_index = 0;
@@ -1423,8 +1423,6 @@ READ8_MEMBER(pce_cd_device::acard_r)
 		case 0x09: return m_acard_ctrl[r_num];
 		default:   return 0;
 	}
-
-	return 0;
 }
 
 WRITE8_MEMBER(pce_cd_device::acard_w)

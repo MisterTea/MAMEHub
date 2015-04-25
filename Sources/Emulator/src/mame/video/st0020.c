@@ -85,6 +85,7 @@ void st0020_device::device_start()
 	save_pointer(NAME(m_st0020_gfxram), 4 * 0x100000/2);
 	save_pointer(NAME(m_st0020_spriteram), 0x80000/2);
 	save_pointer(NAME(m_st0020_blitram), 0x100/2);
+	save_item(NAME(m_st0020_gfxram_bank));
 }
 
 void st0020_device::device_reset()
@@ -276,7 +277,7 @@ WRITE16_MEMBER(st0020_device::st0020_blitram_w)
         E.h                             Unused
 
 */
-void st0020_device::st0020_draw_zooming_sprites(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect, int priority)
+void st0020_device::st0020_draw_zooming_sprites(bitmap_ind16 &bitmap, const rectangle &cliprect, int priority)
 {
 	/* Sprites list */
 	UINT16 *spriteram16_2 = m_st0020_spriteram;
@@ -405,11 +406,11 @@ void st0020_device::st0020_draw_zooming_sprites(running_machine &machine, bitmap
 
 
 #if 0 /* doesn't compile in a device context (can't use ui_draw_text? */
-			if (machine.input().code_pressed(KEYCODE_Z))    /* Display some info on each sprite */
+			if (machine().input().code_pressed(KEYCODE_Z))    /* Display some info on each sprite */
 			{
 				char buf[10];
 				sprintf(buf, "%X",size);
-				ui_draw_text(&machine.render().ui_container(), buf, sx / 0x10000, sy / 0x10000);
+				ui_draw_text(&machine().render().ui_container(), buf, sx / 0x10000, sy / 0x10000);
 			}
 #endif
 		}   /* single-sprites */
@@ -421,8 +422,8 @@ void st0020_device::st0020_draw_zooming_sprites(running_machine &machine, bitmap
 
 
 
-void st0020_device::st0020_draw_all(running_machine &machine, bitmap_ind16 &bitmap, const rectangle &cliprect)
+void st0020_device::st0020_draw_all(bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	for (int pri = 0; pri <= 0xf; pri++)
-		st0020_draw_zooming_sprites(machine, bitmap, cliprect, pri);
+		st0020_draw_zooming_sprites(bitmap, cliprect, pri);
 }

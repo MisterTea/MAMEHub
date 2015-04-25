@@ -125,6 +125,16 @@ UINT32 i386_device::i386_load_protected_mode_segment(I386_SREG *seg, UINT64 *des
 	UINT32 base, limit;
 	int entry;
 
+	if(!seg->selector)
+	{
+		seg->flags = 0;
+		seg->base = 0;
+		seg->limit = 0;
+		seg->d = 0;
+		seg->valid = false;
+		return 0;
+	}
+
 	if ( seg->selector & 0x4 )
 	{
 		base = m_ldtr.base;
@@ -147,7 +157,7 @@ UINT32 i386_device::i386_load_protected_mode_segment(I386_SREG *seg, UINT64 *des
 	if (seg->flags & 0x8000)
 		seg->limit = (seg->limit << 12) | 0xfff;
 	seg->d = (seg->flags & 0x4000) ? 1 : 0;
-	seg->valid = (seg->selector & ~3)?(true):(false);
+	seg->valid = true;
 
 	if(desc)
 		*desc = ((UINT64)v2<<32)|v1;
@@ -212,7 +222,8 @@ void i386_device::i386_load_segment_descriptor(int segment )
 		if (!V8086_MODE)
 		{
 			i386_load_protected_mode_segment(&m_sreg[segment], NULL );
-			i386_set_descriptor_accessed(m_sreg[segment].selector);
+			if(m_sreg[segment].selector)
+				i386_set_descriptor_accessed(m_sreg[segment].selector);
 		}
 		else
 		{
@@ -687,6 +698,7 @@ void i386_device::i386_trap(int irq, int irq_gate, int trap_level)
 	UINT16 segment;
 	int entry = irq * (PROTECTED_MODE ? 8 : 4);
 	int SetRPL = 0;
+	m_lock = false;
 
 	if( !(PROTECTED_MODE) )
 	{
@@ -750,6 +762,15 @@ void i386_device::i386_trap(int irq, int irq_gate, int trap_level)
 			{
 				logerror("IRQ (%08x): Software IRQ - gate DPL is less than CPL.\n",m_pc);
 				FAULT_EXP(FAULT_GP,entry+2)
+			}
+			if(V8086_MODE)
+			{
+				if((!m_IOP1 || !m_IOP2) && (m_opcode != 0xcc))
+				{
+					logerror("IRQ (%08x): Is in Virtual 8086 mode and IOPL != 3.\n",m_pc);
+					FAULT(FAULT_GP,0)
+				}
+
 			}
 		}
 
@@ -901,7 +922,7 @@ void i386_device::i386_trap(int irq, int irq_gate, int trap_level)
 				newESP = i386_get_stack_ptr(DPL);
 				if(type & 0x08) // 32-bit gate
 				{
-					if(newESP < (V8086_MODE?36:20))
+					if(((newESP < (V8086_MODE?36:20)) && !(stack.flags & 0x4)) || ((~stack.limit < (~(newESP - 1) + (V8086_MODE?36:20))) && (stack.flags & 0x4)))
 					{
 						logerror("IRQ: New stack has no space for return addresses.\n");
 						FAULT_EXP(FAULT_SS,0)
@@ -910,7 +931,7 @@ void i386_device::i386_trap(int irq, int irq_gate, int trap_level)
 				else // 16-bit gate
 				{
 					newESP &= 0xffff;
-					if(newESP < (V8086_MODE?18:10))
+					if(((newESP < (V8086_MODE?18:10)) && !(stack.flags & 0x4)) || ((~stack.limit < (~(newESP - 1) + (V8086_MODE?18:10))) && (stack.flags & 0x4)))
 					{
 						logerror("IRQ: New stack has no space for return addresses.\n");
 						FAULT_EXP(FAULT_SS,0)
@@ -977,7 +998,7 @@ void i386_device::i386_trap(int irq, int irq_gate, int trap_level)
 				if((desc.flags & 0x0004) || (DPL == CPL))
 				{
 					/* IRQ to same privilege */
-					if(V8086_MODE)
+					if(V8086_MODE && !m_ext)
 					{
 						logerror("IRQ: Gate to same privilege from VM86 mode.\n");
 						FAULT_EXP(FAULT_GP,segment & ~0x03);
@@ -1183,7 +1204,7 @@ void i386_device::i286_task_switch(UINT16 selector, UINT8 nested)
 	}
 	CHANGE_PC(m_eip);
 
-	m_CPL = m_sreg[CS].selector & 0x03;
+	m_CPL = (m_sreg[SS].flags >> 5) & 3;
 //  printf("286 Task Switch from selector %04x to %04x\n",old_task,selector);
 }
 
@@ -1301,7 +1322,7 @@ void i386_device::i386_task_switch(UINT16 selector, UINT8 nested)
 
 	CHANGE_PC(m_eip);
 
-	m_CPL = m_sreg[CS].selector & 0x03;
+	m_CPL = (m_sreg[SS].flags >> 5) & 3;
 //  printf("386 Task Switch from selector %04x to %04x\n",old_task,selector);
 }
 
@@ -1665,17 +1686,17 @@ void i386_device::i386_protected_mode_call(UINT16 seg, UINT32 off, int indirect,
 		}
 		if (operand32 != 0)  // if 32-bit
 		{
-			if(REG32(ESP) < 8)
+			if(i386_limit_check(SS, REG32(ESP) - 8))
 			{
-				logerror("CALL: Stack has no room for return address.\n");
+				logerror("CALL (%08x): Stack has no room for return address.\n",m_pc);
 				FAULT(FAULT_SS,0)  // #SS(0)
 			}
 		}
 		else
 		{
-			if(REG16(SP) < 4)
+			if(i386_limit_check(SS, (REG16(SP) - 4) & 0xffff))
 			{
-				logerror("CALL: Stack has no room for return address.\n");
+				logerror("CALL (%08x): Stack has no room for return address.\n",m_pc);
 				FAULT(FAULT_SS,0)  // #SS(0)
 			}
 		}
@@ -1715,9 +1736,9 @@ void i386_device::i386_protected_mode_call(UINT16 seg, UINT32 off, int indirect,
 					logerror("CALL: TSS: TSS is busy.\n");
 					FAULT(FAULT_TS,selector & ~0x03) // #TS(selector)
 				}
-				if(desc.flags & 0x0080)
+				if((desc.flags & 0x0080) == 0)
 				{
-					logerror("CALL: TSS: Segment is not present.\n");
+					logerror("CALL: TSS: Segment %02x is not present.\n",selector);
 					FAULT(FAULT_NP,selector & ~0x03) // #NP(selector)
 				}
 				if(desc.flags & 0x08)
@@ -1923,7 +1944,7 @@ void i386_device::i386_protected_mode_call(UINT16 seg, UINT32 off, int indirect,
 					/* same privilege */
 					if (operand32 != 0)  // if 32-bit
 					{
-						if(REG32(ESP) < 8)
+						if(i386_limit_check(SS, REG32(ESP) - 8))
 						{
 							logerror("CALL: Stack has no room for return address.\n");
 							FAULT(FAULT_SS,0) // #SS(0)
@@ -1933,7 +1954,7 @@ void i386_device::i386_protected_mode_call(UINT16 seg, UINT32 off, int indirect,
 					}
 					else
 					{
-						if(REG16(SP) < 4)
+						if(i386_limit_check(SS, (REG16(SP) - 4) & 0xffff))
 						{
 							logerror("CALL: Stack has no room for return address.\n");
 							FAULT(FAULT_SS,0) // #SS(0)
@@ -1965,7 +1986,7 @@ void i386_device::i386_protected_mode_call(UINT16 seg, UINT32 off, int indirect,
 					logerror("CALL: Task Gate: Gate DPL is less than RPL.\n");
 					FAULT(FAULT_TS,selector & ~0x03) // #TS(selector)
 				}
-				if(gate.ar & 0x0080)
+				if((gate.ar & 0x0080) == 0)
 				{
 					logerror("CALL: Task Gate: Gate is not present.\n");
 					FAULT(FAULT_NP,selector & ~0x03) // #NP(selector)
@@ -1991,7 +2012,7 @@ void i386_device::i386_protected_mode_call(UINT16 seg, UINT32 off, int indirect,
 					logerror("CALL: Task Gate: TSS is busy.\n");
 					FAULT(FAULT_TS,gate.selector & ~0x03) // #TS(selector)
 				}
-				if(desc.flags & 0x0080)
+				if((desc.flags & 0x0080) == 0)
 				{
 					logerror("CALL: Task Gate: TSS is not present.\n");
 					FAULT(FAULT_NP,gate.selector & ~0x03) // #TS(selector)
@@ -2811,7 +2832,7 @@ void i386_device::build_cycle_table()
 void i386_device::report_invalid_opcode()
 {
 #ifndef DEBUG_MISSING_OPCODE
-	logerror("i386: Invalid opcode %02X at %08X\n", m_opcode, m_pc - 1);
+	logerror("i386: Invalid opcode %02X at %08X %s\n", m_opcode, m_pc - 1, m_lock ? "with lock" : "");
 #else
 	logerror("i386: Invalid opcode");
 	for (int a = 0; a < m_opcode_bytes_length; a++)
@@ -2845,23 +2866,53 @@ void i386_device::report_invalid_modrm(const char* opcode, UINT8 modrm)
 void i386_device::i386_decode_opcode()
 {
 	m_opcode = FETCH();
+
+	if(m_lock && !m_lock_table[0][m_opcode])
+		return i386_invalid();
+
 	if( m_operand_size )
 		(this->*m_opcode_table1_32[m_opcode])();
 	else
 		(this->*m_opcode_table1_16[m_opcode])();
 }
 
-/* Two-byte opcode prefix */
+/* Two-byte opcode 0f xx */
 void i386_device::i386_decode_two_byte()
 {
 	m_opcode = FETCH();
+
+	if(m_lock && !m_lock_table[1][m_opcode])
+		return i386_invalid();
+
 	if( m_operand_size )
 		(this->*m_opcode_table2_32[m_opcode])();
 	else
 		(this->*m_opcode_table2_16[m_opcode])();
 }
 
-/* Three-byte opcode prefix 66 0f */
+/* Three-byte opcode 0f 38 xx */
+void i386_device::i386_decode_three_byte38()
+{
+	m_opcode = FETCH();
+
+	if (m_operand_size)
+		(this->*m_opcode_table338_32[m_opcode])();
+	else
+		(this->*m_opcode_table338_16[m_opcode])();
+}
+
+/* Three-byte opcode 0f 3a xx */
+void i386_device::i386_decode_three_byte3a()
+{
+	m_opcode = FETCH();
+
+	if (m_operand_size)
+		(this->*m_opcode_table33a_32[m_opcode])();
+	else
+		(this->*m_opcode_table33a_16[m_opcode])();
+}
+
+/* Three-byte opcode prefix 66 0f xx */
 void i386_device::i386_decode_three_byte66()
 {
 	m_opcode = FETCH();
@@ -2871,7 +2922,7 @@ void i386_device::i386_decode_three_byte66()
 		(this->*m_opcode_table366_16[m_opcode])();
 }
 
-/* Three-byte opcode prefix f2 0f */
+/* Three-byte opcode prefix f2 0f xx */
 void i386_device::i386_decode_three_bytef2()
 {
 	m_opcode = FETCH();
@@ -2890,6 +2941,57 @@ void i386_device::i386_decode_three_bytef3()
 	else
 		(this->*m_opcode_table3f3_16[m_opcode])();
 }
+
+/* Four-byte opcode prefix 66 0f 38 xx */
+void i386_device::i386_decode_four_byte3866()
+{
+	m_opcode = FETCH();
+	if (m_operand_size)
+		(this->*m_opcode_table46638_32[m_opcode])();
+	else
+		(this->*m_opcode_table46638_16[m_opcode])();
+}
+
+/* Four-byte opcode prefix 66 0f 3a xx */
+void i386_device::i386_decode_four_byte3a66()
+{
+	m_opcode = FETCH();
+	if (m_operand_size)
+		(this->*m_opcode_table4663a_32[m_opcode])();
+	else
+		(this->*m_opcode_table4663a_16[m_opcode])();
+}
+
+/* Four-byte opcode prefix f2 0f 38 xx */
+void i386_device::i386_decode_four_byte38f2()
+{
+	m_opcode = FETCH();
+	if (m_operand_size)
+		(this->*m_opcode_table4f238_32[m_opcode])();
+	else
+		(this->*m_opcode_table4f238_16[m_opcode])();
+}
+
+/* Four-byte opcode prefix f2 0f 3a xx */
+void i386_device::i386_decode_four_byte3af2()
+{
+	m_opcode = FETCH();
+	if (m_operand_size)
+		(this->*m_opcode_table4f23a_32[m_opcode])();
+	else
+		(this->*m_opcode_table4f23a_16[m_opcode])();
+}
+
+/* Four-byte opcode prefix f3 0f 38 xx */
+void i386_device::i386_decode_four_byte38f3()
+{
+	m_opcode = FETCH();
+	if (m_operand_size)
+		(this->*m_opcode_table4f338_32[m_opcode])();
+	else
+		(this->*m_opcode_table4f338_16[m_opcode])();
+}
+
 
 /*************************************************************************/
 
@@ -3115,34 +3217,41 @@ void i386_device::i386_common_init(int tlbsize)
 	m_vtlb = vtlb_alloc(this, AS_PROGRAM, 0, tlbsize);
 	m_smi = false;
 	m_debugger_temp = 0;
+	m_lock = false;
 
 	zero_state();
 
-	save_item(NAME( m_reg.d));
+	save_item(NAME(m_reg.d));
 	save_item(NAME(m_sreg[ES].selector));
 	save_item(NAME(m_sreg[ES].base));
 	save_item(NAME(m_sreg[ES].limit));
 	save_item(NAME(m_sreg[ES].flags));
+	save_item(NAME(m_sreg[ES].d));
 	save_item(NAME(m_sreg[CS].selector));
 	save_item(NAME(m_sreg[CS].base));
 	save_item(NAME(m_sreg[CS].limit));
 	save_item(NAME(m_sreg[CS].flags));
+	save_item(NAME(m_sreg[CS].d));
 	save_item(NAME(m_sreg[SS].selector));
 	save_item(NAME(m_sreg[SS].base));
 	save_item(NAME(m_sreg[SS].limit));
 	save_item(NAME(m_sreg[SS].flags));
+	save_item(NAME(m_sreg[SS].d));
 	save_item(NAME(m_sreg[DS].selector));
 	save_item(NAME(m_sreg[DS].base));
 	save_item(NAME(m_sreg[DS].limit));
 	save_item(NAME(m_sreg[DS].flags));
+	save_item(NAME(m_sreg[DS].d));
 	save_item(NAME(m_sreg[FS].selector));
 	save_item(NAME(m_sreg[FS].base));
 	save_item(NAME(m_sreg[FS].limit));
 	save_item(NAME(m_sreg[FS].flags));
+	save_item(NAME(m_sreg[FS].d));
 	save_item(NAME(m_sreg[GS].selector));
 	save_item(NAME(m_sreg[GS].base));
 	save_item(NAME(m_sreg[GS].limit));
 	save_item(NAME(m_sreg[GS].flags));
+	save_item(NAME(m_sreg[GS].d));
 	save_item(NAME(m_eip));
 	save_item(NAME(m_prev_eip));
 	save_item(NAME(m_CF));
@@ -3154,9 +3263,9 @@ void i386_device::i386_common_init(int tlbsize)
 	save_item(NAME(m_AF));
 	save_item(NAME(m_IF));
 	save_item(NAME(m_TF));
-	save_item(NAME( m_cr));
-	save_item(NAME( m_dr));
-	save_item(NAME( m_tr));
+	save_item(NAME(m_cr));
+	save_item(NAME(m_dr));
+	save_item(NAME(m_tr));
 	save_item(NAME(m_idtr.base));
 	save_item(NAME(m_idtr.limit));
 	save_item(NAME(m_gdtr.base));
@@ -3178,6 +3287,7 @@ void i386_device::i386_common_init(int tlbsize)
 	save_item(NAME(m_nmi_masked));
 	save_item(NAME(m_nmi_latched));
 	save_item(NAME(m_smbase));
+	save_item(NAME(m_lock));
 	machine().save().register_postload(save_prepost_delegate(FUNC(i386_device::i386_postload), this));
 
 	m_smiact.resolve_safe();
@@ -3301,6 +3411,21 @@ void i386_device::register_state_i386_x87()
 	state_add( X87_ST7,    "ST7", m_debugger_temp ).formatstr("%15s");
 }
 
+void i386_device::register_state_i386_x87_xmm()
+{
+	register_state_i386_x87();
+
+	state_add( SSE_XMM0, "XMM0", m_debugger_temp ).formatstr("%32s");
+	state_add( SSE_XMM1, "XMM1", m_debugger_temp ).formatstr("%32s");
+	state_add( SSE_XMM2, "XMM2", m_debugger_temp ).formatstr("%32s");
+	state_add( SSE_XMM3, "XMM3", m_debugger_temp ).formatstr("%32s");
+	state_add( SSE_XMM4, "XMM4", m_debugger_temp ).formatstr("%32s");
+	state_add( SSE_XMM5, "XMM5", m_debugger_temp ).formatstr("%32s");
+	state_add( SSE_XMM6, "XMM6", m_debugger_temp ).formatstr("%32s");
+	state_add( SSE_XMM7, "XMM7", m_debugger_temp ).formatstr("%32s");
+
+}
+
 void i386_device::state_import(const device_state_entry &entry)
 {
 	switch (entry.index())
@@ -3374,6 +3499,30 @@ void i386_device::state_string_export(const device_state_entry &entry, astring &
 		case X87_ST7:
 			string.printf("%f", fx80_to_double(ST(7)));
 			break;
+		case SSE_XMM0:
+			string.printf("%08x%08x%08x%08x", XMM(0).d[3], XMM(0).d[2], XMM(0).d[1], XMM(0).d[0]);
+			break;
+		case SSE_XMM1:
+			string.printf("%08x%08x%08x%08x", XMM(1).d[3], XMM(1).d[2], XMM(1).d[1], XMM(1).d[0]);
+			break;
+		case SSE_XMM2:
+			string.printf("%08x%08x%08x%08x", XMM(2).d[3], XMM(2).d[2], XMM(2).d[1], XMM(2).d[0]);
+			break;
+		case SSE_XMM3:
+			string.printf("%08x%08x%08x%08x", XMM(3).d[3], XMM(3).d[2], XMM(3).d[1], XMM(3).d[0]);
+			break;
+		case SSE_XMM4:
+			string.printf("%08x%08x%08x%08x", XMM(4).d[3], XMM(4).d[2], XMM(4).d[1], XMM(4).d[0]);
+			break;
+		case SSE_XMM5:
+			string.printf("%08x%08x%08x%08x", XMM(5).d[3], XMM(5).d[2], XMM(5).d[1], XMM(5).d[0]);
+			break;
+		case SSE_XMM6:
+			string.printf("%08x%08x%08x%08x", XMM(6).d[3], XMM(6).d[2], XMM(6).d[1], XMM(6).d[0]);
+			break;
+		case SSE_XMM7:
+			string.printf("%08x%08x%08x%08x", XMM(7).d[3], XMM(7).d[2], XMM(7).d[1], XMM(7).d[0]);
+			break;
 	}
 }
 
@@ -3392,6 +3541,8 @@ void i386_device::build_opcode_table(UINT32 features)
 		m_opcode_table3f2_32[i] = &i386_device::i386_invalid;
 		m_opcode_table3f3_16[i] = &i386_device::i386_invalid;
 		m_opcode_table3f3_32[i] = &i386_device::i386_invalid;
+		m_lock_table[0][i] = false;
+		m_lock_table[1][i] = false;
 	}
 
 	for (i=0; i < sizeof(s_x86_opcode_table)/sizeof(X86_OPCODE); i++)
@@ -3406,6 +3557,7 @@ void i386_device::build_opcode_table(UINT32 features)
 				m_opcode_table2_16[op->opcode] = op->handler16;
 				m_opcode_table366_32[op->opcode] = op->handler32;
 				m_opcode_table366_16[op->opcode] = op->handler16;
+				m_lock_table[1][op->opcode] = op->lockable;
 			}
 			else if (op->flags & OP_3BYTE66)
 			{
@@ -3422,10 +3574,46 @@ void i386_device::build_opcode_table(UINT32 features)
 				m_opcode_table3f3_32[op->opcode] = op->handler32;
 				m_opcode_table3f3_16[op->opcode] = op->handler16;
 			}
+			else if (op->flags & OP_3BYTE38)
+			{
+				m_opcode_table338_32[op->opcode] = op->handler32;
+				m_opcode_table338_16[op->opcode] = op->handler16;
+			}
+			else if (op->flags & OP_3BYTE3A)
+			{
+				m_opcode_table33a_32[op->opcode] = op->handler32;
+				m_opcode_table33a_16[op->opcode] = op->handler16;
+			}
+			else if (op->flags & OP_4BYTE3866)
+			{
+				m_opcode_table46638_32[op->opcode] = op->handler32;
+				m_opcode_table46638_16[op->opcode] = op->handler16;
+			}
+			else if (op->flags & OP_4BYTE3A66)
+			{
+				m_opcode_table4663a_32[op->opcode] = op->handler32;
+				m_opcode_table4663a_16[op->opcode] = op->handler16;
+			}
+			else if (op->flags & OP_4BYTE38F2)
+			{
+				m_opcode_table4f238_32[op->opcode] = op->handler32;
+				m_opcode_table4f238_16[op->opcode] = op->handler16;
+			}
+			else if (op->flags & OP_4BYTE3AF2)
+			{
+				m_opcode_table4f23a_32[op->opcode] = op->handler32;
+				m_opcode_table4f23a_16[op->opcode] = op->handler16;
+			}
+			else if (op->flags & OP_4BYTE38F3)
+			{
+				m_opcode_table4f338_32[op->opcode] = op->handler32;
+				m_opcode_table4f338_16[op->opcode] = op->handler16;
+			}
 			else
 			{
 				m_opcode_table1_32[op->opcode] = op->handler32;
 				m_opcode_table1_16[op->opcode] = op->handler16;
+				m_lock_table[0][op->opcode] = op->lockable;
 			}
 		}
 	}
@@ -3471,6 +3659,7 @@ void i386_device::zero_state()
 	m_ext = 0;
 	m_halted = 0;
 	m_operand_size = 0;
+	m_xmm_operand_size = 0;
 	m_address_size = 0;
 	m_operand_prefix = 0;
 	m_address_prefix = 0;
@@ -3517,6 +3706,7 @@ void i386_device::device_reset()
 	m_sreg[CS].selector = 0xf000;
 	m_sreg[CS].base     = 0xffff0000;
 	m_sreg[CS].limit    = 0xffff;
+	m_sreg[CS].flags    = 0x9b;
 	m_sreg[CS].valid    = true;
 
 	m_sreg[DS].base = m_sreg[ES].base = m_sreg[FS].base = m_sreg[GS].base = m_sreg[SS].base = 0x00000000;
@@ -3723,6 +3913,7 @@ void i386_device::execute_run()
 	{
 		i386_check_irq_line();
 		m_operand_size = m_sreg[CS].d;
+		m_xmm_operand_size = 0;
 		m_address_size = m_sreg[CS].d;
 		m_operand_prefix = 0;
 		m_address_prefix = 0;
@@ -3753,7 +3944,8 @@ void i386_device::execute_run()
 				m_ext = 1;
 				i386_trap(1,0,0);
 			}
-
+			if(m_lock && (m_opcode != 0xf0))
+				m_lock = false;
 		}
 		catch(UINT64 e)
 		{
@@ -4200,7 +4392,7 @@ void pentium3_device::device_start()
 {
 	// 64 dtlb small, 8 dtlb large, 32 itlb small, 2 itlb large
 	i386_common_init(96);
-	register_state_i386_x87();
+	register_state_i386_x87_xmm();
 
 	build_x87_opcode_table();
 	build_opcode_table(OP_I386 | OP_FPU | OP_I486 | OP_PENTIUM | OP_PPRO | OP_MMX | OP_SSE);
@@ -4269,7 +4461,7 @@ void pentium4_device::device_start()
 {
 	// 128 dtlb, 64 itlb
 	i386_common_init(196);
-	register_state_i386_x87();
+	register_state_i386_x87_xmm();
 
 	build_x87_opcode_table();
 	build_opcode_table(OP_I386 | OP_FPU | OP_I486 | OP_PENTIUM | OP_PPRO | OP_MMX | OP_SSE | OP_SSE2);

@@ -22,8 +22,6 @@
 //**************************************************************************
 
 // these options are passed into drcuml_alloc() and control global behaviors
-const UINT32 DRCUML_OPTION_LOG_UML      = 0x0002;       // generate a UML disassembly of each block
-const UINT32 DRCUML_OPTION_LOG_NATIVE   = 0x0004;       // tell the back-end to generate a native disassembly of each block
 
 
 
@@ -149,6 +147,7 @@ public:
 	virtual void generate(drcuml_block &block, const uml::instruction *instlist, UINT32 numinst) = 0;
 	virtual bool hash_exists(UINT32 mode, UINT32 pc) = 0;
 	virtual void get_info(drcbe_info &info) = 0;
+	virtual bool logging() const { return false; }
 
 protected:
 	// internal state
@@ -196,6 +195,7 @@ public:
 	bool logging() const { return (m_umllog != NULL); }
 	void log_printf(const char *format, ...) ATTR_PRINTF(2,3);
 	void log_flush() { if (logging()) fflush(m_umllog); }
+	bool logging_native() const { return m_beintf.logging(); }
 
 private:
 	// symbol class

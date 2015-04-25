@@ -99,7 +99,7 @@
 #include <stdio.h>
 #include <assert.h>
 
-#include "emu.h"
+#include "emu.h" // logerror
 #include "ap_dsk35.h"
 
 struct apple35_tag
@@ -470,8 +470,13 @@ static UINT32 apple35_get_offset(floppy_image_legacy *floppy, int head, int trac
 	{
 		*tag_offset = sector_index * 12;
 		if (*tag_offset >= tag->tag_size)
+		{
 			*tag_offset = ~0;
-		*tag_offset += tag->tag_offset;
+		}
+		else
+		{
+			*tag_offset += tag->tag_offset;
+		}
 	}
 	return sector_index * 0x200 + tag->data_offset;
 }
@@ -1181,7 +1186,7 @@ LEGACY_FLOPPY_OPTIONS_START( apple35_mac )
 LEGACY_FLOPPY_OPTIONS_END
 
 LEGACY_FLOPPY_OPTIONS_START( apple35_iigs )
-	LEGACY_FLOPPY_OPTION( apple35_raw, "dsk,img,image", "Apple raw 3.5\" disk image",   apple35_raw_identify,       apple35_raw_construct, NULL,
+	LEGACY_FLOPPY_OPTION( apple35_raw, "dsk,img,image,po", "Apple raw 3.5\" disk image",   apple35_raw_identify,       apple35_raw_construct, NULL,
 		HEADS([1]-2)
 		TRACKS([80])
 		SECTOR_LENGTH([512])

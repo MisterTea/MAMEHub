@@ -98,6 +98,10 @@ endif
 ifeq ($(firstword $(filter Haiku,$(UNAME))),Haiku)
 TARGETOS = haiku
 endif
+ifeq ($(firstword $(filter SunOS,$(UNAME))),SunOS)
+TARGETOS = solaris
+SDL_LIBVER = sdl
+endif
 
 ifndef TARGETOS
 $(error Unable to detect TARGETOS from uname -a: $(UNAME))
@@ -113,6 +117,11 @@ PTR64 = 1
 endif
 ifeq ($(firstword $(filter ppc64,$(UNAME))),ppc64)
 PTR64 = 1
+endif
+ifeq ($(TARGETOS), solaris)
+ifeq ($(firstword $(filter amd64,$(shell /usr/bin/isainfo -k))),amd64)
+PTR64 = 1
+endif
 endif
 endif
 
@@ -139,7 +148,8 @@ ifeq ($(TARGETOS),win32)
 
 # Autodetect PTR64
 ifndef PTR64
-ifneq (,$(findstring mingw64-w64,$(PATH)))
+WIN_TEST_GCC := $(shell gcc --version)
+ifeq ($(findstring x86_64,$(WIN_TEST_GCC)),x86_64)
 PTR64=1
 endif
 endif
@@ -231,6 +241,9 @@ BUILD_FLAC = 1
 # uncomment next line to build jpeglib as part of MAME build
 BUILD_JPEGLIB = 1
 
+# uncomment next line to build libsqlite3 as part of MAME/MESS build
+BUILD_SQLITE3 = 1
+
 # uncomment next line to build PortMidi as part of MAME/MESS build
 BUILD_MIDILIB = 1
 
@@ -262,11 +275,17 @@ BUILD_MIDILIB = 1
 # uncomment next line to enable LTO (link-time optimizations)
 # LTO = 1
 
-# uncomment next line to enable networking
-# USE_NETWORK = 1
+# uncomment next line to disable networking
+# DONT_USE_NETWORK = 1
 
 # uncomment to enable SSE2 optimized code and SSE2 code generation (implicitly enabled by 64-bit compilers)
 # SSE2 = 1
+
+# uncomment to enable OpenMP optimized code
+# OPENMP = 1
+
+# uncomment to compile c++ code as C++11
+# CPP11 = 1
 
 # specify optimization level or leave commented to use the default
 # (default is OPTIMIZE = 3 normally, or OPTIMIZE = 0 with symbols)
@@ -287,15 +306,6 @@ ifdef SANITIZE
 SYMBOLS = 1
 endif
 
-# specify a default optimization level if none explicitly stated
-ifndef OPTIMIZE
-ifndef SYMBOLS
-OPTIMIZE = 3
-else
-OPTIMIZE = 0
-endif
-endif
-
 # profiler defaults to on for DEBUG builds
 ifdef DEBUG
 ifndef PROFILER
@@ -303,7 +313,6 @@ PROFILER = 1
 endif
 endif
 
-# TODO: also move it up, so it isn't optimized by default?
 # allow gprof profiling as well, which overrides the internal PROFILER
 # also enable symbols as it is useless without them
 ifdef PROFILE
@@ -311,6 +320,15 @@ PROFILER =
 SYMBOLS = 1
 ifndef SYMLEVEL
 SYMLEVEL = 1
+endif
+endif
+
+# specify a default optimization level if none explicitly stated
+ifndef OPTIMIZE
+ifndef SYMBOLS
+OPTIMIZE = 3
+else
+OPTIMIZE = 0
 endif
 endif
 
@@ -338,8 +356,14 @@ ifeq ($(TARGETOS),os2)
 EXE = .exe
 endif
 
-ifndef BUILD_EXE
-BUILD_EXE = $(EXE)
+# extension for build tools
+BUILD_EXE = 
+
+ifeq ($(OS),Windows_NT)
+BUILD_EXE = .exe
+endif
+ifneq ($(OS2_SHELL),)
+BUILD_EXE = .exe
 endif
 
 # compiler, linker and utilities
@@ -348,11 +372,10 @@ AR = @ar
 CC = @gcc
 LD = @g++
 endif
-MD = -mkdir$(EXE)
+MD = -mkdir$(BUILD_EXE)
 RM = @rm -f
 OBJDUMP = @objdump
 PYTHON = @python
-
 
 #-------------------------------------------------
 # form the name of the executable
@@ -399,7 +422,7 @@ NAME = $(TARGET)$(SUBTARGET)
 endif
 
 # fullname is prefix+name+suffix+suffix64+suffixdebug
-FULLNAME ?= $(PREFIX)$(PREFIXSDL)$(NAME)$(SUFFIX)$(SUFFIX64)$(SUFFIXDEBUG)$(SUFFIXPROFILE)
+FULLNAME ?= $(BIN)$(PREFIX)$(PREFIXSDL)$(NAME)$(SUFFIX)$(SUFFIX64)$(SUFFIXDEBUG)$(SUFFIXPROFILE)
 
 # add an EXE suffix to get the final emulator name
 ifndef MXE
@@ -416,6 +439,9 @@ endif
 
 # all sources are under the src/ directory
 SRC = src
+
+# all 3rd party sources are under the 3rdparty/ directory
+3RDPARTY = 3rdparty
 
 # build the targets in different object dirs, so they can co-exist
 OBJ = obj/$(PREFIX)$(OSD)$(SUFFIX)$(SUFFIX64)$(SUFFIXDEBUG)$(SUFFIXPROFILE)
@@ -443,6 +469,9 @@ endif
 
 ifdef MXE
 DEFS += -DMXE
+
+# Set version of msvc for mxe
+DEFS += -D__MSVCRT_VERSION__=0x800 -D_WIN32_WINNT=0x0501
 endif
 
 #Define _USE_MATH_DEFINES for M_PI
@@ -473,6 +502,9 @@ endif
 # define MAME_DEBUG if we are a debugging build
 ifdef DEBUG
 DEFS += -DMAME_DEBUG
+ifdef FASTDEBUG
+DEFS += -DMAME_DEBUG_FAST
+endif
 else
 DEFS += -DNDEBUG 
 endif
@@ -482,8 +514,8 @@ ifdef PROFILER
 DEFS += -DMAME_PROFILER
 endif
 
-# define USE_NETWORK if we are a making network enabled build
-ifdef USE_NETWORK
+# define USE_NETWORK if networking is enabled (hasn't been disabled)
+ifndef DONT_USE_NETWORK
 DEFS += -DUSE_NETWORK
 endif
 
@@ -497,10 +529,8 @@ ifneq ($(BUILD_JPEGLIB),1)
 DEFS += -DUSE_SYSTEM_JPEGLIB
 endif
 
-ifdef FASTDEBUG
-DEFS += -DMAME_DEBUG_FAST
-endif
-
+# To support casting in Lua 5.3
+DEFS += -DLUA_COMPAT_APIINTCASTS
 
 #-------------------------------------------------
 # compile flags
@@ -518,12 +548,16 @@ CPPONLYFLAGS =
 
 # CFLAGS is defined based on C or C++ targets
 # (remember, expansion only happens when used, so doing it here is ok)
-CFLAGS = $(CCOMFLAGS) $(CPPONLYFLAGS)
+CFLAGS = $(CCOMFLAGS) $(CPPONLYFLAGS) $(INCPATH)
 
 # we compile C-only to C89 standard with GNU extensions
 # we compile C++ code to C++98 standard with GNU extensions
 CONLYFLAGS += -std=gnu89
+ifdef CPP11
+CPPONLYFLAGS += -x c++ -std=gnu++11
+else
 CPPONLYFLAGS += -x c++ -std=gnu++98
+endif
 COBJFLAGS += -x objective-c++
 
 # this speeds it up a bit by piping between the preprocessor/compiler/assembler
@@ -532,6 +566,11 @@ CCOMFLAGS += -pipe
 # add -g if we need symbols, and ensure we have frame pointers
 ifdef SYMBOLS
 CCOMFLAGS += -g$(SYMLEVEL) -fno-omit-frame-pointer -fno-optimize-sibling-calls
+endif
+
+# we need to disable some additional implicit optimizations for profiling
+ifdef PROFILE
+CCOMFLAGS += -mno-omit-leaf-frame-pointer
 endif
 
 # add -v if we need verbose build information
@@ -570,6 +609,12 @@ ifdef SSE2
 CCOMFLAGS += -msse2
 endif
 
+ifdef OPENMP
+CCOMFLAGS += -fopenmp
+else
+CCOMFLAGS += -Wno-unknown-pragmas
+endif
+
 # add a basic set of warnings
 CCOMFLAGS += \
 	-Wall \
@@ -593,26 +638,16 @@ COBJFLAGS += \
 # warnings only applicable to C++ compiles
 CPPONLYFLAGS += \
 	-Woverloaded-virtual
-
-include $(SRC)/build/cc_detection.mak
-
+	
 ifdef SANITIZE
 CCOMFLAGS += -fsanitize=$(SANITIZE)
+
 ifneq (,$(findstring thread,$(SANITIZE)))
 CCOMFLAGS += -fPIE
 endif
-ifneq (,$(findstring memory,$(SANITIZE)))
-ifneq (,$(findstring clang,$(CC)))
-CCOMFLAGS += -fsanitize-memory-track-origins -fPIE
 endif
-endif
-ifneq (,$(findstring undefined,$(SANITIZE)))
-ifneq (,$(findstring clang,$(CC)))
-# TODO: check if linker is clang++
-CCOMFLAGS += -fno-sanitize=alignment -fno-sanitize=function -fno-sanitize=shift -fno-sanitize=null -fno-sanitize=signed-integer-overflow -fno-sanitize=vptr -fno-sanitize=float-cast-overflow -fno-sanitize=integer-divide-by-zero -fno-sanitize=float-divide-by-zero -fno-sanitize=object-size
-endif
-endif
-endif
+
+include $(SRC)/build/cc_detection.mak
 
 #-------------------------------------------------
 # include paths
@@ -626,35 +661,37 @@ INCPATH += \
 	-I$(OBJ)/emu \
 	-I$(OBJ)/emu/layout \
 	-I$(SRC)/lib/util \
-	-I$(SRC)/lib/boost_thread \
-	-I$(SRC)/lib/webm \
-	-I$(SRC)/lib/webm/vorbis \
-	-I$(SRC)/lib/webm/vp8/common \
-	-I$(SRC)/lib/webm/vpx_mem/memory_manager/include \
-	-I$(SRC)/lib/webm/vpx_scale/include/generic \
-	-I$(SRC)/lib/protobuf \
-	-I$(SRC)/lib/thrift \
 	-I$(SRC)/lib \
+	-I$(3RDPARTY) \
+	-I$(3RDPARTY)/lua/src \
+	-I$(3RDPARTY)/boost_thread \
+	-I$(3RDPARTY)/webm \
+	-I$(3RDPARTY)/webm/vorbis \
+	-I$(3RDPARTY)/webm/vp8/common \
+	-I$(3RDPARTY)/webm/vpx_mem/memory_manager/include \
+	-I$(3RDPARTY)/webm/vpx_scale/include/generic \
+	-I$(3RDPARTY)/protobuf \
+	-I$(3RDPARTY)/thrift \
 	-I$(SRC)/osd \
 	-I$(SRC)/osd/$(OSD) \
 
 ifeq ($(TARGETOS),macosx)
-INCPATH += -I$(SRC)/lib/webm/osx_config
+INCPATH += -I$(3RDPARTY)/webm/osx_config
 endif
 
 ifeq ($(TARGETOS),linux)
 ifeq ($(PTR64),1)
-INCPATH += -I$(SRC)/lib/webm/unix64_config
+INCPATH += -I$(3RDPARTY)/webm/unix64_config
 else
-INCPATH += -I$(SRC)/lib/webm/unix_config
+INCPATH += -I$(3RDPARTY)/webm/unix_config
 endif
 endif
 
 ifeq ($(TARGETOS),win32)
 ifeq ($(PTR64),1)
-INCPATH += -I$(SRC)/lib/webm/mingw64_config
+INCPATH += -I$(3RDPARTY)/webm/mingw64_config
 else
-INCPATH += -I$(SRC)/lib/webm/mingw_config
+INCPATH += -I$(3RDPARTY)/webm/mingw_config
 endif
 endif
 
@@ -669,9 +706,6 @@ ifeq ($(TARGETOS),macosx)
 ifeq ($(COMMAND_MODE),"legacy")
 ARFLAGS = -crs
 endif
-endif
-ifeq ($(TARGETOS),emscripten)
-ARFLAGS = cr
 endif
 
 
@@ -731,11 +765,11 @@ endif
 # this variable
 #-------------------------------------------------
 
-OBJDIRS = $(OBJ) $(OBJ)/$(TARGET)/$(SUBTARGET)
+OBJDIRS += $(OBJ) $(OBJ)/$(TARGET)/$(SUBTARGET)
 
 
 #-------------------------------------------------
-# define standard libarires for CPU and sounds
+# define standard libraries for CPU and sounds
 #-------------------------------------------------
 
 LIBEMU = $(OBJ)/libemu.a
@@ -763,7 +797,7 @@ LIBS =
 
 # add expat XML library
 ifeq ($(BUILD_EXPAT),1)
-INCPATH += -I$(SRC)/lib/expat
+INCPATH += -I$(3RDPARTY)/expat/lib
 EXPAT = $(OBJ)/libexpat.a
 else
 LIBS += -lexpat
@@ -772,10 +806,11 @@ endif
 
 # add ZLIB compression library
 ifeq ($(BUILD_ZLIB),1)
-INCPATH += -I$(SRC)/lib/zlib
+INCPATH += -I$(3RDPARTY)/zlib
 ZLIB = $(OBJ)/libz.a
 else
 LIBS += -lz
+BASELIBS += -lz
 ZLIB =
 endif
 
@@ -786,12 +821,13 @@ FLAC_LIB = $(OBJ)/libflac.a
 # $(OBJ)/libflac++.a
 else
 LIBS += -lFLAC
+BASELIBS += -lFLAC
 FLAC_LIB =
 endif
 
 # add jpeglib image library
 ifeq ($(BUILD_JPEGLIB),1)
-INCPATH += -I$(SRC)/lib/libjpeg
+INCPATH += -I$(3RDPARTY)/libjpeg
 JPEG_LIB = $(OBJ)/libjpeg.a
 else
 LIBS += -ljpeg
@@ -811,7 +847,15 @@ LUA_LIB = $(OBJ)/liblua.a
 WEB_LIB = $(OBJ)/libweb.a
 
 # add SQLite3 library
+ifeq ($(BUILD_SQLITE3),1)
 SQLITE3_LIB = $(OBJ)/libsqlite3.a
+else
+LIBS += -lsqlite3
+SQLITE3_LIB =
+endif
+
+# add BGFX library - this is one in sdl.mak / windows.mak
+# BGFX_LIB = $(OBJ)/libbgfx.a
 
 # add PortMidi MIDI library
 ifeq ($(BUILD_MIDILIB),1)
@@ -827,23 +871,18 @@ LIBS += -lstdc++ -lpthread
 endif
 
 # add protobuf library
-INCPATH += -I$(SRC)/lib/protobuf
 PROTOBUF = $(OBJ)/libprotobuf.a
 
 # add thrift library
-INCPATH += -I$(SRC)/lib/thrift
 THRIFT = $(OBJ)/libthrift.a
 
 # add WebM library
-INCPATH += -I$(SRC)/lib/webm
 WEBM = $(OBJ)/libwebm.a
 
 # add RakNet library
-INCPATH += -I$(SRC)/lib/RakNet
 RAKNET = $(OBJ)/libraknet.a
 
 # add boost thread library
-INCPATH += -I$(SRC)/lib/boost_thread
 ifeq ($(TARGETOS),win32)
 BOOST_THREAD = $(OBJ)/libboostthreadwindows.a $(OBJ)/libboostsystem.a
 else
@@ -892,12 +931,18 @@ include $(SRC)/tools/tools.mak
 include $(SRC)/regtests/regtests.mak
 
 # combine the various definitions to one
-CCOMFLAGS += $(INCPATH)
 CDEFS = $(DEFS)
 
 # TODO: -x c++ should not be hard-coded
 CPPCHECKFLAGS = $(CDEFS) $(INCPATH) -x c++ --enable=style
 
+#-------------------------------------------------
+# sanity check OSD additions
+#-------------------------------------------------
+
+ifeq (,$(findstring -DOSD_,$(CDEFS)))
+$(error $(OSD).mak should have defined -DOSD_)
+endif
 
 #-------------------------------------------------
 # primary targets
@@ -960,13 +1005,29 @@ $(sort $(OBJDIRS)):
 
 ifndef EXECUTABLE_DEFINED
 
-$(EMULATOR): $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBBUS) $(LIBOPTIONAL) $(LIBEMU) $(LIBDASM) $(LIBUTIL) $(EXPAT) $(BOOST_THREAD) $(RAKNET) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(WEBM) $(PROTOBUF) $(THRIFT) $(7Z_LIB) $(FORMATS_LIB) $(LUA_LIB) $(SQLITE3_LIB) $(WEB_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
-	$(CC) $(CDEFS) $(CFLAGS) -c $(SRC)/version.c -o $(VERSIONOBJ)
+ifeq ($(BUSES),)
+LIBBUS =
+endif
+
+EMULATOROBJLIST = $(EMUINFOOBJ) $(DRIVLISTOBJ) $(DRVLIBS) $(LIBOSD) $(LIBBUS) $(LIBOPTIONAL) $(LIBEMU) $(LIBDASM) $(LIBUTIL) $(EXPAT) $(BOOST_THREAD) $(RAKNET) $(SOFTFLOAT) $(JPEG_LIB) $(FLAC_LIB) $(WEBM) $(PROTOBUF) $(THRIFT) $(7Z_LIB) $(FORMATS_LIB) $(LUA_LIB) $(SQLITE3_LIB) $(WEB_LIB) $(BGFX_LIB) $(ZLIB) $(LIBOCORE) $(MIDI_LIB) $(RESFILE)
+
+ifeq ($(TARGETOS),emscripten)
+EMULATOROBJ = $(EMULATOROBJLIST:.a=.bc)
+else
+EMULATOROBJ = $(EMULATOROBJLIST)
+endif
+
+$(EMULATOR): $(VERSIONOBJ) $(EMULATOROBJ)
 	@echo Linking $@...
+ifeq ($(TARGETOS),emscripten)
+# Emscripten's linker seems to be stricter about the ordering of files
+	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) -Wl,--start-group $(EMULATOROBJ) -Wl,--end-group $(LIBS) -o $@
+else
 ifeq ($(TARGETOS),win32)
 	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) $^ $(LIBS) -lIphlpapi -lws2_32 -o $@
 else
-	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) $^ $(LIBS) -o $@
+	$(LD) $(LDFLAGS) $(LDFLAGSEMULATOR) $(VERSIONOBJ) $(EMULATOROBJ) $(LIBS) -o $@
+endif
 endif
 ifeq ($(TARGETOS),win32)
 ifdef SYMBOLS
@@ -1012,14 +1073,14 @@ ifdef CPPCHECK
 	@$(CPPCHECK) $(CPPCHECKFLAGS) $<
 endif
 
-$(OBJ)/%.lh: $(SRC)/%.lay $(FILE2STR_TARGET)
+$(OBJ)/%.lh: $(SRC)/%.lay $(SRC)/build/file2str.py
 	@echo Converting $<...
-	@$(FILE2STR) $< $@ layout_$(basename $(notdir $<))
+	$(PYTHON) $(SRC)/build/file2str.py $< $@ layout_$(basename $(notdir $<))
 
-$(OBJ)/%.fh: $(SRC)/%.png $(PNG2BDC_TARGET) $(FILE2STR_TARGET)
+$(OBJ)/%.fh: $(SRC)/%.png $(SRC)/build/png2bdc.py $(SRC)/build/file2str.py
 	@echo Converting $<...
-	@$(PNG2BDC) $< $(OBJ)/temp.bdc
-	@$(FILE2STR) $(OBJ)/temp.bdc $@ font_$(basename $(notdir $<)) UINT8
+	$(PYTHON) $(SRC)/build/png2bdc.py $< $(OBJ)/temp.bdc
+	$(PYTHON) $(SRC)/build/file2str.py $(OBJ)/temp.bdc $@ font_$(basename $(notdir $<)) UINT8
 
 $(DRIVLISTOBJ): $(DRIVLISTSRC)
 	@echo Compiling $<...
@@ -1028,19 +1089,29 @@ ifdef CPPCHECK
 	@$(CPPCHECK) $(CPPCHECKFLAGS) $<
 endif
 
-$(DRIVLISTSRC): $(SRC)/$(TARGET)/$(SUBTARGET).lst $(MAKELIST_TARGET)
+$(DRIVLISTSRC): $(SRC)/$(TARGET)/$(SUBTARGET).lst $(SRC)/build/makelist.py
 	@echo Building driver list $<...
-	@$(MAKELIST) $< >$@
+	$(PYTHON) $(SRC)/build/makelist.py $< >$@
 
+ifeq ($(TARGETOS),emscripten)
+# Avoid using .a files with Emscripten, link to bitcode instead
+$(OBJ)/%.a:
+	@echo Linking $@...
+	$(RM) $@
+	$(LD) $^ -o $@
+$(OBJ)/%.bc: $(OBJ)/%.a
+	@cp $< $@
+else
 $(OBJ)/%.a:
 	@echo Archiving $@...
 	$(RM) $@
 	$(AR) $(ARFLAGS) $@ $^
+endif
 
 ifeq ($(TARGETOS),macosx)
 $(OBJ)/%.o: $(SRC)/%.m | $(OSPREBUILD)
 	@echo Objective-C compiling $<...
-	$(CC) $(CDEFS) $(COBJFLAGS) $(CCOMFLAGS) -c $< -o $@
+	$(CC) $(CDEFS) $(COBJFLAGS) $(CCOMFLAGS) $(INCPATH) -c $< -o $@
 endif
 
 

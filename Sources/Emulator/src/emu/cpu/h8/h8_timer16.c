@@ -1,6 +1,8 @@
 #include "emu.h"
 #include "h8_timer16.h"
 
+#define LOG_EVENT_TIME 0
+
 const device_type H8_TIMER16          = &device_creator<h8_timer16_device>;
 const device_type H8_TIMER16_CHANNEL  = &device_creator<h8_timer16_channel_device>;
 const device_type H8H_TIMER16_CHANNEL = &device_creator<h8h_timer16_channel_device>;
@@ -160,6 +162,23 @@ void h8_timer16_channel_device::device_start()
 {
 	intc = owner()->siblingdevice<h8_intc_device>(intc_tag);
 	channel_active = false;
+	clock_type = DIV_1;
+
+	save_item(NAME(tgr_clearing));
+	save_item(NAME(tcr));
+	save_item(NAME(tier));
+	save_item(NAME(ier));
+	save_item(NAME(isr));
+	save_item(NAME(clock_type));
+	save_item(NAME(clock_divider));
+	save_item(NAME(tcnt));
+	save_item(NAME(tgr));
+	save_item(NAME(last_clock_update));
+	save_item(NAME(event_time));
+	save_item(NAME(phase));
+	save_item(NAME(counter_cycle));
+	save_item(NAME(counter_incrementing));
+	save_item(NAME(channel_active));
 }
 
 void h8_timer16_channel_device::device_reset()
@@ -199,7 +218,7 @@ void h8_timer16_channel_device::update_counter(UINT64 cur_time)
 		return;
 
 	if(!cur_time)
-		cur_time = cpu->get_cycle();
+		cur_time = cpu->total_cycles();
 
 	if(!channel_active) {
 		last_clock_update = cur_time;
@@ -257,7 +276,7 @@ void h8_timer16_channel_device::recalc_event(UINT64 cur_time)
 	}
 
 	if(!cur_time)
-		cur_time = cpu->get_cycle();
+		cur_time = cpu->total_cycles();
 
 	if(counter_incrementing) {
 		UINT32 event_delay = 0xffffffff;
@@ -296,8 +315,8 @@ void h8_timer16_channel_device::recalc_event(UINT64 cur_time)
 		else
 			event_time = 0;
 
-		if(event_time && 0)
-			logerror("%s: next event in %d cycles (%ld)\n", tag(), int(event_time - cpu->get_cycle()), long(event_time));
+		if(event_time && LOG_EVENT_TIME)
+			logerror("%s: next event in %d cycles (%ld)\n", tag(), int(event_time - cpu->total_cycles()), long(event_time));
 
 	} else {
 		logerror("decrementing counter\n");
@@ -328,6 +347,8 @@ void h8_timer16_device::device_start()
 		sprintf(tm, "%d", i);
 		timer_channel[i] = subdevice<h8_timer16_channel_device>(tm);
 	}
+
+	save_item(NAME(tstr));
 }
 
 void h8_timer16_device::device_reset()

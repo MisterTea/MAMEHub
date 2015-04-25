@@ -42,15 +42,6 @@ nb1413m3_device::nb1413m3_device(const machine_config &mconfig, const char *tag,
 {
 }
 
-//-------------------------------------------------
-//  device_config_complete - perform any
-//  operations now that the configuration is
-//  complete
-//-------------------------------------------------
-
-void nb1413m3_device::device_config_complete()
-{
-}
 
 //-------------------------------------------------
 //  device_start - device-specific startup
@@ -58,7 +49,8 @@ void nb1413m3_device::device_config_complete()
 
 void nb1413m3_device::device_start()
 {
-	machine().scheduler().synchronize(timer_expired_delegate(FUNC(nb1413m3_device::timer_callback), this));
+	m_timer_cb = timer_alloc(TIMER_CB);
+	synchronize(TIMER_CB);
 
 	save_item(NAME(m_nb1413m3_type));
 	save_item(NAME(m_sndrombank1));
@@ -105,10 +97,22 @@ void nb1413m3_device::device_reset()
     DEVICE HANDLERS
 *****************************************************************************/
 
+void nb1413m3_device::device_timer(emu_timer &timer, device_timer_id id, int param, void *ptr)
+{
+	switch (id)
+	{
+		case TIMER_CB:
+			timer_callback(ptr, param);
+			break;
+		default:
+			assert_always(FALSE, "Unknown id in nb1413m3_device::device_timer");
+	}
+}
+
 /* TODO: is all of this actually programmable? */
 TIMER_CALLBACK_MEMBER( nb1413m3_device::timer_callback )
 {
-	machine().scheduler().timer_set(attotime::from_hz(NB1413M3_TIMER_BASE) * 256, timer_expired_delegate(FUNC(nb1413m3_device::timer_callback), this));
+	m_timer_cb->adjust(attotime::from_hz(NB1413M3_TIMER_BASE) * 256);
 
 	m_74ls193_counter++;
 	m_74ls193_counter &= 0x0f;
@@ -350,7 +354,6 @@ READ8_MEMBER( nb1413m3_device::inputport1_r )
 				case 0x04:  return 0xff;
 				default:    return 0xff;
 			}
-			break;
 		case NB1413M3_MSJIKEN:
 		case NB1413M3_TELMAHJN:
 			if (root.ioport("DSWA")->read() & 0x80)
@@ -367,7 +370,6 @@ READ8_MEMBER( nb1413m3_device::inputport1_r )
 				}
 			}
 			else return root.ioport("JAMMA2")->read();
-			break;
 		case NB1413M3_PAIRSNB:
 		case NB1413M3_PAIRSTEN:
 		case NB1413M3_OHPAIPEE:
@@ -384,7 +386,6 @@ READ8_MEMBER( nb1413m3_device::inputport1_r )
 				default:    return (root.ioport("KEY0")->read() & root.ioport("KEY1")->read() & root.ioport("KEY2")->read()
 									& root.ioport("KEY3")->read() & root.ioport("KEY4")->read());
 			}
-			break;
 	}
 }
 
@@ -402,7 +403,6 @@ READ8_MEMBER( nb1413m3_device::inputport2_r )
 				case 0x04:  return root.ioport("IN2")->read();
 				default:    return 0xff;
 			}
-			break;
 		case NB1413M3_MSJIKEN:
 		case NB1413M3_TELMAHJN:
 			if (root.ioport("DSWA")->read() & 0x80)
@@ -419,7 +419,6 @@ READ8_MEMBER( nb1413m3_device::inputport2_r )
 				}
 			}
 			else return root.ioport("JAMMA1")->read();
-			break;
 		case NB1413M3_PAIRSNB:
 		case NB1413M3_PAIRSTEN:
 		case NB1413M3_OHPAIPEE:
@@ -436,7 +435,6 @@ READ8_MEMBER( nb1413m3_device::inputport2_r )
 				default:    return (root.ioport("KEY5")->read() & root.ioport("KEY6")->read() & root.ioport("KEY7")->read()
 									& root.ioport("KEY8")->read() & root.ioport("KEY9")->read());
 			}
-			break;
 	}
 }
 

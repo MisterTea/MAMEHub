@@ -8,7 +8,8 @@
 
 *********************************************************************/
 
-#include "emu.h"
+#include <assert.h>
+
 #include "formats/kc85_dsk.h"
 
 kc85_format::kc85_format() : upd765_format(formats)
@@ -31,27 +32,26 @@ const char *kc85_format::extensions() const
 }
 
 // Unverified gap sizes
-// 640-800K on HD which handles 1.2M, really?
 const kc85_format::format kc85_format::formats[] = {
 	{
-		floppy_image::FF_525, floppy_image::DSHD, floppy_image::MFM,
-		1200, // 1us, 360rpm
+		floppy_image::FF_525, floppy_image::DSQD, floppy_image::MFM,
+		2000, // 2us, 300rpm
 		5, 80, 2,
 		1024, {},
 		1, {},
 		80, 50, 22, 80
 	},
 	{
-		floppy_image::FF_525, floppy_image::DSHD, floppy_image::MFM,
-		1200, // 1us, 360rpm
+		floppy_image::FF_525, floppy_image::DSQD, floppy_image::MFM,
+		2000, // 2us, 300rpm
 		9, 80, 2,
 		512, {},
 		1, {},
 		80, 50, 22, 80
 	},
 	{
-		floppy_image::FF_525, floppy_image::DSHD, floppy_image::MFM,
-		1200, // 1us, 360rpm
+		floppy_image::FF_525, floppy_image::DSQD, floppy_image::MFM,
+		2000, // 2us, 300rpm
 		16, 80, 2,
 		256, {},
 		1, {},

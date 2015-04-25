@@ -27,9 +27,15 @@ class maxaflex_state : public atari_common_state
 public:
 	maxaflex_state(const machine_config &mconfig, device_type type, const char *tag)
 		: atari_common_state(mconfig, type, tag),
-		m_maincpu(*this, "maincpu"),
 		m_mcu(*this, "mcu"),
-		m_speaker(*this, "speaker") { }
+		m_speaker(*this, "speaker"),
+		m_region_maincpu(*this, "maincpu"),
+		m_dsw(*this, "dsw"),
+		m_coin(*this, "coin"),
+		m_console(*this, "console"),
+		m_joy01(*this, "djoy_0_1"),
+		m_joy23(*this, "djoy_2_3")
+	{ }
 
 	UINT8 m_portA_in;
 	UINT8 m_portA_out;
@@ -43,6 +49,7 @@ public:
 	UINT8 m_tdr;
 	UINT8 m_tcr;
 	timer_device *m_mcu_timer;
+	void mmu(UINT8 new_mmu);
 	DECLARE_READ8_MEMBER(mcu_portA_r);
 	DECLARE_WRITE8_MEMBER(mcu_portA_w);
 	DECLARE_READ8_MEMBER(mcu_portB_r);
@@ -58,20 +65,41 @@ public:
 	DECLARE_READ8_MEMBER(mcu_tcr_r);
 	DECLARE_WRITE8_MEMBER(mcu_tcr_w);
 	DECLARE_INPUT_CHANGED_MEMBER(coin_inserted);
-	DECLARE_READ8_MEMBER(maxaflex_atari_pia_pa_r);
-	DECLARE_READ8_MEMBER(maxaflex_atari_pia_pb_r);
-	WRITE8_MEMBER(a600xl_pia_pb_w) { a600xl_mmu(data); }
-	WRITE_LINE_MEMBER(atari_pia_cb2_w) { }  // This is used by Floppy drive on Atari 8bits Home Computers
-	DECLARE_DRIVER_INIT(a600xl);
-	DECLARE_MACHINE_RESET(supervisor_board);
+	DECLARE_READ8_MEMBER(pia_pa_r);
+	DECLARE_READ8_MEMBER(pia_pb_r);
+	WRITE8_MEMBER(pia_pb_w) { mmu(data); }
+	WRITE_LINE_MEMBER(pia_cb2_w) { }  // This is used by Floppy drive on Atari 8bits Home Computers
+	TIMER_DEVICE_CALLBACK_MEMBER(mf_interrupt);
 	TIMER_DEVICE_CALLBACK_MEMBER(mcu_timer_proc);
 	int atari_input_disabled();
-	virtual void machine_start();
-	required_device<cpu_device> m_maincpu;
+	virtual void machine_reset();
+	//required_device<cpu_device> m_maincpu;    // maincpu is already contained in atari_common_state
 	required_device<cpu_device> m_mcu;
 	required_device<speaker_sound_device> m_speaker;
+	required_region_ptr<UINT8> m_region_maincpu;
+	required_ioport m_dsw;
+	required_ioport m_coin;
+	required_ioport m_console;
+	required_ioport m_joy01;
+	required_ioport m_joy23;
 };
 
+
+void maxaflex_state::mmu(UINT8 new_mmu)
+{
+	/* check if self-test ROM changed */
+	if (new_mmu & 0x80)
+	{
+		logerror("%s MMU SELFTEST RAM\n", machine().system().name);
+		m_maincpu->space(AS_PROGRAM).nop_readwrite(0x5000, 0x57ff);
+	}
+	else
+	{
+		logerror("%s MMU SELFTEST ROM\n", machine().system().name);
+		m_maincpu->space(AS_PROGRAM).install_rom(0x5000, 0x57ff, &m_region_maincpu[0xd000]);
+		m_maincpu->space(AS_PROGRAM).unmap_write(0x5000, 0x57ff);
+	}
+}
 
 
 /* Supervisor board emulation */
@@ -90,7 +118,7 @@ public:
 
 READ8_MEMBER(maxaflex_state::mcu_portA_r)
 {
-	m_portA_in = ioport("dsw")->read() | (ioport("coin")->read() << 4) | (ioport("console")->read() << 5);
+	m_portA_in = m_dsw->read() | (m_coin->read() << 4) | (m_console->read() << 5);
 	return (m_portA_in & ~m_ddrA) | (m_portA_out & m_ddrA);
 }
 
@@ -250,23 +278,6 @@ WRITE8_MEMBER(maxaflex_state::mcu_tcr_w)
 	}
 }
 
-MACHINE_RESET_MEMBER(maxaflex_state,supervisor_board)
-{
-	m_portA_in = m_portA_out = m_ddrA   = 0;
-	m_portB_in = m_portB_out = m_ddrB   = 0;
-	m_portC_in = m_portC_out = m_ddrC   = 0;
-	m_tdr = m_tcr = 0;
-	m_mcu_timer = machine().device<timer_device>("mcu_timer");
-
-	output_set_lamp_value(0, 0);
-	output_set_lamp_value(1, 0);
-	output_set_lamp_value(2, 0);
-	output_set_lamp_value(3, 0);
-	output_set_digit_value(0, 0x00);
-	output_set_digit_value(1, 0x00);
-	output_set_digit_value(2, 0x00);
-}
-
 INPUT_CHANGED_MEMBER(maxaflex_state::coin_inserted)
 {
 	if (!newval)
@@ -282,28 +293,28 @@ int maxaflex_state::atari_input_disabled()
 
 static ADDRESS_MAP_START(a600xl_mem, AS_PROGRAM, 8, maxaflex_state )
 	AM_RANGE(0x0000, 0x3fff) AM_RAM
-	AM_RANGE(0x5000, 0x57ff) AM_ROM AM_REGION("maincpu", 0x5000)    /* self test */
+	AM_RANGE(0x5000, 0x57ff) AM_ROM AM_REGION("maincpu", 0xd000)    /* self test */
 	AM_RANGE(0x8000, 0xbfff) AM_ROM /* game cartridge */
 	AM_RANGE(0xc000, 0xcfff) AM_ROM /* OS */
-	AM_RANGE(0xd000, 0xd0ff) AM_READWRITE(atari_gtia_r, atari_gtia_w)
+	AM_RANGE(0xd000, 0xd0ff) AM_DEVREADWRITE("gtia", gtia_device, read, write)
 	AM_RANGE(0xd100, 0xd1ff) AM_NOP
 	AM_RANGE(0xd200, 0xd2ff) AM_DEVREADWRITE("pokey", pokey_device, read, write)
 	AM_RANGE(0xd300, 0xd3ff) AM_DEVREADWRITE("pia", pia6821_device, read_alt, write_alt)
-	AM_RANGE(0xd400, 0xd4ff) AM_READWRITE(atari_antic_r, atari_antic_w)
+	AM_RANGE(0xd400, 0xd4ff) AM_DEVREADWRITE("antic", antic_device, read, write)
 	AM_RANGE(0xd500, 0xd7ff) AM_NOP
 	AM_RANGE(0xd800, 0xffff) AM_ROM /* OS */
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START( mcu_mem, AS_PROGRAM, 8, maxaflex_state )
 	ADDRESS_MAP_GLOBAL_MASK(0x7ff)
-	AM_RANGE(0x0000, 0x0000) AM_READ(mcu_portA_r ) AM_WRITE(mcu_portA_w )
-	AM_RANGE(0x0001, 0x0001) AM_READ(mcu_portB_r ) AM_WRITE(mcu_portB_w )
-	AM_RANGE(0x0002, 0x0002) AM_READ(mcu_portC_r ) AM_WRITE(mcu_portC_w )
-	AM_RANGE(0x0004, 0x0004) AM_READ(mcu_ddr_r ) AM_WRITE(mcu_portA_ddr_w )
-	AM_RANGE(0x0005, 0x0005) AM_READ(mcu_ddr_r ) AM_WRITE(mcu_portB_ddr_w )
-	AM_RANGE(0x0006, 0x0006) AM_READ(mcu_ddr_r ) AM_WRITE(mcu_portC_ddr_w )
-	AM_RANGE(0x0008, 0x0008) AM_READ(mcu_tdr_r ) AM_WRITE(mcu_tdr_w )
-	AM_RANGE(0x0009, 0x0009) AM_READ(mcu_tcr_r ) AM_WRITE(mcu_tcr_w )
+	AM_RANGE(0x0000, 0x0000) AM_READ(mcu_portA_r) AM_WRITE(mcu_portA_w)
+	AM_RANGE(0x0001, 0x0001) AM_READ(mcu_portB_r) AM_WRITE(mcu_portB_w)
+	AM_RANGE(0x0002, 0x0002) AM_READ(mcu_portC_r) AM_WRITE(mcu_portC_w)
+	AM_RANGE(0x0004, 0x0004) AM_READ(mcu_ddr_r) AM_WRITE(mcu_portA_ddr_w)
+	AM_RANGE(0x0005, 0x0005) AM_READ(mcu_ddr_r) AM_WRITE(mcu_portB_ddr_w)
+	AM_RANGE(0x0006, 0x0006) AM_READ(mcu_ddr_r) AM_WRITE(mcu_portC_ddr_w)
+	AM_RANGE(0x0008, 0x0008) AM_READ(mcu_tdr_r) AM_WRITE(mcu_tdr_w)
+	AM_RANGE(0x0009, 0x0009) AM_READ(mcu_tcr_r) AM_WRITE(mcu_tcr_w)
 	AM_RANGE(0x0010, 0x007f) AM_RAM
 	AM_RANGE(0x0080, 0x07ff) AM_ROM
 ADDRESS_MAP_END
@@ -311,12 +322,12 @@ ADDRESS_MAP_END
 
 static INPUT_PORTS_START( a600xl )
 
-	PORT_START("console")  /* IN0 console keys & switch settings */
+	PORT_START("console")
 	PORT_BIT(0x04, 0x04, IPT_KEYPAD) PORT_NAME("Option") PORT_CODE(KEYCODE_F2)
 	PORT_BIT(0x02, 0x02, IPT_KEYPAD) PORT_NAME("Select") PORT_CODE(KEYCODE_F1)
 	PORT_BIT(0x01, 0x01, IPT_START1 )
 
-	PORT_START("djoy_0_1")  /* IN1 digital joystick #1 + #2 (PIA port A) */
+	PORT_START("djoy_0_1")
 	PORT_BIT(0x01, 0x01, IPT_JOYSTICK_UP) PORT_PLAYER(1)
 	PORT_BIT(0x02, 0x02, IPT_JOYSTICK_DOWN) PORT_PLAYER(1)
 	PORT_BIT(0x04, 0x04, IPT_JOYSTICK_LEFT) PORT_PLAYER(1)
@@ -327,7 +338,7 @@ static INPUT_PORTS_START( a600xl )
 	PORT_BIT(0x40, 0x40, IPT_JOYSTICK_LEFT) PORT_PLAYER(2)
 	PORT_BIT(0x80, 0x80, IPT_JOYSTICK_RIGHT) PORT_PLAYER(2)
 
-	PORT_START("djoy_2_3")  /* IN2 digital joystick #3 + #4 (PIA port B) */
+	PORT_START("djoy_2_3")
 	/* not connected */
 	PORT_BIT(0x01, 0x01, IPT_JOYSTICK_UP) PORT_PLAYER(3)
 	PORT_BIT(0x02, 0x02, IPT_JOYSTICK_DOWN) PORT_PLAYER(3)
@@ -338,7 +349,7 @@ static INPUT_PORTS_START( a600xl )
 	PORT_BIT(0x40, 0x40, IPT_JOYSTICK_LEFT) PORT_PLAYER(4)
 	PORT_BIT(0x80, 0x80, IPT_JOYSTICK_RIGHT) PORT_PLAYER(4)
 
-	PORT_START("djoy_b")    /* IN3 digital joystick buttons (GTIA button bits) */
+	PORT_START("djoy_b")
 	PORT_BIT(0x01, 0x01, IPT_BUTTON1) PORT_PLAYER(1)
 	PORT_BIT(0x02, 0x02, IPT_BUTTON1) PORT_PLAYER(2)
 	PORT_BIT(0x04, 0x04, IPT_BUTTON1) PORT_PLAYER(3)
@@ -349,10 +360,10 @@ static INPUT_PORTS_START( a600xl )
 	PORT_BIT(0x80, 0x80, IPT_BUTTON2) PORT_PLAYER(4)
 
 	/* Max-A-Flex specific ports */
-	PORT_START("coin")  /* IN4 coin */
+	PORT_START("coin")
 	PORT_BIT(0x1, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_CHANGED_MEMBER(DEVICE_SELF, maxaflex_state,coin_inserted, 0)
 
-	PORT_START("dsw")   /* IN5 DSW */
+	PORT_START("dsw")
 	PORT_DIPNAME(0xf, 0x9, "Coin/Time" )
 	PORT_DIPSETTING( 0x0, "30 sec" )
 	PORT_DIPSETTING( 0x1, "60 sec" )
@@ -374,36 +385,63 @@ static INPUT_PORTS_START( a600xl )
 INPUT_PORTS_END
 
 
-READ8_MEMBER(maxaflex_state::maxaflex_atari_pia_pa_r)
+READ8_MEMBER(maxaflex_state::pia_pa_r)
 {
-	return atari_input_disabled() ? 0xFF : ioport("djoy_0_1")->read_safe(0);
+	return atari_input_disabled() ? 0xff : m_joy01->read_safe(0);
 }
 
-READ8_MEMBER(maxaflex_state::maxaflex_atari_pia_pb_r)
+READ8_MEMBER(maxaflex_state::pia_pb_r)
 {
-	return atari_input_disabled() ? 0xFF : ioport("djoy_2_3")->read_safe(0);
+	return atari_input_disabled() ? 0xff : m_joy23->read_safe(0);
 }
 
 
-void maxaflex_state::machine_start()
+void maxaflex_state::machine_reset()
 {
-	atari_machine_start();
+	pokey_device *pokey = machine().device<pokey_device>("pokey");
+	pokey->write(15,0);
+
+	// Supervisor board reset
+	m_portA_in = m_portA_out = m_ddrA = 0;
+	m_portB_in = m_portB_out = m_ddrB = 0;
+	m_portC_in = m_portC_out = m_ddrC = 0;
+	m_tdr = m_tcr = 0;
+	m_mcu_timer = machine().device<timer_device>("mcu_timer");
+
+	output_set_lamp_value(0, 0);
+	output_set_lamp_value(1, 0);
+	output_set_lamp_value(2, 0);
+	output_set_lamp_value(3, 0);
+	output_set_digit_value(0, 0x00);
+	output_set_digit_value(1, 0x00);
+	output_set_digit_value(2, 0x00);
 }
 
-static MACHINE_CONFIG_START( a600xl, maxaflex_state )
+TIMER_DEVICE_CALLBACK_MEMBER( maxaflex_state::mf_interrupt )
+{
+	m_antic->generic_interrupt(2);
+}
+
+static MACHINE_CONFIG_START( maxaflex, maxaflex_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6502, FREQ_17_EXACT)
 	MCFG_CPU_PROGRAM_MAP(a600xl_mem)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", atari_common_state, a800xl_interrupt, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", maxaflex_state, mf_interrupt, "screen", 0, 1)
 
 	MCFG_CPU_ADD("mcu", M68705, 3579545)
 	MCFG_CPU_PROGRAM_MAP(mcu_mem)
 
+	MCFG_DEVICE_ADD("gtia", ATARI_GTIA, 0)
+	MCFG_GTIA_READ_CB(IOPORT("console"))
+
+	MCFG_DEVICE_ADD("antic", ATARI_ANTIC, 0)
+	MCFG_ANTIC_GTIA("gtia")
+
 	MCFG_DEVICE_ADD("pia", PIA6821, 0)
-	MCFG_PIA_READPA_HANDLER(READ8(maxaflex_state, maxaflex_atari_pia_pa_r))
-	MCFG_PIA_READPB_HANDLER(READ8(maxaflex_state, maxaflex_atari_pia_pb_r))
-	MCFG_PIA_WRITEPB_HANDLER(WRITE8(maxaflex_state, a600xl_pia_pb_w))
-	MCFG_PIA_CB2_HANDLER(WRITELINE(maxaflex_state, atari_pia_cb2_w))
+	MCFG_PIA_READPA_HANDLER(READ8(maxaflex_state, pia_pa_r))
+	MCFG_PIA_READPB_HANDLER(READ8(maxaflex_state, pia_pb_r))
+	MCFG_PIA_WRITEPB_HANDLER(WRITE8(maxaflex_state, pia_pb_w))
+	MCFG_PIA_CB2_HANDLER(WRITELINE(maxaflex_state, pia_cb2_w))
 
 	MCFG_TIMER_DRIVER_ADD("mcu_timer", maxaflex_state, mcu_timer_proc)
 
@@ -413,7 +451,7 @@ static MACHINE_CONFIG_START( a600xl, maxaflex_state )
 	MCFG_SCREEN_VISIBLE_AREA(MIN_X, MAX_X, MIN_Y, MAX_Y)
 	MCFG_SCREEN_REFRESH_RATE(FRAME_RATE_60HZ)
 	MCFG_SCREEN_SIZE(HWIDTH*8, TOTAL_LINES_60HZ)
-	MCFG_SCREEN_UPDATE_DRIVER(atari_common_state, screen_update_atari)
+	MCFG_SCREEN_UPDATE_DEVICE("antic", antic_device, screen_update)
 	MCFG_SCREEN_PALETTE("palette")
 
 	MCFG_PALETTE_ADD("palette", 256)
@@ -424,7 +462,7 @@ static MACHINE_CONFIG_START( a600xl, maxaflex_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("pokey", POKEY, FREQ_17_EXACT)
-	MCFG_POKEY_INTERRUPT_HANDLER(atari_interrupt_cb)
+	MCFG_POKEY_INTERRUPT_CB(atari_common_state, interrupt_cb)
 	MCFG_POKEY_OUTPUT_RC(RES_K(1), CAP_U(0.0), 5.0)
 
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
@@ -433,9 +471,6 @@ static MACHINE_CONFIG_START( a600xl, maxaflex_state )
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.50)
 MACHINE_CONFIG_END
 
-static MACHINE_CONFIG_DERIVED( maxaflex, a600xl )
-	MCFG_MACHINE_RESET_OVERRIDE(maxaflex_state, supervisor_board )
-MACHINE_CONFIG_END
 
 ROM_START(maxaflex)
 	ROM_REGION(0x10000,"maincpu",0) /* 64K for the CPU */
@@ -497,14 +532,9 @@ ROM_START(mf_flip)
 	ROM_LOAD("maxprom.prm", 0x0000, 0x0200, CRC(edf5c950) SHA1(9ad046ea41a61585dd8d2f2d4167a3cc39d2928f))   /* for simulating keystrokes ?*/
 ROM_END
 
-DRIVER_INIT_MEMBER(maxaflex_state,a600xl)
-{
-	UINT8 *rom = memregion("maincpu")->base();
-	memcpy( rom + 0x5000, rom + 0xd000, 0x800 );
-}
 
-GAME( 1984, maxaflex, 0,        maxaflex, a600xl, maxaflex_state, a600xl, ROT0, "Exidy", "Max-A-Flex", GAME_IS_BIOS_ROOT )
-GAME( 1982, mf_achas, maxaflex, maxaflex, a600xl, maxaflex_state, a600xl, ROT0, "Exidy / First Star Software", "Astro Chase (Max-A-Flex)", 0 )
-GAME( 1983, mf_brist, maxaflex, maxaflex, a600xl, maxaflex_state, a600xl, ROT0, "Exidy / First Star Software", "Bristles (Max-A-Flex)", 0 )
-GAME( 1983, mf_flip,  maxaflex, maxaflex, a600xl, maxaflex_state, a600xl, ROT0, "Exidy / First Star Software", "Flip & Flop (Max-A-Flex)", 0 )
-GAME( 1984, mf_bdash, maxaflex, maxaflex, a600xl, maxaflex_state, a600xl, ROT0, "Exidy / First Star Software", "Boulder Dash (Max-A-Flex)", 0 )
+GAME( 1984, maxaflex, 0,        maxaflex, a600xl, driver_device,    0, ROT0, "Exidy", "Max-A-Flex", GAME_IS_BIOS_ROOT )
+GAME( 1982, mf_achas, maxaflex, maxaflex, a600xl, driver_device,    0, ROT0, "Exidy / First Star Software", "Astro Chase (Max-A-Flex)", 0 )
+GAME( 1983, mf_brist, maxaflex, maxaflex, a600xl, driver_device,    0, ROT0, "Exidy / First Star Software", "Bristles (Max-A-Flex)", 0 )
+GAME( 1983, mf_flip,  maxaflex, maxaflex, a600xl, driver_device,    0, ROT0, "Exidy / First Star Software", "Flip & Flop (Max-A-Flex)", 0 )
+GAME( 1984, mf_bdash, maxaflex, maxaflex, a600xl, driver_device,    0, ROT0, "Exidy / First Star Software", "Boulder Dash (Max-A-Flex)", 0 )

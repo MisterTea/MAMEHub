@@ -52,18 +52,26 @@ MACHINES += LDV1000
 MACHINES += LDPR8210
 
 #-------------------------------------------------
+# specify available bus cores
+#
+# MIDI is here as dummy bus to allow libbus.a to
+# be created on OSX.
+#-------------------------------------------------
+
+BUSES += MIDI
+
+#-------------------------------------------------
 # this is the list of driver libraries that
 # comprise MAME plus mamedriv.o which contains
 # the list of drivers
 #-------------------------------------------------
 
 DRVLIBS = \
-	$(EMUDRIVERS)/emudummy.o \
-	$(LDPOBJ)/ldplayer.o \
+	$(EMUDRIVERS)/emudummy.o
 
 
 #-------------------------------------------------
 # layout dependencies
 #-------------------------------------------------
 
-$(LDPOBJ)/ldplayer.o:   $(LAYOUT)/pr8210.lh \
+$(LDPOBJ)/ldplayer.o:   $(LAYOUT)/pr8210.lh

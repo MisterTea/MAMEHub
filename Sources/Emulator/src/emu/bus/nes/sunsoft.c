@@ -272,7 +272,7 @@ void nes_sunsoft_3_device::device_timer(emu_timer &timer, device_timer_id id, in
 		{
 			if (!m_irq_count)
 			{
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
 				m_irq_count = 0xffff;
 				m_irq_enable = 0;
 			}
@@ -311,7 +311,7 @@ WRITE8_MEMBER(nes_sunsoft_3_device::write_h)
 		case 0x5800:
 			m_irq_enable = BIT(data, 4);
 			m_irq_toggle = 0;
-			machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+			m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 			break;
 		case 0x6800:
 			switch (data & 3)
@@ -467,7 +467,7 @@ void nes_sunsoft_fme7_device::device_timer(emu_timer &timer, device_timer_id id,
 			{
 				m_irq_count = 0xffff;
 				if (m_irq_enable & 0x01) // bit0, trigger enable
-					machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+					m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
 			}
 			else
 				m_irq_count--;
@@ -516,7 +516,7 @@ WRITE8_MEMBER(nes_sunsoft_fme7_device::fme7_write)
 				case 0x0d:
 					m_irq_enable = data;
 					if (!(m_irq_enable & 1))
-						machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+						m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 					break;
 				case 0x0e:
 					m_irq_count = (m_irq_count & 0xff00) | data;
@@ -555,7 +555,7 @@ READ8_MEMBER(nes_sunsoft_fme7_device::read_m)
 	LOG_MMC(("Sunsoft FME7 read_m, offset: %04x\n", offset));
 
 	if (!(m_wram_bank & 0x40))  // is PRG ROM
-		return m_prg[((bank * 0x2000) + offset) & (m_prg.count() - 1)];
+		return m_prg[((bank * 0x2000) + offset) & (m_prg_size - 1)];
 	else if (m_wram_bank & 0x80)    // is PRG RAM
 	{
 		if (m_battery)

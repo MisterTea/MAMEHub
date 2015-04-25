@@ -107,6 +107,12 @@ public:
 			m_objram(*this, "objram"),
 			m_rcram(*this, "rcram"),
 			m_z80_ram(*this, "z80_ram"),
+			m_char_tiles(*this, "char_tiles"),
+			m_obj_tiles(*this, "obj_tiles"),
+			m_road_rom(*this, "road"),
+			m_obj_map(*this, "obj_map"),
+			m_obj_luts(*this, "obj_luts"),
+			m_proms(*this, "proms"),
 			m_screen(*this, "screen") { }
 
 	required_device<cpu_device> m_maincpu;
@@ -117,6 +123,14 @@ public:
 	required_shared_ptr<UINT16> m_objram;
 	required_shared_ptr<UINT16> m_rcram;
 	required_shared_ptr<UINT8> m_z80_ram;
+
+	required_region_ptr<UINT8> m_char_tiles;
+	required_region_ptr<UINT8> m_obj_tiles;
+	required_region_ptr<UINT8> m_road_rom;
+	required_region_ptr<UINT8> m_obj_map;
+	required_region_ptr<UINT8> m_obj_luts;
+	required_region_ptr<UINT8> m_proms;
+
 	required_device<screen_device> m_screen;
 
 	emu_timer *m_interrupt_timer;
@@ -193,8 +207,7 @@ public:
 
 	void buggyboy_draw_char(UINT8 *bitmap, bool wide);
 	void buggyboy_get_roadpix(int screen, int ls161, UINT8 rva0_6, UINT8 sld, UINT32 *_rorev,
-								UINT8 *rc0, UINT8 *rc1, UINT8 *rc2, UINT8 *rc3,
-								const UINT8 *rom, const UINT8 *prom0, const UINT8 *prom1, const UINT8 *prom2);
+								UINT8 *rc0, UINT8 *rc1, UINT8 *rc2, UINT8 *rc3);
 	void buggyboy_draw_road(UINT8 *bitmap);
 	void buggybjr_draw_road(UINT8 *bitmap);
 	void buggyboy_draw_objs(UINT8 *bitmap, bool wide);

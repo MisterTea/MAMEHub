@@ -627,7 +627,7 @@ void nes_sc127_device::hblank_irq(int scanline, int vblank, int blanked)
 		{
 			LOG_MMC(("irq fired, scanline: %d (MAME %d, beam pos: %d)\n", scanline,
 						machine().first_screen()->vpos(), machine().first_screen()->hpos()));
-			machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 			m_irq_enable = 0;
 		}
 	}
@@ -691,7 +691,7 @@ void nes_mbaby_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 {
 	if (id == TIMER_IRQ)
 	{
-		machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+		m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 		irq_timer->adjust(attotime::never);
 	}
 }
@@ -759,7 +759,7 @@ WRITE8_MEMBER(nes_asn_device::write_h)
 READ8_MEMBER(nes_asn_device::read_m)
 {
 	LOG_MMC(("Ai Senshi Nicol read_m, offset: %04x\n", offset));
-	return m_prg[((m_latch * 0x2000) + (offset & 0x1fff)) & (m_prg.count() - 1)];
+	return m_prg[((m_latch * 0x2000) + (offset & 0x1fff)) & (m_prg_size - 1)];
 }
 
 
@@ -783,7 +783,7 @@ void nes_smb3p_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 		{
 			if (m_irq_count == 0xffff)
 			{
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 				m_irq_enable = 0;
 			}
 			else
@@ -857,7 +857,7 @@ void nes_btl_dn_device::hblank_irq(int scanline, int vblank, int blanked )
 		return;
 
 	m_irq_count = 0;
-	machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+	m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 }
 
 WRITE8_MEMBER(nes_btl_dn_device::write_h)
@@ -923,7 +923,7 @@ WRITE8_MEMBER(nes_whirl2706_device::write_h)
 READ8_MEMBER(nes_whirl2706_device::read_m)
 {
 	LOG_MMC(("whirl2706 read_m, offset: %04x\n", offset));
-	return m_prg[(m_latch * 0x2000 + (offset & 0x1fff)) & (m_prg.count() - 1)];
+	return m_prg[(m_latch * 0x2000 + (offset & 0x1fff)) & (m_prg_size - 1)];
 }
 
 /*-------------------------------------------------
@@ -946,7 +946,7 @@ void nes_smb2j_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 		{
 			if (m_irq_count == 0xfff)
 			{
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 				m_irq_enable = 0;
 				m_irq_count = 0;
 			}
@@ -1028,7 +1028,7 @@ void nes_smb2ja_device::device_timer(emu_timer &timer, device_timer_id id, int p
 		{
 			if (m_irq_count == 0xfff)
 			{
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 				m_irq_enable = 0;
 				m_irq_count = 0;
 			}
@@ -1060,7 +1060,7 @@ WRITE8_MEMBER(nes_smb2ja_device::write_h)
 READ8_MEMBER(nes_smb2ja_device::read_m)
 {
 	LOG_MMC(("smb2ja read_m, offset: %04x\n", offset));
-	return m_prg[(0xfe * 0x2000 + (offset & 0x1fff)) & (m_prg.count() - 1)];
+	return m_prg[(0xfe * 0x2000 + (offset & 0x1fff)) & (m_prg_size - 1)];
 }
 
 /*-------------------------------------------------
@@ -1085,7 +1085,7 @@ void nes_smb2jb_device::device_timer(emu_timer &timer, device_timer_id id, int p
 		{
 			if (m_irq_count == 0xfff)
 			{
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 				m_irq_enable = 0;
 				m_irq_count = 0;
 			}
@@ -1118,7 +1118,7 @@ WRITE8_MEMBER(nes_smb2jb_device::write_l)
 READ8_MEMBER(nes_smb2jb_device::read_m)
 {
 	LOG_MMC(("smb2jb read_m, offset: %04x\n", offset));
-	return m_prg[((0x0f * 0x2000) + (offset & 0x1fff)) & (m_prg.count() - 1)];
+	return m_prg[((0x0f * 0x2000) + (offset & 0x1fff)) & (m_prg_size - 1)];
 }
 
 /* This goes to 0x4020-0x403f & 0x40a0-0x40bf */
@@ -1330,7 +1330,7 @@ void nes_lh53_device::device_timer(emu_timer &timer, device_timer_id id, int par
 			if (m_irq_count > 7560)//value from FCEUMM...
 			{
 				m_irq_count = 0;
-				machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
+				m_maincpu->set_input_line(M6502_IRQ_LINE, ASSERT_LINE);
 			}
 		}
 	}
@@ -1367,7 +1367,7 @@ WRITE8_MEMBER(nes_lh53_device::write_h)
 				m_irq_enable = BIT(data, 1);
 				m_irq_count = 0;
 				if (!m_irq_enable)
-					machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+					m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 				break;
 			case 0x7000:
 				m_reg = data & 0x0f;
@@ -1572,7 +1572,7 @@ void nes_shuiguan_device::device_timer(emu_timer &timer, device_timer_id id, int
 		m_irq_count &= 0xff;
 
 		if (m_irq_enable && !m_irq_count)
-			machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 	}
 }
 

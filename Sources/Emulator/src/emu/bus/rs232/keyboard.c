@@ -4,6 +4,7 @@ serial_keyboard_device::serial_keyboard_device(const machine_config &mconfig, co
 	: generic_keyboard_device(mconfig, SERIAL_KEYBOARD, "Serial Keyboard", tag, owner, clock, "serial_keyboard", __FILE__),
 	device_serial_interface(mconfig, *this),
 	device_rs232_port_interface(mconfig, *this),
+	m_key_valid(false),
 	m_rs232_txbaud(*this, "RS232_TXBAUD"),
 	m_rs232_startbits(*this, "RS232_STARTBITS"),
 	m_rs232_databits(*this, "RS232_DATABITS"),
@@ -16,6 +17,7 @@ serial_keyboard_device::serial_keyboard_device(const machine_config &mconfig, de
 	: generic_keyboard_device(mconfig, type, name, tag, owner, clock, shortname, source),
 	device_serial_interface(mconfig, *this),
 	device_rs232_port_interface(mconfig, *this),
+	m_key_valid(false),
 	m_rs232_txbaud(*this, "RS232_TXBAUD"),
 	m_rs232_startbits(*this, "RS232_STARTBITS"),
 	m_rs232_databits(*this, "RS232_DATABITS"),
@@ -41,8 +43,10 @@ ioport_constructor serial_keyboard_device::device_input_ports() const
 
 void serial_keyboard_device::device_start()
 {
-	/// HACK: the base class resolves a handler in device_start()
-	m_timer = timer_alloc();
+	generic_keyboard_device::device_start();
+	device_serial_interface::register_save_state(machine().save(), this);
+	save_item(NAME(m_curr_key));
+	save_item(NAME(m_key_valid));
 }
 
 WRITE_LINE_MEMBER(serial_keyboard_device::update_serial)

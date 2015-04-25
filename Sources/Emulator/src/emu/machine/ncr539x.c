@@ -280,7 +280,6 @@ void ncr539x_device::device_timer(emu_timer &timer, device_timer_id tid, int par
 
 				default:
 					fatalerror("539x: Unhandled command %02x\n", m_command);
-					break;
 			}
 			break;
 
@@ -340,6 +339,8 @@ READ8_MEMBER( ncr539x_device::read )
 							{
 								fifo_fill_size = m_xfer_count;
 							}
+							assert(m_buffer_offset < m_buffer_size);
+							assert((m_buffer_offset + fifo_fill_size) <= m_buffer_size);
 							memcpy(m_fifo, &m_buffer[m_buffer_offset], fifo_fill_size);
 							m_buffer_offset += fifo_fill_size;
 							m_buffer_remaining -= fifo_fill_size;

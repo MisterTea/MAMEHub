@@ -28,6 +28,19 @@
        VSS       | 14           15 |  NC
                  +-----------------+
 
+     TMS6125:
+
+                 +---------+
+       DATA/ADD1 | 1    16 |  NC
+       DATA/ADD2 | 2    15 |  NC
+       DATA/ADD4 | 3    14 |  NC
+       DATA/ADD8 | 4    13 |  NC
+       CLK       | 5    12 |  VDD
+       NC        | 6    11 |  /CS
+       NC        | 7    10 |  M1
+       M0        | 8     9 |  VSS
+                 +---------+
+
     M58819 (from radarscope schematics):
 
                  +-----------------+
@@ -77,12 +90,14 @@
 const device_type TMS6100 = &device_creator<tms6100_device>;
 
 tms6100_device::tms6100_device(const machine_config &mconfig, device_type type, const char *name, const char *tag, device_t *owner, UINT32 clock, const char *shortname, const char *source)
-	: device_t(mconfig, type, name, tag, owner, clock, shortname, source)
+	: device_t(mconfig, type, name, tag, owner, clock, shortname, source),
+	m_rom(*this, DEVICE_SELF)
 {
 }
 
 tms6100_device::tms6100_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TMS6100, "TMS6100", tag, owner, clock, "tms6100", __FILE__)
+	: device_t(mconfig, TMS6100, "TMS6100", tag, owner, clock, "tms6100", __FILE__),
+	m_rom(*this, DEVICE_SELF)
 {
 }
 
@@ -109,8 +124,6 @@ void tms6100_device::device_config_complete()
 
 void tms6100_device::device_start()
 {
-	m_rom = *region();
-
 	// save device variables
 	save_item(NAME(m_addr_bits));
 	save_item(NAME(m_address));
@@ -182,7 +195,7 @@ WRITE_LINE_MEMBER(tms6100_device::tms6100_romclock_w)
 				else
 				{
 					/* read bit at address */
-					m_data = (m_rom[m_address >> 3] >> ((m_address & 0x07) ^ 0x07)) & 1;
+					m_data = (m_rom[m_address >> 3] >> (m_address & 0x07)) & 1;
 					m_address++;
 				}
 				m_state &= ~TMS6100_READ_PENDING;

@@ -1,5 +1,9 @@
 /***************************************************************************
 
+  Nintendo Donkey Kong hardware
+
+****************************************************************************
+
 TODO:
 
 - write a shootgal palette_init
@@ -101,12 +105,13 @@ Done:
   For both of these boards [dkong, dkongjr], only the jump sound
   is distinguishable. I don't hear the pound of walk sound.
 
+****************************************************************************
+
 Donkey Kong and Donkey Kong Jr. memory map (preliminary) (DKong 3 follows)
 
 0000-3fff ROM (Donkey Kong Jr.and Donkey Kong 3: 0000-5fff)
 6000-6fff RAM
-6900-6a7f sprites
-7000-73ff ?
+7000-73ff sprites
 7400-77ff Video RAM
 8000-9fff ROM (DK3 only)
 
@@ -297,6 +302,59 @@ Donkey Kong Junior Notes
     ------------------------------------------------
 
 
+Donkey Kong Notes
+=================
+
+    Nintendo Service Department Bulletin # TKG-02 12-11-81
+    GAME: Donkey Kong
+    SUBJECT: Speed-up Kit #1
+
+    TO prevent extremely long play times, we are making available
+    a speed-up kit. This kit prevents players from waiting on top
+    of ladders, on screen #1, while the barrels roll across
+    instead of coming donw on top of him. Whit this kit, barrels
+    will roll on top of the player on a ladder 70 to 80 percent of
+    the time.
+
+    Machines above serial #30,000 will have this kit installed at
+    the factory, and all TKG4 board sets will come with this kit.
+
+    To install this kit in a four-board set, follow these
+    instructions:
+
+    1) Remove P.C. Boards from game, leaving them
+    attached to P.C. Board bracket.
+
+    2) Using a pair of needle-nose pliers, separate the
+    sound P.C. Board fromt he CPU P.C. Board, exposing
+    the entire surface of the CPU Board.
+
+    3) Remove the EPROMS's at location 5F, 5A, 5H and 5K
+    from the CPU Board. (Note 5A should read 5G - MSH)
+
+    4) Install the speed-up kit EPROM's in the corres-
+    ponding locations.
+
+    5) Reconnect the sound P.C. Board to the CPU P.C.
+    Board and mount the P.C. Boards in the game.
+    --------------------------------------------------------------
+
+    That kit included the following 4 EPROM's
+
+    USA (c) 1981 Nintendo of America set
+    ------------------------------------
+
+    Filename Label Type Loc/PCB *Label *Loc/PCB CSum
+    --------- ---------- ------ ------- ---------- -------- ----
+    2532.5K TKG4-C-5At 2532 5A(CPU) TKG3-C-5K 5K(CPU) A0F0
+    2532.5H TKG4-C-5Bt 2532 5B(CPU) TKG3-C-5H 5H(CPU) B2BC
+    2532.5G TKG4-C-5Ct 2532 5C(CPU) TKG3-C-5G 5G(CPU) 73BA
+    2532.5F TKG4-C-5Et 2532 5E(CPU) TKG3-C-5F 5F(CPU) AA97
+
+    Not only did the eprom fix the ladder bug, but it also changed
+    the copyright screen to read "(C)1981 Nintendo of America".
+
+
     D2K Jumpman returns Notes
     =========================
 
@@ -308,16 +366,16 @@ Donkey Kong Junior Notes
     6800 and E800.
 
 
-Donkey Kong "Hard" Kit
-======================
+    Donkey Kong "Hard" Kit
+    ======================
 
-A yet "unconfirmed original" rom replacement kit which is a replacement for
-TKG-03 and -04 boards and greatly increases the speed and amount of fireballs
-showing on all levels.  Such behavior can be seen easily on the Rivet Board,
-where most of the fireballs have appeared even before removing the first rivet.
+    A yet "unconfirmed original" rom replacement kit which is a replacement for
+    TKG-03 and -04 boards and greatly increases the speed and amount of fireballs
+    showing on all levels.  Such behavior can be seen easily on the Rivet Board,
+    where most of the fireballs have appeared even before removing the first rivet.
 
-Hopefully confirmation and information will come along later which confirms
-this is a legitimate Nintendo Kit.
+    Hopefully confirmation and information will come along later which confirms
+    this is a legitimate Nintendo Kit.
 
 ***************************************************************************/
 
@@ -375,21 +433,8 @@ INTERRUPT_GEN_MEMBER(dkong_state::s2650_interrupt)
  *
  *************************************/
 
-void dkong_state::dkong_init_device_driver_data(  )
-{
-#if 0
-	dkong_state *state = machine.driver_data<dkong_state>();
-
-	state->m_dev_n2a03a = machine.device("n2a03a");
-	state->m_dev_n2a03b = machine.device("n2a03b");
-	state->m_dev_6h = machine.device("ls259.6h");
-	state->m_dev_vp2 = machine.device("virtual_p2");
-#endif
-}
-
 MACHINE_START_MEMBER(dkong_state,dkong2b)
 {
-	dkong_init_device_driver_data();
 	m_hardware_type = HARDWARE_TKG04;
 
 	m_snd_rom = memregion("soundcpu")->base();
@@ -447,7 +492,6 @@ MACHINE_START_MEMBER(dkong_state,radarscp1)
 
 MACHINE_START_MEMBER(dkong_state,dkong3)
 {
-	dkong_init_device_driver_data();
 	m_hardware_type = HARDWARE_TKG04;
 }
 
@@ -1007,9 +1051,10 @@ static INPUT_PORTS_START( dkongf )
 	PORT_DIPSETTING(    0x60, DEF_STR( 1C_4C ) )
 INPUT_PORTS_END
 
-static INPUT_PORTS_START( dkongx )  /* Supposedly the physical DIPS are read as defaults for the NVRAM when it's initially created.
-                                           The settings here match those from the default DSW0 settings.  Beyond the initial NVRAM
-                                           creation, DIPS (other than CABINET) can only be adjusted from the Service Mode */
+static INPUT_PORTS_START( dkongx )
+	/* Supposedly the physical DIPS are read as defaults for the NVRAM when it's initially created.
+	    The settings here match those from the default DSW0 settings.  Beyond the initial NVRAM
+	    creation, DIPS (other than CABINET) can only be adjusted from the Service Mode */
 	PORT_INCLUDE( dkong )
 
 	PORT_MODIFY("DSW0")
@@ -1616,7 +1661,7 @@ INTERRUPT_GEN_MEMBER(dkong_state::vblank_irq)
 
 WRITE_LINE_MEMBER(dkong_state::busreq_w )
 {
-// since our Z80 has no support for BUSACK, we assume it is granted immediately
+	// since our Z80 has no support for BUSACK, we assume it is granted immediately
 	m_maincpu->set_input_line(Z80_INPUT_LINE_BUSRQ, state);
 	m_maincpu->set_input_line(INPUT_LINE_HALT, state); // do we need this?
 	if(m_z80dma)
@@ -1902,7 +1947,7 @@ ROM_START( radarscp1 )
 	ROM_LOAD( "trs01v1d.bin",    0x0300, 0x0100, BAD_DUMP CRC(1b828315) SHA1(00c9f8c5ae86b68d38c66f9071b5f1ef421c1005) ) /* character color codes on a per-column basis */
 ROM_END
 
-ROM_START( dkong )
+ROM_START( dkong ) /* Confirmed TKG-04 Upgrade as mentioned in Nintendo Service Department Bulletin # TKG-02 12-11-81 */
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "c_5et_g.bin",  0x0000, 0x1000, CRC(ba70b88b) SHA1(d76ebecfea1af098d843ee7e578e480cd658ac1a) )
 	ROM_LOAD( "c_5ct_g.bin",  0x1000, 0x1000, CRC(5ec461ec) SHA1(acb11a8fbdbb3ab46068385fe465f681e3c824bd) )
@@ -2262,7 +2307,7 @@ ROM_START( dkongjnrj )
 	ROM_LOAD( "v-2n.bpr",  0x0200, 0x0100, CRC(dbf185bf) SHA1(2697a991a4afdf079dd0b7e732f71c7618f43b70) )   /* character color codes on a per-column basis */
 ROM_END
 
-ROM_START( dkongjre )
+ROM_START( dkongjre )  /* Confirmed E-Kit set mentioned in Nintendo Service Department Bulletin # DJR-03 (02-23-83) */
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "djr1-c.5b",    0x0000, 0x1000, CRC(ffe9e1a5) SHA1(715dc79d85169b4c1faf43458592e69b434afefd) )
 	ROM_CONTINUE(             0x3000, 0x1000 )
@@ -2299,7 +2344,7 @@ ROM_START( dkongjrpb )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "dkjr1-c.5b-p", 0x0000, 0x1000, CRC(8d99b3e0) SHA1(311a9f353e62d9d07c678e45baa2efec575a8f3b) ) // does not match SUM16 of bulletin (see notes), definitely not from Nintendo
 	ROM_CONTINUE(             0x3000, 0x1000 )
-	ROM_LOAD( "dkjr1-c.5c-p", 0x2000, 0x0800, CRC(b92d258c) SHA1(793483e249d08cbbbefe06d3ddc4c2eda5428ee8) ) // "
+	ROM_LOAD( "dkjr1-c.5c-p", 0x2000, 0x0800, CRC(b92d258c) SHA1(793483e249d08cbbbefe06d3ddc4c2eda5428ee8) )
 	ROM_CONTINUE(             0x4800, 0x0800 )
 	ROM_CONTINUE(             0x1000, 0x0800 )
 	ROM_CONTINUE(             0x5800, 0x0800 )
@@ -3237,9 +3282,10 @@ GAME( 1981, dkongo,    dkong,    dkong2b,   dkong,    driver_device, 0,        R
 GAME( 1981, dkongj,    dkong,    dkong2b,   dkong,    driver_device, 0,        ROT90,  "Nintendo", "Donkey Kong (Japan set 1)", GAME_SUPPORTS_SAVE )
 GAME( 1981, dkongjo,   dkong,    dkong2b,   dkong,    driver_device, 0,        ROT90,  "Nintendo", "Donkey Kong (Japan set 2)", GAME_SUPPORTS_SAVE )
 GAME( 1981, dkongjo1,  dkong,    dkong2b,   dkong,    driver_device, 0,        ROT90,  "Nintendo", "Donkey Kong (Japan set 3)", GAME_SUPPORTS_SAVE )
+
 GAME( 2004, dkongf,    dkong,    dkong2b,   dkongf,   driver_device, 0,        ROT90,  "hack (Jeff Kulczycki)", "Donkey Kong Foundry (hack)", GAME_SUPPORTS_SAVE ) /* from Jeff's Romhack */
-GAME( 2006, dkongx,    dkong,    braze,     dkongx,   dkong_state,   dkongx,   ROT90,  "hack (Braze Technologies)", "Donkey Kong II - Jumpman Returns (V1.2) (hack)", GAME_SUPPORTS_SAVE )
-GAME( 2006, dkongx11,  dkong,    braze,     dkongx,   dkong_state,   dkongx,   ROT90,  "hack (Braze Technologies)", "Donkey Kong II - Jumpman Returns (V1.1) (hack)", GAME_SUPPORTS_SAVE )
+GAME( 2006, dkongx,    dkong,    braze,     dkongx,   dkong_state,   dkongx,   ROT90,  "hack (Braze Technologies)", "Donkey Kong II: Jumpman Returns (hack, V1.2)", GAME_SUPPORTS_SAVE )
+GAME( 2006, dkongx11,  dkong,    braze,     dkongx,   dkong_state,   dkongx,   ROT90,  "hack (Braze Technologies)", "Donkey Kong II: Jumpman Returns (hack, V1.1)", GAME_SUPPORTS_SAVE )
 
 GAME( 1982, dkongjr,   0,        dkongjr,   dkongjr,  driver_device, 0,        ROT90,  "Nintendo of America", "Donkey Kong Junior (US set F-2)", GAME_SUPPORTS_SAVE )
 GAME( 1982, dkongjrj,  dkongjr,  dkongjr,   dkongjr,  driver_device, 0,        ROT90,  "Nintendo", "Donkey Kong Jr. (Japan)", GAME_SUPPORTS_SAVE )

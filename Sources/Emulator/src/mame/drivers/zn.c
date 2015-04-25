@@ -17,7 +17,7 @@
 #include "machine/nvram.h"
 #include "machine/mb3773.h"
 #include "machine/7200fifo.h"
-#include "machine/znsec.h"
+#include "machine/cat702.h"
 #include "machine/zndip.h"
 #include "machine/ataintf.h"
 #include "machine/vt83c461.h"
@@ -38,9 +38,10 @@ public:
 		driver_device(mconfig, type, tag),
 		m_gpu(*this, "gpu"),
 		m_gpu_screen(*this, "gpu:screen"),
-		m_znsec0(*this,"maincpu:sio0:znsec0"),
-		m_znsec1(*this,"maincpu:sio0:znsec1"),
-		m_zndip(*this,"maincpu:sio0:zndip"),
+		m_sio0(*this, "maincpu:sio0"),
+		m_cat702_1(*this, "cat702_1"),
+		m_cat702_2(*this, "cat702_2"),
+		m_zndip(*this, "zndip"),
 		m_maincpu(*this, "maincpu"),
 		m_audiocpu(*this, "audiocpu"),
 		m_ram(*this, "maincpu:ram"),
@@ -48,10 +49,19 @@ public:
 		m_cbaj_fifo2(*this, "cbaj_fifo2"),
 		m_mb3773(*this, "mb3773"),
 		m_zoom(*this, "taito_zoom"),
-		m_vt83c461(*this, "ide")
+		m_vt83c461(*this, "ide"),
+		m_cat702_1_dataout(1),
+		m_cat702_2_dataout(1),
+		m_zndip_dataout(1)
 	{
 	}
 
+	DECLARE_WRITE_LINE_MEMBER(sio0_sck){ m_cat702_1->write_clock(state);  m_cat702_2->write_clock(state); m_zndip->write_clock(state); }
+	DECLARE_WRITE_LINE_MEMBER(sio0_txd){ m_cat702_1->write_datain(state);  m_cat702_2->write_datain(state); }
+	DECLARE_WRITE_LINE_MEMBER(cat702_1_dataout){ m_cat702_1_dataout = state; update_sio0_rxd(); }
+	DECLARE_WRITE_LINE_MEMBER(cat702_2_dataout){ m_cat702_2_dataout = state; update_sio0_rxd(); }
+	DECLARE_WRITE_LINE_MEMBER(zndip_dataout){ m_zndip_dataout = state; update_sio0_rxd(); }
+	void update_sio0_rxd() { m_sio0->write_rxd( m_cat702_1_dataout && m_cat702_2_dataout && m_zndip_dataout ); }
 	DECLARE_CUSTOM_INPUT_MEMBER(jdredd_gun_mux_read);
 	DECLARE_READ8_MEMBER(znsecsel_r);
 	DECLARE_WRITE8_MEMBER(znsecsel_w);
@@ -73,13 +83,13 @@ public:
 	DECLARE_READ16_MEMBER(bam2_unk_r);
 	DECLARE_WRITE16_MEMBER(acpsx_00_w);
 	DECLARE_WRITE16_MEMBER(acpsx_10_w);
+	DECLARE_WRITE16_MEMBER(nbajamex_bank_w);
 	DECLARE_WRITE16_MEMBER(nbajamex_80_w);
 	DECLARE_READ16_MEMBER(nbajamex_08_r);
 	DECLARE_READ16_MEMBER(nbajamex_80_r);
 	DECLARE_WRITE8_MEMBER(coh1001l_bank_w);
 	DECLARE_WRITE16_MEMBER(coh1001l_latch_w);
 	DECLARE_WRITE16_MEMBER(coh1001l_sound_unk_w);
-	DECLARE_WRITE_LINE_MEMBER(coh1001l_ymz_irq);
 	DECLARE_WRITE8_MEMBER(coh1002v_bank_w);
 	DECLARE_WRITE8_MEMBER(coh1002m_bank_w);
 	DECLARE_READ8_MEMBER(cbaj_sound_main_status_r);
@@ -96,6 +106,7 @@ public:
 	DECLARE_MACHINE_RESET(coh1002tb);
 	DECLARE_MACHINE_RESET(coh1002e);
 	DECLARE_MACHINE_RESET(bam2);
+	DECLARE_MACHINE_RESET(nbajamex);
 	DECLARE_MACHINE_RESET(coh1001l);
 	DECLARE_MACHINE_RESET(coh1002v);
 	DECLARE_MACHINE_RESET(coh1002m);
@@ -124,8 +135,9 @@ private:
 
 	required_device<psxgpu_device> m_gpu;
 	required_device<screen_device> m_gpu_screen;
-	required_device<znsec_device> m_znsec0;
-	required_device<znsec_device> m_znsec1;
+	required_device<psxsio0_device> m_sio0;
+	required_device<cat702_device> m_cat702_1;
+	required_device<cat702_device> m_cat702_2;
 	required_device<zndip_device> m_zndip;
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
@@ -135,6 +147,10 @@ private:
 	optional_device<mb3773_device> m_mb3773;
 	optional_device<taito_zoom_device> m_zoom;
 	optional_device<vt83c461_device> m_vt83c461;
+
+	int m_cat702_1_dataout;
+	int m_cat702_2_dataout;
+	int m_zndip_dataout;
 };
 
 inline void ATTR_PRINTF(3,4) zn_state::verboselog( int n_level, const char *s_fmt, ... )
@@ -333,9 +349,9 @@ WRITE8_MEMBER(zn_state::znsecsel_w)
 {
 	verboselog(2, "znsecsel_w( %08x, %08x, %08x )\n", offset, data, mem_mask );
 
-	m_znsec0->select( ( data >> 2 ) & 1 );
-	m_znsec1->select( ( data >> 3 ) & 1 );
-	m_zndip->select( ( data & 0x8c ) != 0x8c );
+	m_cat702_1->write_select((data >> 2) & 1);
+	m_cat702_2->write_select((data >> 3) & 1);
+	m_zndip->write_select((data & 0x8c) != 0x8c);
 
 	m_n_znsecsel = data;
 }
@@ -432,8 +448,8 @@ void zn_state::driver_start()
 	{
 		if( strcmp( machine().system().name, zn_config_table[ n_game ].s_name ) == 0 )
 		{
-			m_znsec0->init( zn_config_table[ n_game ].p_n_mainsec );
-			m_znsec1->init( zn_config_table[ n_game ].p_n_gamesec );
+			m_cat702_1->init( zn_config_table[ n_game ].p_n_mainsec );
+			m_cat702_2->init( zn_config_table[ n_game ].p_n_gamesec );
 			break;
 		}
 		n_game++;
@@ -449,9 +465,19 @@ static MACHINE_CONFIG_START( zn1_1mb_vram, zn_state )
 	MCFG_RAM_MODIFY("maincpu:ram")
 	MCFG_RAM_DEFAULT_SIZE("4M")
 
-	MCFG_DEVICE_ADD("maincpu:sio0:znsec0", ZNSEC, 0)
-	MCFG_DEVICE_ADD("maincpu:sio0:znsec1", ZNSEC, 0)
-	MCFG_DEVICE_ADD("maincpu:sio0:zndip", ZNDIP, 0)
+	MCFG_DEVICE_MODIFY("maincpu:sio0")
+	MCFG_PSX_SIO_SCK_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, zn_state, sio0_sck))
+	MCFG_PSX_SIO_TXD_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, zn_state, sio0_txd))
+
+	MCFG_DEVICE_ADD("cat702_1", CAT702, 0)
+	MCFG_CAT702_DATAOUT_HANDLER(WRITELINE(zn_state, cat702_1_dataout))
+
+	MCFG_DEVICE_ADD("cat702_2", CAT702, 0)
+	MCFG_CAT702_DATAOUT_HANDLER(WRITELINE(zn_state, cat702_2_dataout))
+
+	MCFG_DEVICE_ADD("zndip", ZNDIP, 0)
+	MCFG_ZNDIP_DATAOUT_HANDLER(WRITELINE(zn_state, zndip_dataout))
+	MCFG_ZNDIP_DSR_HANDLER(DEVWRITELINE("maincpu:sio0", psxsio0_device, write_dsr))
 	MCFG_ZNDIP_DATA_HANDLER(IOPORT(":DSW"))
 
 	// 5MHz NEC uPD78081 MCU:
@@ -483,9 +509,19 @@ static MACHINE_CONFIG_START( zn2, zn_state )
 	MCFG_RAM_MODIFY("maincpu:ram")
 	MCFG_RAM_DEFAULT_SIZE("4M")
 
-	MCFG_DEVICE_ADD("maincpu:sio0:znsec0", ZNSEC, 0)
-	MCFG_DEVICE_ADD("maincpu:sio0:znsec1", ZNSEC, 0)
-	MCFG_DEVICE_ADD("maincpu:sio0:zndip", ZNDIP, 0)
+	MCFG_DEVICE_MODIFY("maincpu:sio0")
+	MCFG_PSX_SIO_SCK_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, zn_state, sio0_sck))
+	MCFG_PSX_SIO_TXD_HANDLER(DEVWRITELINE(DEVICE_SELF_OWNER, zn_state, sio0_txd))
+
+	MCFG_DEVICE_ADD("cat702_1", CAT702, 0)
+	MCFG_CAT702_DATAOUT_HANDLER(WRITELINE(zn_state, cat702_1_dataout))
+
+	MCFG_DEVICE_ADD("cat702_2", CAT702, 0)
+	MCFG_CAT702_DATAOUT_HANDLER(WRITELINE(zn_state, cat702_2_dataout))
+
+	MCFG_DEVICE_ADD("zndip", ZNDIP, 0)
+	MCFG_ZNDIP_DATAOUT_HANDLER(WRITELINE(zn_state, zndip_dataout))
+	MCFG_ZNDIP_DSR_HANDLER(DEVWRITELINE("maincpu:sio0", psxsio0_device, write_dsr))
 	MCFG_ZNDIP_DATA_HANDLER(IOPORT(":DSW"))
 
 	// 5MHz NEC uPD78081 MCU:
@@ -1998,11 +2034,50 @@ WRITE16_MEMBER(zn_state::acpsx_00_w)
 	verboselog(0, "acpsx_00_w( %08x, %08x, %08x )\n", offset, data, mem_mask );
 }
 
+WRITE16_MEMBER(zn_state::nbajamex_bank_w)
+{
+	UINT32 newbank = 0;
+
+	verboselog(0, "nbajamex_bank_w( %08x, %08x, %08x )\n", offset, data, mem_mask );
+
+	if (offset > 1)
+	{
+		logerror("Unknown banking offset %x!\n", offset);
+	}
+
+	if (offset == 1)
+	{
+		data -= 1;
+	}
+
+	if (data <= 1)
+	{
+		newbank = (data * 0x400000);
+	}
+	else if (data >= 0x10)
+	{
+		data -= 0x10;
+		newbank = (data * 0x400000);
+		newbank += 0x200000;
+	}
+
+	if (offset == 0)
+	{
+		membank( "bankedroms" )->set_base( memregion( "bankedroms" )->base() + newbank);
+	}
+	else if (offset == 1)
+	{
+		newbank += 0x200000;
+		membank( "bankedroms2" )->set_base( memregion( "bankedroms" )->base() + newbank);
+	}
+}
+
 WRITE16_MEMBER(zn_state::acpsx_10_w)
 {
 	verboselog(0, "acpsx_10_w( %08x, %08x, %08x )\n", offset, data, mem_mask );
 }
 
+// all 16 bits goes to the external soundboard's latch (see sound test menu)
 WRITE16_MEMBER(zn_state::nbajamex_80_w)
 {
 	verboselog(0, "nbajamex_80_w( %08x, %08x, %08x )\n", offset, data, mem_mask );
@@ -2017,6 +2092,7 @@ READ16_MEMBER(zn_state::nbajamex_08_r)
 	return data;
 }
 
+// possibly a readback from the external soundboard?
 READ16_MEMBER(zn_state::nbajamex_80_r)
 {
 	UINT32 data = 0xffffffff;
@@ -2025,7 +2101,6 @@ READ16_MEMBER(zn_state::nbajamex_80_r)
 }
 
 static ADDRESS_MAP_START(coh1000a_map, AS_PROGRAM, 32, zn_state)
-	AM_RANGE(0x1f000000, 0x1f1fffff) AM_ROM AM_REGION("roms", 0)
 	AM_RANGE(0x1fbfff00, 0x1fbfff03) AM_WRITE16(acpsx_00_w, 0xffffffff)
 	AM_RANGE(0x1fbfff10, 0x1fbfff13) AM_WRITE16(acpsx_10_w, 0xffff0000)
 
@@ -2033,14 +2108,23 @@ static ADDRESS_MAP_START(coh1000a_map, AS_PROGRAM, 32, zn_state)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(nbajamex_map, AS_PROGRAM, 32, zn_state)
-	AM_RANGE(0x1f200000, 0x1f207fff) AM_RAM AM_SHARE("eeprom")
+	AM_RANGE(0x1f000000, 0x1f1fffff) AM_ROMBANK("bankedroms")
+	AM_RANGE(0x1f200000, 0x1f7fffff) AM_ROMBANK("bankedroms2")
+	AM_RANGE(0x1fbfff00, 0x1fbfff07) AM_WRITE16(nbajamex_bank_w, 0xffffffff)
 	AM_RANGE(0x1fbfff08, 0x1fbfff0b) AM_READ16(nbajamex_08_r, 0xffff)
 	AM_RANGE(0x1fbfff80, 0x1fbfff83) AM_READWRITE16(nbajamex_80_r, nbajamex_80_w, 0xffff)
 
 	AM_IMPORT_FROM(coh1000a_map)
 ADDRESS_MAP_END
 
+MACHINE_RESET_MEMBER(zn_state,nbajamex)
+{
+	membank( "bankedroms" )->set_base( memregion( "bankedroms" )->base() );
+	membank( "bankedroms2" )->set_base( memregion( "bankedroms" )->base() + 0x200000 );
+}
+
 static ADDRESS_MAP_START(jdredd_map, AS_PROGRAM, 32, zn_state)
+	AM_RANGE(0x1f000000, 0x1f1fffff) AM_ROM AM_REGION("roms", 0)
 	AM_RANGE(0x1fbfff80, 0x1fbfff8f) AM_DEVREADWRITE16("ata", ata_interface_device, read_cs1, write_cs1, 0xffffffff)
 	AM_RANGE(0x1fbfff90, 0x1fbfff9f) AM_DEVREADWRITE16("ata", ata_interface_device, read_cs0, write_cs0, 0xffffffff)
 
@@ -2056,6 +2140,7 @@ MACHINE_CONFIG_END
 static MACHINE_CONFIG_DERIVED( nbajamex, zn1_2mb_vram )
 	MCFG_CPU_MODIFY("maincpu")
 	MCFG_CPU_PROGRAM_MAP(nbajamex_map)
+	MCFG_MACHINE_RESET_OVERRIDE(zn_state, nbajamex)
 
 MACHINE_CONFIG_END
 
@@ -2187,11 +2272,6 @@ Notes:
       VSync        - 60Hz
 */
 
-WRITE_LINE_MEMBER(zn_state::coh1001l_ymz_irq)
-{
-	m_audiocpu->set_input_line(2, state ? ASSERT_LINE : CLEAR_LINE);
-}
-
 WRITE16_MEMBER(zn_state::coh1001l_sound_unk_w)
 {
 	// irq ack maybe?
@@ -2240,7 +2320,7 @@ static MACHINE_CONFIG_DERIVED(coh1001l, zn1_2mb_vram)
 	MCFG_MACHINE_RESET_OVERRIDE(zn_state, coh1001l)
 
 	MCFG_SOUND_ADD("ymz", YMZ280B, XTAL_16_9344MHz)
-	MCFG_YMZ280B_IRQ_HANDLER(WRITELINE(zn_state, coh1001l_ymz_irq))
+	MCFG_YMZ280B_IRQ_HANDLER(INPUTLINE("audiocpu", 2))
 	MCFG_SOUND_ROUTE(0, "lspeaker", 0.35)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 0.35)
 MACHINE_CONFIG_END
@@ -2734,6 +2814,7 @@ ROM_START( cpzn1 )
 	ROM_REGION32_LE( 0x80000, "countryrom", ROMREGION_ERASE00 )
 	ROM_REGION32_LE( 0x2400000, "maskroms", ROMREGION_ERASE00 )
 	ROM_REGION( 0x50000, "audiocpu", ROMREGION_ERASE00 )
+	ROM_REGION( 0x400000, "qsound", ROMREGION_ERASE00 )
 ROM_END
 
 /* 95681-2 */
@@ -3106,6 +3187,7 @@ ROM_START( cpzn2 )
 	ROM_REGION32_LE( 0x80000, "countryrom", ROMREGION_ERASE00 )
 	ROM_REGION32_LE( 0x3000000, "maskroms", ROMREGION_ERASE00 )
 	ROM_REGION( 0x50000, "audiocpu", ROMREGION_ERASE00 )
+	ROM_REGION( 0x400000, "qsound", ROMREGION_ERASE00 )
 ROM_END
 
 /* 95681-2 */
@@ -4626,7 +4708,7 @@ ROM_END
 ROM_START( nbajamex )
 	AC_BIOS
 
-	ROM_REGION32_LE( 0x2000000, "roms", 0 )
+	ROM_REGION32_LE( 0x2000000, "bankedroms", 0 )
 	ROM_LOAD16_BYTE( "360mpa1o.u36", 0x0000001, 0x100000, CRC(c433e827) SHA1(1d2a5a6990a1b1864e63ce3ba7306d48ebbd4775) )
 	ROM_LOAD16_BYTE( "360mpa1e.u35", 0x0000000, 0x100000, CRC(d8f5b2f7) SHA1(e38609d314721b8b612e047406e2888395917b0d) )
 	ROM_LOAD16_BYTE( "nbax0o.u28",   0x0200001, 0x200000, CRC(be13c5af) SHA1(eee5c9d985384ecfe4f00fae27d66fbefc15b28e) )
@@ -4779,7 +4861,7 @@ GAME( 1996, primrag2, atpsx,    coh1000w, primrag2, driver_device, 0, ROT0, "Ata
 /* it in every zip file */
 GAME( 1995, acpsx,    0,        coh1000a, zn,     driver_device, 0, ROT0, "Acclaim", "Acclaim PSX", GAME_IS_BIOS_ROOT )
 
-GAME( 1996, nbajamex, acpsx,    nbajamex, zn,     driver_device, 0, ROT0, "Acclaim", "NBA Jam Extreme", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND | GAME_NOT_WORKING )
+GAME( 1996, nbajamex, acpsx,    nbajamex, zn,     driver_device, 0, ROT0, "Acclaim", "NBA Jam Extreme", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 GAME( 1996, jdredd,   acpsx,    jdredd,   jdredd, driver_device, 0, ROT0, "Acclaim", "Judge Dredd (Rev C Dec. 17 1997)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 GAME( 1996, jdreddb,  jdredd,   jdredd,   jdredd, driver_device, 0, ROT0, "Acclaim", "Judge Dredd (Rev B Nov. 26 1997)", GAME_IMPERFECT_GRAPHICS | GAME_IMPERFECT_SOUND )
 

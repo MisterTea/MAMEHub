@@ -147,7 +147,6 @@ http://www.z88forever.org.uk/zxplus3e/
 #include "emu.h"
 #include "includes/spectrum.h"
 #include "imagedev/snapquik.h"
-#include "imagedev/cartslot.h"
 #include "imagedev/cassette.h"
 #include "sound/ay8910.h"
 #include "sound/speaker.h"
@@ -337,7 +336,6 @@ MACHINE_RESET_MEMBER(scorpion_state,scorpion)
 	space.install_write_handler(0x0000, 0x3fff, write8_delegate(FUNC(scorpion_state::scorpion_0000_w),this));
 
 	m_beta->disable();
-	m_beta->clear_status();
 	space.set_direct_update_handler(direct_update_delegate(FUNC(scorpion_state::scorpion_direct), this));
 
 	memset(messram,0,256*1024);
@@ -466,7 +464,6 @@ ROM_START(scorpio)
 	ROMX_LOAD("scorp1.rom",   0x014000, 0x4000, CRC(9d513013) SHA1(367b5a102fb663beee8e7930b8c4acc219c1f7b3), ROM_BIOS(7))
 	ROMX_LOAD("scorp2.rom",   0x018000, 0x4000, CRC(fd0d3ce1) SHA1(07783ee295274d8ff15d935bfd787c8ac1d54900), ROM_BIOS(7))
 	ROMX_LOAD("scorp3.rom",   0x01c000, 0x4000, CRC(1fe1d003) SHA1(33703e97cc93b7edfcc0334b64233cf81b7930db), ROM_BIOS(7))
-	ROM_CART_LOAD("cart", 0x0000, 0x4000, ROM_NOCLEAR | ROM_NOMIRROR | ROM_OPTIONAL)
 
 	ROM_REGION(0x01000, "keyboard", 0)
 	ROM_LOAD( "scrpkey.rom", 0x0000, 0x1000, CRC(e938a510) SHA1(2753993c97ff0fc6cff26ed792929abc1288dc6f))
@@ -492,13 +489,11 @@ ROM_START(profi)
 	ROMX_LOAD( "profi32.rom", 0x010000, 0x10000, CRC(77327f52) SHA1(019bd00cc7939741d99b99beac6ae1298652e652), ROM_BIOS(6))
 	ROM_SYSTEM_BIOS(6, "v7", "Power Of Sound Group")
 	ROMX_LOAD( "profi1k.rom", 0x010000, 0x10000, CRC(a932676f) SHA1(907ac56219f325949a7c2fe8168799d9cdd5ba6c), ROM_BIOS(7))
-	ROM_CART_LOAD("cart", 0x0000, 0x4000, ROM_NOCLEAR | ROM_NOMIRROR | ROM_OPTIONAL)
 ROM_END
 
 ROM_START(quorum)
 	ROM_REGION(0x020000, "maincpu", 0)
 	ROM_LOAD("qu7v42.rom",   0x010000, 0x10000, CRC(e950eee5) SHA1(f8e22672722b0038689c6c8bc4acf5392acc9d8c))
-	ROM_CART_LOAD("cart", 0x0000, 0x4000, ROM_NOCLEAR | ROM_NOMIRROR | ROM_OPTIONAL)
 ROM_END
 
 ROM_START(bestzx)
@@ -515,7 +510,6 @@ ROM_START( kay1024 )
 	ROMX_LOAD( "kay1024b.rom", 0x010000, 0x10000, CRC(ab99c31e) SHA1(cfa9e6553aea72956fce4f0130c007981d684734), ROM_BIOS(2))
 	ROM_SYSTEM_BIOS(2, "v3", "Kramis V0.3")
 	ROMX_LOAD( "kay1024s.rom", 0x010000, 0x10000, CRC(67351caa) SHA1(1d9c0606b380c000ca1dfa33f90a122ecf9df1f1), ROM_BIOS(3))
-	ROM_CART_LOAD("cart", 0x0000, 0x4000, ROM_NOCLEAR | ROM_NOMIRROR | ROM_OPTIONAL)
 ROM_END
 
 /*    YEAR  NAME      PARENT    COMPAT  MACHINE     INPUT   CLASS         INIT      COMPANY     FULLNAME */

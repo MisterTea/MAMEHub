@@ -15,6 +15,8 @@
 #include "formats/ipf_dsk.h"
 #include "formats/mfi_dsk.h"
 #include "formats/td0_dsk.h"
+#include "formats/cqm_dsk.h"
+#include "formats/dsk_dsk.h"
 #include "ui/imgcntrl.h"
 
 #define MCFG_FLOPPY_DRIVE_ADD(_tag, _slot_intf, _def_slot, _formats)  \
@@ -36,6 +38,8 @@
 		FLOPPY_MFI_FORMAT, \
 		FLOPPY_MFM_FORMAT, \
 		FLOPPY_TD0_FORMAT, \
+		FLOPPY_CQM_FORMAT, \
+		FLOPPY_DSK_FORMAT, \
 		NULL };
 
 
@@ -105,6 +109,7 @@ public:
 	bool ss_r() { return ss; }
 	bool twosid_r();
 
+	void seek_phase_w(int phases);
 	void stp_w(int state);
 	void dir_w(int state) { dir = state; }
 	void ss_w(int state) { ss = state; }
@@ -164,7 +169,7 @@ protected:
 
 	attotime revolution_start_time, rev_time;
 	UINT32 revolution_count;
-	int cyl;
+	int cyl, subcyl;
 
 	bool image_dirty;
 	int ready_counter;
@@ -197,7 +202,6 @@ protected:
 
 	void do_load_create();
 	virtual void hook_load(astring filename, bool softlist);
-	astring try_file(astring location, astring name, bool has_crc, UINT32 crc);
 };
 
 
@@ -237,6 +241,8 @@ DECLARE_FLOPPY_IMAGE_DEVICE(epson_sd_321, "floppy_5_25")
 DECLARE_FLOPPY_IMAGE_DEVICE(sony_oa_d31v, "floppy_3_5")
 DECLARE_FLOPPY_IMAGE_DEVICE(sony_oa_d32w, "floppy_3_5")
 DECLARE_FLOPPY_IMAGE_DEVICE(sony_oa_d32v, "floppy_3_5")
+DECLARE_FLOPPY_IMAGE_DEVICE(teac_fd_55f, "floppy_5_25")
+DECLARE_FLOPPY_IMAGE_DEVICE(teac_fd_55g, "floppy_5_25")
 DECLARE_FLOPPY_IMAGE_DEVICE(alps_3255190x, "floppy_5_25")
 
 
@@ -286,6 +292,8 @@ extern const device_type EPSON_SD_321;
 extern const device_type SONY_OA_D31V;
 extern const device_type SONY_OA_D32W;
 extern const device_type SONY_OA_D32V;
+extern const device_type TEAC_FD_55F;
+extern const device_type TEAC_FD_55G;
 extern const device_type ALPS_3255190x;
 
 #endif /* FLOPPY_H */

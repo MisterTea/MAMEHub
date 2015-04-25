@@ -81,7 +81,6 @@ void i960_cpu_device::send_iac(UINT32 adr)
 		break;
 	default:
 		fatalerror("I960: %x: IAC %08x %08x %08x %08x\n", m_PIP, iac[0], iac[1], iac[2], iac[3]);
-		break;
 	}
 }
 
@@ -129,7 +128,6 @@ UINT32 i960_cpu_device::get_ea(UINT32 opcode)
 
 		default:
 			fatalerror("I960: %x: unhandled MEMB mode %x\n", m_PIP, mode);
-			return 0;
 		}
 	}
 }
@@ -1438,7 +1436,7 @@ void i960_cpu_device::execute_op(UINT32 opcode)
 			case 0xd: // cosr
 				m_icount -= 406;
 				t1f = get_1_rif(opcode);
-				set_rif(opcode, sin(t1f));
+				set_rif(opcode, cos(t1f));
 				break;
 
 			case 0xe: // tanr

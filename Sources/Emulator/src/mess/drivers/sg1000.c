@@ -67,7 +67,6 @@ Notes:
 
 #include "includes/sg1000.h"
 #include "bus/rs232/rs232.h"
-#include "bus/sega8/rom.h"
 
 
 /***************************************************************************
@@ -79,16 +78,16 @@ Notes:
 // for the moment let assume the latter!
 READ8_MEMBER( sg1000_state::omv_r )
 {
-	if (m_cartslot && m_cartslot->m_cart)
-		return m_cartslot->m_cart->read_cart(space, offset);
+	if (m_cart && m_cart->exists())
+		return m_cart->read_cart(space, offset);
 	else
 		return m_rom->base()[offset];
 }
 
 WRITE8_MEMBER( sg1000_state::omv_w )
 {
-	if (m_cartslot && m_cartslot->m_cart)
-		m_cartslot->m_cart->write_cart(space, offset, data);
+	if (m_cart && m_cart->exists())
+		m_cart->write_cart(space, offset, data);
 }
 
 /*-------------------------------------------------
@@ -340,7 +339,7 @@ INPUT_PORTS_START( sk1100 )
 	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_F) PORT_CHAR('F') PORT_CHAR('f')
 	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_V) PORT_CHAR('V') PORT_CHAR('v')
 	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("INS DEL") PORT_CODE(KEYCODE_BACKSPACE) PORT_CHAR(8)
-	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME("\xcf\x80") PORT_CODE(KEYCODE_EQUALS) PORT_CHAR(0x03c0)
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_NAME(UTF8_SMALL_PI) PORT_CODE(KEYCODE_EQUALS) PORT_CHAR(0x03c0)
 	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_QUOTE) PORT_CHAR(':') PORT_CHAR('*')
 	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_KEYBOARD ) PORT_CODE(KEYCODE_OPENBRACE) PORT_CHAR('@') PORT_CHAR('`')
 
@@ -633,11 +632,14 @@ SLOT_INTERFACE_END
 
 void sg1000_state::machine_start()
 {
-	if (m_cartslot->get_type() == SEGA8_DAHJEE_TYPEA || m_cartslot->get_type() == SEGA8_DAHJEE_TYPEB)
+	if (m_cart->get_type() == SEGA8_DAHJEE_TYPEA || m_cart->get_type() == SEGA8_DAHJEE_TYPEB)
 	{
-		m_maincpu->space(AS_PROGRAM).install_read_handler(0xc000, 0xffff, 0, 0, read8_delegate(FUNC(sega8_cart_slot_device::read_ram),(sega8_cart_slot_device*)m_cartslot));
-		m_maincpu->space(AS_PROGRAM).install_write_handler(0xc000, 0xffff, 0, 0, write8_delegate(FUNC(sega8_cart_slot_device::write_ram),(sega8_cart_slot_device*)m_cartslot));
+		m_maincpu->space(AS_PROGRAM).install_read_handler(0xc000, 0xffff, 0, 0, read8_delegate(FUNC(sega8_cart_slot_device::read_ram),(sega8_cart_slot_device*)m_cart));
+		m_maincpu->space(AS_PROGRAM).install_write_handler(0xc000, 0xffff, 0, 0, write8_delegate(FUNC(sega8_cart_slot_device::write_ram),(sega8_cart_slot_device*)m_cart));
 	}
+
+	if (m_cart)
+		m_cart->save_ram();
 }
 
 /*-------------------------------------------------
@@ -670,12 +672,15 @@ void sc3000_state::machine_start()
 	/* register for state saving */
 	save_item(NAME(m_keylatch));
 
-	if (m_cartslot && (m_cartslot->get_type() == SEGA8_BASIC_L3 || m_cartslot->get_type() == SEGA8_MUSIC_EDITOR
-								|| m_cartslot->get_type() == SEGA8_DAHJEE_TYPEA || m_cartslot->get_type() == SEGA8_DAHJEE_TYPEB))
+	if (m_cart && m_cart->exists() && (m_cart->get_type() == SEGA8_BASIC_L3 || m_cart->get_type() == SEGA8_MUSIC_EDITOR
+								|| m_cart->get_type() == SEGA8_DAHJEE_TYPEA || m_cart->get_type() == SEGA8_DAHJEE_TYPEB))
 	{
-		m_maincpu->space(AS_PROGRAM).install_read_handler(0xc000, 0xffff, 0, 0, read8_delegate(FUNC(sega8_cart_slot_device::read_ram),(sega8_cart_slot_device*)m_cartslot));
-		m_maincpu->space(AS_PROGRAM).install_write_handler(0xc000, 0xffff, 0, 0, write8_delegate(FUNC(sega8_cart_slot_device::write_ram),(sega8_cart_slot_device*)m_cartslot));
+		m_maincpu->space(AS_PROGRAM).install_read_handler(0xc000, 0xffff, 0, 0, read8_delegate(FUNC(sega8_cart_slot_device::read_ram),(sega8_cart_slot_device*)m_cart));
+		m_maincpu->space(AS_PROGRAM).install_write_handler(0xc000, 0xffff, 0, 0, write8_delegate(FUNC(sega8_cart_slot_device::write_ram),(sega8_cart_slot_device*)m_cart));
 	}
+
+	if (m_cart)
+		m_cart->save_ram();
 }
 
 
@@ -704,19 +709,6 @@ void sf7000_state::machine_reset()
 /***************************************************************************
     MACHINE DRIVERS
 ***************************************************************************/
-
-
-static SLOT_INTERFACE_START(sg1000_cart)
-	SLOT_INTERFACE_INTERNAL("rom",  SEGA8_ROM_STD)
-	SLOT_INTERFACE_INTERNAL("othello",  SEGA8_ROM_OTHELLO)
-	SLOT_INTERFACE_INTERNAL("castle",  SEGA8_ROM_CASTLE)
-	SLOT_INTERFACE_INTERNAL("terebi",  SEGA8_ROM_TEREBI)
-	SLOT_INTERFACE_INTERNAL("level3",  SEGA8_ROM_BASIC_L3)
-	SLOT_INTERFACE_INTERNAL("music_editor",  SEGA8_ROM_MUSIC_EDITOR)
-	SLOT_INTERFACE_INTERNAL("dahjee_typea",  SEGA8_ROM_DAHJEE_TYPEA)
-	SLOT_INTERFACE_INTERNAL("dahjee_typeb",  SEGA8_ROM_DAHJEE_TYPEB)
-	SLOT_INTERFACE_INTERNAL("cardcatcher",  SEGA8_ROM_CARDCATCH)
-SLOT_INTERFACE_END
 
 /*-------------------------------------------------
     MACHINE_CONFIG_START( sg1000, sg1000_state )
@@ -863,7 +855,7 @@ static MACHINE_CONFIG_START( sf7000, sf7000_state )
 	MCFG_UPD765A_ADD(UPD765_TAG, false, false)
 	MCFG_FLOPPY_DRIVE_ADD(UPD765_TAG ":0", sf7000_floppies, "3ssdd", sf7000_state::floppy_formats)
 
-	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_devices, "printer")
 
 	MCFG_CENTRONICS_OUTPUT_LATCH_ADD("cent_data_out", "centronics")
 

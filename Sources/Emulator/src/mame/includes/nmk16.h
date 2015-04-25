@@ -1,5 +1,6 @@
 #include "machine/nmk112.h"
 #include "sound/okim6295.h"
+#include "machine/nmk004.h"
 
 class nmk16_state : public driver_device
 {
@@ -10,7 +11,6 @@ public:
 		m_audiocpu(*this, "audiocpu"),
 		m_oki1(*this, "oki1"),
 		m_oki2(*this, "oki2"),
-		m_nmk112(*this, "nmk112"),
 		m_nmk_bgvideoram0(*this, "nmk_bgvideoram0"),
 		m_nmk_txvideoram(*this, "nmk_txvideoram"),
 		m_mainram(*this, "mainram"),
@@ -24,13 +24,15 @@ public:
 		m_afega_scroll_0(*this, "afega_scroll_0"),
 		m_afega_scroll_1(*this, "afega_scroll_1"),
 		m_gfxdecode(*this, "gfxdecode"),
-		m_palette(*this, "palette") {}
+		m_palette(*this, "palette"),
+		m_nmk004(*this, "nmk004"),
+		m_sprdma_base(0x8000)
+	{}
 
 	required_device<cpu_device> m_maincpu;
 	optional_device<cpu_device> m_audiocpu;
 	optional_device<okim6295_device> m_oki1;
 	optional_device<okim6295_device> m_oki2;
-	optional_device<nmk112_device> m_nmk112;
 	required_shared_ptr<UINT16> m_nmk_bgvideoram0;
 	optional_shared_ptr<UINT16> m_nmk_txvideoram;
 	required_shared_ptr<UINT16> m_mainram;
@@ -45,6 +47,8 @@ public:
 	optional_shared_ptr<UINT16> m_afega_scroll_1;
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<palette_device> m_palette;
+	optional_device<nmk004_device> m_nmk004;
+	int m_sprdma_base;
 	int mask[4*2];
 	int m_simple_scroll;
 	int m_redraw_bitmap;
@@ -113,18 +117,16 @@ public:
 	DECLARE_WRITE16_MEMBER(bioship_bank_w);
 	DECLARE_WRITE8_MEMBER(spec2k_oki1_banking_w);
 	DECLARE_WRITE8_MEMBER(twinactn_oki_bank_w);
-	DECLARE_READ16_MEMBER( atombjt_unkr_r )
-	{
-		return 0x0000;
-	}
-
+	DECLARE_READ16_MEMBER(atombjt_unkr_r) {return 0x0000;}
+	DECLARE_WRITE16_MEMBER(nmk16_x0016_w);
+	DECLARE_WRITE16_MEMBER(nmk16_bioship_x0016_w);
 	DECLARE_DRIVER_INIT(nmk);
 	DECLARE_DRIVER_INIT(vandykeb);
 	DECLARE_DRIVER_INIT(tdragonb);
 	DECLARE_DRIVER_INIT(ssmissin);
-	DECLARE_DRIVER_INIT(hachamf);
+	DECLARE_DRIVER_INIT(hachamf_prot);
 	DECLARE_DRIVER_INIT(redhawk);
-	DECLARE_DRIVER_INIT(tdragon);
+	DECLARE_DRIVER_INIT(tdragon_prot);
 	DECLARE_DRIVER_INIT(bubl2000);
 	DECLARE_DRIVER_INIT(grdnstrm);
 	DECLARE_DRIVER_INIT(spec2k);
@@ -163,8 +165,6 @@ public:
 	UINT32 screen_update_redhawki(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_redhawkb(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_bubl2000(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
-	void screen_eof_nmk(screen_device &screen, bool state);
-	void screen_eof_strahl(screen_device &screen, bool state);
 	TIMER_DEVICE_CALLBACK_MEMBER(tdragon_mcu_sim);
 	TIMER_DEVICE_CALLBACK_MEMBER(hachamf_mcu_sim);
 	TIMER_DEVICE_CALLBACK_MEMBER(nmk16_scanline);
@@ -194,6 +194,4 @@ public:
 	void decode_gfx();
 	void decode_tdragonb();
 	void decode_ssmissin();
-	DECLARE_WRITE_LINE_MEMBER(ym2203_irqhandler);
-
 };

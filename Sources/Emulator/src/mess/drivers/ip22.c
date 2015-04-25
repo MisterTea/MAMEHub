@@ -316,7 +316,6 @@ READ32_MEMBER(ip22_state::hpc3_pbus6_r)
 		//verboselog(0, "Unknown HPC PBUS6 Read: 0x%08x (%08x)\n", 0x1fbd9800 + ( offset << 2 ), mem_mask );
 		return 0;
 	}
-	return 0;
 }
 
 WRITE32_MEMBER(ip22_state::hpc3_pbus6_w)
@@ -434,7 +433,6 @@ READ32_MEMBER(ip22_state::hpc3_hd_enet_r)
 		//verboselog((machine, 0, "Unknown HPC3 ENET/HDx Read: %08x (%08x)\n", 0x1fb90000 + ( offset << 2 ), mem_mask );
 		return 0;
 	}
-	return 0;
 }
 
 WRITE32_MEMBER(ip22_state::hpc3_hd_enet_w)
@@ -493,7 +491,6 @@ READ32_MEMBER(ip22_state::hpc3_hd0_r)
 		//verboselog((machine, 0, "Unknown HPC3 HD0 Read: %08x (%08x) [%x] PC=%x\n", 0x1fbc0000 + ( offset << 2 ), mem_mask, offset, space.device().safe_pc() );
 		return 0;
 	}
-	return 0;
 }
 
 WRITE32_MEMBER(ip22_state::hpc3_hd0_w)
@@ -540,7 +537,6 @@ READ32_MEMBER(ip22_state::hpc3_pbus4_r)
 		//verboselog((machine, 0, "Unknown HPC3 PBUS4 Read: %08x (%08x)\n", 0x1fbd9000 + ( offset << 2 ), mem_mask );
 		return 0;
 	}
-	return 0;
 }
 
 WRITE32_MEMBER(ip22_state::hpc3_pbus4_w)
@@ -710,7 +706,7 @@ READ32_MEMBER(ip22_state::rtc_r)
 			//verboselog((machine, 3, "RTC RAM MSB Read: %02x \n", RTC_RAMMSB );
 			return RTC_RAMMSB;
 		case 0x0053:
-			return m_RTC.nRAM[ ( RTC_RAMMSB << 8 ) | RTC_RAMLSB ];
+			return m_RTC.nRAM[ (( RTC_RAMMSB << 8 ) | RTC_RAMLSB) & 0x7ff ];
 		case 0x005e:
 			return RTC_WRITECNT;
 		default:
@@ -729,7 +725,7 @@ WRITE32_MEMBER(ip22_state::rtc_w)
 {
 	RTC_WRITECNT++;
 
-//  osd_printf_info("RTC_W: offset %x => %x (PC=%x)\n", data, offset, activecpu_get_pc());
+//  osd_printf_info("RTC_W: offset %x => %x (PC=%x)\n", data, offset, space.device().safe_pc());
 
 	if( offset <= 0x0d )
 	{
@@ -854,8 +850,7 @@ WRITE32_MEMBER(ip22_state::rtc_w)
 			RTC_RAMMSB = data;
 			break;
 		case 0x0053:
-			assert(((RTC_RAMMSB << 8) | RTC_RAMLSB) >= 0 && ((RTC_RAMMSB << 8) | RTC_RAMLSB) < 0x800);
-			m_RTC.nRAM[ ( RTC_RAMMSB << 8 ) | RTC_RAMLSB ] = data;
+			m_RTC.nRAM[ (( RTC_RAMMSB << 8 ) | RTC_RAMLSB) & 0x7ff ] = data;
 			break;
 		default:
 			//verboselog((machine, 3, "Unknown RTC Ext. Reg. Write: %02x: %02x\n", offset, data );
@@ -1006,7 +1001,7 @@ WRITE32_MEMBER(ip22_state::hal2_w)
 		return;
 		/* FIXME: this code is never excuted */
 		//verboselog((machine, 0, "    Read Back Index: %01x\n", ( data & H2_IAR_RB_INDEX ) );
-		break;
+		//break;
 	case 0x0040/4:
 		//verboselog((machine, 0, "HAL2 Indirect Data Register 0 Write: 0x%08x (%08x)\n", data, mem_mask );
 		m_HAL2.nIDR[0] = data;

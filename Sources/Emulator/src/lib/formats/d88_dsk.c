@@ -27,6 +27,8 @@
  *
  */
 
+	#include <assert.h>
+
 #include "flopimg.h"
 #include "imageutl.h"
 
@@ -389,7 +391,6 @@ FLOPPY_CONSTRUCT(d88_dsk_construct)
 
 *********************************************************************/
 
-#include "emu.h"
 #include "d88_dsk.h"
 
 d88_format::d88_format()
@@ -492,8 +493,12 @@ bool d88_format::load(io_generic *io, UINT32 form_factor, floppy_image *image)
 				pos += 16;
 
 				UINT16 size = LITTLE_ENDIANIZE_INT16(*(UINT16 *)(hs+14));
-				if(i == 0)
+				if(i == 0) {
 					sector_count = LITTLE_ENDIANIZE_INT16(*(UINT16 *)(hs+4));
+					// Support broken vfman converter
+					if(sector_count == 0x1000)
+						sector_count = 0x10;
+				}
 
 				sects[i].track       = hs[0];
 				sects[i].head        = hs[1];

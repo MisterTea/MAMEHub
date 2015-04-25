@@ -27,6 +27,7 @@ enum
 	GB_MBC_LASAMA,       /*    ?? ROM,    ?? RAM - Appears in La Sa Ma */
 	GB_MBC_ATVRACIN,
 	GB_MBC_CAMERA,
+	GB_MBC_188IN1,
 	GB_MBC_SINTAX,
 	GB_MBC_CHONGWU,
 	GB_MBC_LICHENG,
@@ -37,13 +38,6 @@ enum
 	GB_MBC_UNK01,
 	GB_MBC_MEGADUCK,     /* MEGADUCK style banking                        */
 	GB_MBC_UNKNOWN       /* Unknown mapper                                */
-};
-
-
-// ======================> gb_cart_interface
-
-struct gb_cart_interface
-{
 };
 
 
@@ -62,11 +56,11 @@ public:
 	virtual DECLARE_READ8_MEMBER(read_ram) { return 0xff; }
 	virtual DECLARE_WRITE8_MEMBER(write_ram) {}
 
-	void rom_alloc(UINT32 size);
+	void rom_alloc(UINT32 size, const char *tag);
 	void ram_alloc(UINT32 size);
 	UINT8* get_rom_base() { return m_rom; }
 	UINT8* get_ram_base() { return m_ram; }
-	UINT32 get_rom_size() { return m_rom.count(); }
+	UINT32 get_rom_size() { return m_rom_size; }
 	UINT32 get_ram_size() { return m_ram.count(); }
 
 	void rom_map_setup(UINT32 size);
@@ -77,8 +71,11 @@ public:
 	void set_has_battery(bool val) { has_battery = val; }
 	bool get_has_battery() { return has_battery; }
 
+	void save_ram() { device().save_item(NAME(m_ram)); }
+
 	// internal state
-	dynamic_buffer m_rom;
+	UINT8 *m_rom;
+	UINT32 m_rom_size;
 	dynamic_buffer m_ram;
 
 	// bankswitch variables
@@ -100,7 +97,6 @@ public:
 // ======================> base_gb_cart_slot_device
 
 class base_gb_cart_slot_device : public device_t,
-								public gb_cart_interface,
 								public device_image_interface,
 								public device_slot_interface
 {
@@ -126,6 +122,7 @@ public:
 
 	void setup_ram(UINT8 banks);
 	void internal_header_logging(UINT8 *ROM, UINT32 len);
+	void save_ram() { if (m_cart && m_cart->get_ram_size()) m_cart->save_ram(); }
 
 	virtual iodevice_t image_type() const { return IO_CARTSLOT; }
 	virtual bool is_readable()  const { return 1; }
@@ -193,6 +190,8 @@ extern const device_type MEGADUCK_CART_SLOT;
 /***************************************************************************
  DEVICE CONFIGURATION MACROS
  ***************************************************************************/
+
+#define GBSLOT_ROM_REGION_TAG ":cart:rom"
 
 #define MCFG_GB_CARTRIDGE_ADD(_tag,_slot_intf,_def_slot) \
 	MCFG_DEVICE_ADD(_tag, GB_CART_SLOT, 0) \

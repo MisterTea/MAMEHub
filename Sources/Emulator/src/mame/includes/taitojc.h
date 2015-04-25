@@ -26,7 +26,7 @@ public:
 	void render_shade_scan(INT32 scanline, const extent_t &extent, const taitojc_polydata &extradata, int threadid);
 	void render_texture_scan(INT32 scanline, const extent_t &extent, const taitojc_polydata &extradata, int threadid);
 
-	void render_polygons(running_machine &machine, UINT16 *polygon_fifo, int length);
+	void render_polygons(UINT16 *polygon_fifo, int length);
 
 private:
 	bitmap_ind16 *m_framebuffer;
@@ -51,7 +51,8 @@ public:
 		m_palette_ram(*this, "palette_ram"),
 		m_gfxdecode(*this, "gfxdecode"),
 		m_screen(*this, "screen"),
-		m_palette(*this, "palette")
+		m_palette(*this, "palette"),
+		m_analog_ports(*this, "AN")
 	{
 		m_mcu_output = 0;
 		m_speed_meter = 0;
@@ -61,12 +62,12 @@ public:
 	// device/memory pointers
 	required_device<cpu_device> m_maincpu;
 	required_device<cpu_device> m_dsp;
-	optional_device<tc0640fio_device> m_tc0640fio;
+	required_device<tc0640fio_device> m_tc0640fio;
 	required_memory_region m_gfx2;
 
 	required_shared_ptr<UINT32> m_vram;
 	required_shared_ptr<UINT32> m_objlist;
-	optional_shared_ptr<UINT32> m_snd_shared_ram;
+	required_shared_ptr<UINT32> m_snd_shared_ram;
 	required_shared_ptr<UINT32> m_main_ram;
 	required_shared_ptr<UINT16> m_dsp_shared_ram;
 	required_shared_ptr<UINT32> m_palette_ram;
@@ -74,6 +75,7 @@ public:
 	required_device<gfxdecode_device> m_gfxdecode;
 	required_device<screen_device> m_screen;
 	required_device<palette_device> m_palette;
+	optional_ioport_array<8> m_analog_ports;
 
 	taitojc_renderer *m_renderer;
 
@@ -108,8 +110,6 @@ public:
 	UINT8 m_mcu_data_hc11;
 	UINT8 m_mcu_output;
 
-	UINT16 m_debug_dsp_ram[0x8000];
-
 	UINT8 m_has_dsp_hack;
 
 	int m_speed_meter;
@@ -117,14 +117,12 @@ public:
 
 	DECLARE_READ8_MEMBER(mcu_comm_r);
 	DECLARE_WRITE8_MEMBER(mcu_comm_w);
-	DECLARE_READ32_MEMBER(dsp_shared_r);
-	DECLARE_WRITE32_MEMBER(dsp_shared_w);
 	DECLARE_READ32_MEMBER(snd_share_r);
 	DECLARE_WRITE32_MEMBER(snd_share_w);
 	DECLARE_READ8_MEMBER(jc_pcbid_r);
 	DECLARE_READ8_MEMBER(jc_lan_r);
 	DECLARE_WRITE8_MEMBER(jc_lan_w);
-	DECLARE_WRITE8_MEMBER(jc_irq_ack_w);
+	DECLARE_WRITE8_MEMBER(jc_irq_unk_w);
 	DECLARE_WRITE8_MEMBER(dendego_speedmeter_w);
 	DECLARE_WRITE8_MEMBER(dendego_brakemeter_w);
 
@@ -136,6 +134,12 @@ public:
 	DECLARE_WRITE8_MEMBER(hc11_data_w);
 	DECLARE_READ8_MEMBER(hc11_analog_r);
 
+	DECLARE_READ16_MEMBER(dsp_shared_r);
+	DECLARE_WRITE16_MEMBER(dsp_shared_w);
+	DECLARE_READ16_MEMBER(dsp_to_main_7fe_r);
+	DECLARE_WRITE16_MEMBER(dsp_to_main_7fe_w);
+	DECLARE_WRITE16_MEMBER(main_to_dsp_7ff_w);
+
 	DECLARE_READ16_MEMBER(dsp_rom_r);
 	DECLARE_WRITE16_MEMBER(dsp_rom_w);
 	DECLARE_WRITE16_MEMBER(dsp_texture_w);
@@ -143,8 +147,6 @@ public:
 	DECLARE_WRITE16_MEMBER(dsp_texaddr_w);
 	DECLARE_WRITE16_MEMBER(dsp_polygon_fifo_w);
 	DECLARE_WRITE16_MEMBER(dsp_unk2_w);
-	DECLARE_READ16_MEMBER(dsp_to_main_r);
-	DECLARE_WRITE16_MEMBER(dsp_to_main_w);
 
 	DECLARE_WRITE16_MEMBER(dsp_math_viewport_w);
 	DECLARE_WRITE16_MEMBER(dsp_math_projection_w);
@@ -156,7 +158,6 @@ public:
 
 	DECLARE_READ16_MEMBER(taitojc_dsp_idle_skip_r);
 	DECLARE_READ16_MEMBER(dendego2_dsp_idle_skip_r);
-	DECLARE_WRITE16_MEMBER(dsp_idle_skip_w);
 
 	DECLARE_READ32_MEMBER(taitojc_palette_r);
 	DECLARE_WRITE32_MEMBER(taitojc_palette_w);
@@ -169,6 +170,7 @@ public:
 	DECLARE_DRIVER_INIT(taitojc);
 	TILE_GET_INFO_MEMBER(taitojc_tile_info);
 	virtual void machine_reset();
+	virtual void machine_start();
 	virtual void video_start();
 	UINT32 screen_update_taitojc(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	UINT32 screen_update_dendego(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
@@ -176,5 +178,4 @@ public:
 	void draw_object(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT32 w1, UINT32 w2, UINT8 bank_type);
 	void draw_object_bank(bitmap_ind16 &bitmap, const rectangle &cliprect, UINT8 bank_type, UINT8 pri);
 	void taitojc_clear_frame();
-	void debug_dsp_command();
 };

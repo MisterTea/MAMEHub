@@ -1,13 +1,13 @@
 /**********************************************************************
 
-    Sega Master System "Sports Pad" (japanese model) emulation
+    Sega Master System "Sports Pad" (Japanese model) emulation
 
     Copyright MESS Team.
     Visit http://mamedev.org for licensing and usage restrictions.
 
 **********************************************************************/
 
-// The japanese Sports Pad controller is only required to play the cartridge
+// The Japanese Sports Pad controller is only required to play the cartridge
 // Sports Pad Soccer, released in Japan. It uses a different mode than the
 // used by the US model, due to missing output lines on Sega Mark III
 // controller ports.
@@ -87,7 +87,7 @@ ioport_constructor sms_sports_pad_jp_device::device_input_ports() const
 //-------------------------------------------------
 
 sms_sports_pad_jp_device::sms_sports_pad_jp_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock) :
-	device_t(mconfig, SMS_SPORTS_PAD_JP, "Sports Pad JP", tag, owner, clock, "sms_sports_pad_jp", __FILE__),
+	device_t(mconfig, SMS_SPORTS_PAD_JP, "Sega SMS Sports Pad JP", tag, owner, clock, "sms_sports_pad_jp", __FILE__),
 	device_sms_control_port_interface(mconfig, *this),
 	m_sports_jp_in(*this, "SPORTS_JP_IN"),
 	m_sports_jp_x(*this, "SPORTS_JP_X"),

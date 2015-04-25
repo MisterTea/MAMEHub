@@ -28,6 +28,7 @@
 
 #define NO_MEM_TRACKING
 #include "osdcore.h"
+#include "osdepend.h"
 #include "emu.h"
 #include "emuopts.h"
 
@@ -511,7 +512,7 @@ void Client::loadInitialData(unsigned char *data,int size,running_machine *machi
 void Client::createInitialBlocks(running_machine *machine) {
   unsigned char checksum = 0;
 
-  machine->save().doPreSave();
+  machine->save().dispatch_presave();
 
   if(getSecondsBetweenSync())
   {
@@ -550,7 +551,7 @@ void Client::createInitialBlocks(running_machine *machine) {
 
   revert(machine);
 
-  machine->save().doPostLoad();
+  machine->save().dispatch_postload();
 }
 
 void Client::updateSyncCheck()
@@ -960,11 +961,11 @@ bool Client::resync(unsigned char *data,int size,running_machine *machine)
   printf("CLIENT IS DIRTY (%d bad blocks, %f%% of total)\n",badByteCount,float(badByteCount)*100.0f/totalByteCount);
   machine->ui().popup_time(3, "You are out of sync with the server, resyncing...");
 
-  machine->save().doPreSave();
+  machine->save().dispatch_presave();
 
   revert(machine);
 
-  machine->save().doPostLoad();
+  machine->save().dispatch_postload();
   cout << "POST LOAD FINISHED\n";
 
   {

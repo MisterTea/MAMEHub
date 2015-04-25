@@ -7,7 +7,7 @@
  Visit http://mamedev.org for licensing and usage restrictions.
 
 
- Here we emulate the following Bandai PT-554 PCB (a CNROM PCB + ADPCM sound chip)
+ Here we emulate the following Bandai PT-554 PCB (a CNROM PCB + LPC / PARCOR speech synthesis chip)
 
  TODO:
  - emulate the mat controller
@@ -52,8 +52,8 @@ nes_bandai_pt554_device::nes_bandai_pt554_device(const machine_config &mconfig, 
  Bandai PT-554 board emulation
 
  This is used by Aerobics Studio. It is basically a CNROM board
- with an Mitsubishi M50805 sound chip with an internal ROM which
- is not dumpable at the moment
+ with an Mitsubishi M50805 LPC / PARCOR speech synthesis chip
+ with internal tables stored in ROM which have not yet been dumped.
 
  iNES: mapper 3?
 
@@ -83,13 +83,6 @@ static const char *const pt554_sample_names[] =
 	0
 };
 
-static const samples_interface pt554_samples_interface =
-{
-	8,   /* channels */
-	pt554_sample_names
-};
-
-
 //-------------------------------------------------
 //  MACHINE_DRIVER
 //-------------------------------------------------
@@ -99,7 +92,9 @@ static MACHINE_CONFIG_FRAGMENT( pt554 )
 	// additional sound hardware
 	MCFG_SPEAKER_STANDARD_MONO("addon")
 
-	MCFG_SAMPLES_ADD("samples", pt554_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(8)
+	MCFG_SAMPLES_NAMES(pt554_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "addon", 0.50)
 MACHINE_CONFIG_END
 

@@ -304,7 +304,7 @@ public:
 		m_rp5h01(*this,"rp5h01"),
 		m_screen(*this, "screen"),
 		m_palette(*this, "palette")
-		{ }
+	{ }
 
 	required_device<m50458_device> m_m50458;
 	required_device<s3520cf_device> m_s3520cf;
@@ -470,13 +470,9 @@ READ8_MEMBER(nss_state::nss_prot_r)
 
 	if (m_cart_sel == 0)
 	{
-		m_rp5h01->enable_w(space, 0, 0);
-		data |= ((~m_rp5h01->counter_r(space, 0)) << 4) & 0x10;  /* D4 */
-		data |= ((m_rp5h01->data_r(space, 0)) << 3) & 0x08;      /* D3 */
-		m_rp5h01->enable_w(space, 0, 1);
+		data |= ((~m_rp5h01->counter_r()) << 4) & 0x10;  /* D4 */
+		data |= (m_rp5h01->data_r() << 3) & 0x08;        /* D3 */
 	}
-	else
-		m_rp5h01->enable_w(space, 0, 1);
 
 	return data;
 }
@@ -485,14 +481,10 @@ WRITE8_MEMBER(nss_state::nss_prot_w)
 {
 	if (m_cart_sel == 0)
 	{
-		m_rp5h01->enable_w(space, 0, 0);
-		m_rp5h01->test_w(space, 0, data & 0x10);     /* D4 */
-		m_rp5h01->clock_w(space, 0, data & 0x08);        /* D3 */
-		m_rp5h01->cs_w(space, 0, ~data & 0x01);
-		m_rp5h01->enable_w(space, 0, 1);
+		m_rp5h01->test_w(data & 0x10);     /* D4 */
+		m_rp5h01->clock_w(data & 0x08);    /* D3 */
+		m_rp5h01->cs_w(~data & 0x01);
 	}
-	else
-		m_rp5h01->enable_w(space, 0, 1);
 
 	ioport("EEPROMOUT")->write(data, 0xff);
 }
@@ -803,6 +795,12 @@ void nss_state::machine_reset()
 	m_maincpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 	m_soundcpu->set_input_line(INPUT_LINE_RESET, ASSERT_LINE);
 
+	/* reset the security chip */
+	m_rp5h01->enable_w(1);
+	m_rp5h01->enable_w(0);
+	m_rp5h01->reset_w(0);
+	m_rp5h01->reset_w(1);
+
 	m_game_over_flag = 1;
 	m_joy_flag = 1;
 }
@@ -881,8 +879,6 @@ ROM_START( nss )
 
 	/* instruction / data rom for bios */
 	ROM_REGION( 0x8000, "ibios_rom", ROMREGION_ERASEFF )
-
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
 ROM_END
 
 ROM_START( nss_actr )
@@ -895,8 +891,8 @@ ROM_START( nss_actr )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "act-rais.ic8", 0x0000, 0x8000, CRC(08b38ce6) SHA1(4cbb7fd28d98ffef0f17747201625883af954e3a) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(4b74ac55) SHA1(51ea71b06367b4956a4b737385e2d4d15bd43980) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(4b74ac55) SHA1(51ea71b06367b4956a4b737385e2d4d15bd43980) )
 ROM_END
 
 ROM_START( nss_con3 )
@@ -910,7 +906,7 @@ ROM_START( nss_con3 )
 	ROM_LOAD( "contra3.ic8", 0x0000, 0x8000, CRC(0fbfa23b) SHA1(e7a1a78a58c64297e7b9623350ec57aed8035a4f) )
 
 	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(e97e4b00) SHA1(70e8382a93137353f5d0b905db2e9af50c52ce0b) )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(e97e4b00) SHA1(70e8382a93137353f5d0b905db2e9af50c52ce0b) )
 ROM_END
 
 ROM_START( nss_adam )
@@ -923,8 +919,8 @@ ROM_START( nss_adam )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "addams.ic8", 0x0000, 0x8000, CRC(57c7f72c) SHA1(2e3642b4b5438f6c535d6d1eb668e1663062cf78) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(154d10c2) SHA1(6829e149c341b753ee9bc72055c0634db4e81884) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(154d10c2) SHA1(6829e149c341b753ee9bc72055c0634db4e81884) )
 ROM_END
 
 ROM_START( nss_aten )
@@ -937,8 +933,8 @@ ROM_START( nss_aten )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "amtennis.ic8", 0x0000, 0x8000, CRC(d2cd3926) SHA1(49fc253b1b9497ef1374c7db0bd72c163ffb07e7) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010,CRC(3e640fa2) SHA1(ac530610a9d4979f070d5f57dfd4886c530aa20f) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10,CRC(3e640fa2) SHA1(ac530610a9d4979f070d5f57dfd4886c530aa20f) )
 ROM_END
 
 ROM_START( nss_rob3 )
@@ -951,8 +947,8 @@ ROM_START( nss_rob3 )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "robocop3.ic8", 0x0000, 0x8000, CRC(90d13c51) SHA1(6751dab14b7d178350ac333f07dd2c3852e4ae23) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(eb9a75de) SHA1(58f028c3f28eb4155215f4e154323e01e0fd4297) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(eb9a75de) SHA1(58f028c3f28eb4155215f4e154323e01e0fd4297) )
 ROM_END
 
 ROM_START( nss_ncaa )
@@ -965,8 +961,8 @@ ROM_START( nss_ncaa )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "ncaa.ic8", 0x0000, 0x8000, CRC(b9fa28d5) SHA1(bc538bcff5c19eae4becc6582b5c111d287b76fa) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(a2e9ad5b) SHA1(a41f82451fc185f8e989a0d4f38700dc7813bb50) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(a2e9ad5b) SHA1(a41f82451fc185f8e989a0d4f38700dc7813bb50) )
 ROM_END
 
 ROM_START( nss_skin )
@@ -979,8 +975,8 @@ ROM_START( nss_skin )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "skins.ic8", 0x0000, 0x8000, CRC(9f33d5ce) SHA1(4d279ad3665bd94c7ca9cb2778572bed42c5b298) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(86f8cd1d) SHA1(d567d194058568f4ae32b7726e433918b06bca54) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(86f8cd1d) SHA1(d567d194058568f4ae32b7726e433918b06bca54) )
 ROM_END
 
 ROM_START( nss_lwep )
@@ -993,8 +989,8 @@ ROM_START( nss_lwep )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "nss-lw.ic8", 0x0000, 0x8000, CRC(1acc1d5d) SHA1(4c8b100ac5847915aaf3b5bfbcb4f632606c97de) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(e9755c14) SHA1(d8dbebf3536dcbd18c50ba11a6b729dc7085f74b) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(e9755c14) SHA1(d8dbebf3536dcbd18c50ba11a6b729dc7085f74b) )
 ROM_END
 
 ROM_START( nss_ssoc )
@@ -1006,8 +1002,8 @@ ROM_START( nss_ssoc )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "s-soccer.ic3", 0x0000, 0x8000, CRC(c09211c3) SHA1(b274a57f93ae0a8774664df3d3615fb7dbecfa2e) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(e41c4204) SHA1(529ca7df78ecf154a095dc1b627783c43c817a45) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(e41c4204) SHA1(529ca7df78ecf154a095dc1b627783c43c817a45) )
 ROM_END
 
 ROM_START( nss_smw )
@@ -1019,8 +1015,8 @@ ROM_START( nss_smw )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "nss-r__ic3__mw.ic3", 0x0000, 0x8000, CRC(f2c5466e) SHA1(e116f01342fcf359498ed8750741c139093b1fb2) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(fd700dca) SHA1(6805cefb1856c3498b7a7a049c0d09858afac47c) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(fd700dca) SHA1(6805cefb1856c3498b7a7a049c0d09858afac47c) )
 ROM_END
 
 ROM_START( nss_fzer )
@@ -1032,8 +1028,8 @@ ROM_START( nss_fzer )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "fz.ic7", 0x0000, 0x8000, CRC(48ae570d) SHA1(934f9fec47dcf9e49936388968d2db50c69950da) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(9650a7d0) SHA1(59d57ab2720cff3a24105a7250560c41def45acc) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(9650a7d0) SHA1(59d57ab2720cff3a24105a7250560c41def45acc) )
 ROM_END
 
 ROM_START( nss_sten )
@@ -1045,21 +1041,18 @@ ROM_START( nss_sten )
 	ROM_REGION( 0x8000, "ibios_rom", 0 )
 	ROM_LOAD( "st.ic3", 0x0000, 0x8000, CRC(8880596e) SHA1(ec6d68fc2f51f7d94f496cd72cf898db65324542) )
 
-	ROM_REGION( 0x10, "rp5h01", ROMREGION_ERASE00 )
-	ROM_LOAD( "security.prm", 0x000000, 0x000010, CRC(2fd8475b) SHA1(38af97734649b90e0ea74cb1daeaa431e4295eb9) )
+	ROM_REGION( 0x10, "rp5h01", 0 )
+	ROM_LOAD( "security.prm", 0x00, 0x10, CRC(2fd8475b) SHA1(38af97734649b90e0ea74cb1daeaa431e4295eb9) )
 ROM_END
 
 DRIVER_INIT_MEMBER(nss_state,nss)
 {
 	UINT8 *PROM = memregion("rp5h01")->base();
-	int i;
 
-	DRIVER_INIT_CALL(snes);
-
-	for(i=0;i<0x10;i++)
+	for (int i = 0; i < 0x10; i++)
 		PROM[i] = BITSWAP8(PROM[i],0,1,2,3,4,5,6,7) ^ 0xff;
 
-
+	DRIVER_INIT_CALL(snes);
 }
 
 GAME( 199?, nss,       0,     nss,      snes, snes_state,    snes,    ROT0, "Nintendo",                    "Nintendo Super System BIOS", GAME_IS_BIOS_ROOT )

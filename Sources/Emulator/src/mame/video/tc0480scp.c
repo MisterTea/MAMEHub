@@ -1,14 +1,27 @@
 /*
 Taito TC0480SCP
 ---------
-Tilemap generator, has four zoomable tilemaps with 16x16 tiles.
-It also has a front tilemap with 8x8 tiles which fetches gfx data
-from RAM.
+Tilemap generator. Manages four background tilemaps with 16x16 tiles fetched
+from ROM, and one foreground text tilemap with 8x8 tiles fetched from RAM.
+All four background tilemaps support zooming and rowscroll, and two of them
+additionally support per-row zooming and column scroll. The five tilemaps
+are mixed internally (the text tilemap is always on top, the order of the
+other four is selectable) and output as 16 bits of pixel data.
+The TC0480SCP uses 0x10000 bytes of RAM. It seems to be able to address
+up to 0x800000 bytes of ROM (0x10000 tiles) as it has 21 address lines and
+32 data lines, but no known game uses more than 0x400000 bytes.
 
-BG2 and 3 are "special" layers which have row zoom and source
-columnscroll. The selectable layer priority order is a function
-of the need to have the "special" layers in particular priority
-positions.
+Inputs and outputs (based on Gunbuster schematics):
+- CPU address bus (VA1-VA17)
+- CPU data bus (VD0-VD15)
+- CPU control lines (CS, UDS, LDS, R/W, DTACK)
+- RAM address bus (RA0-RA14)
+- RAM data bus (RAD0-RAD15)
+- RAM control lines (RWAH, RWAL, RAOE)
+- ROM address bus (CH0-CH20)
+- ROM data bus (RD0-RD31)
+- Pixel output (SD0-SD15)
+- Clocks and video sync (HSYNC, HBLANK, VSYNC, VBLANK)
 
 Standard memory layout (four 32x32 bg tilemaps, one 64x64 fg tilemap)
 
@@ -139,16 +152,8 @@ const device_type TC0480SCP = &device_creator<tc0480scp_device>;
 
 tc0480scp_device::tc0480scp_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
 	: device_t(mconfig, TC0480SCP, "Taito TC0480SCP", tag, owner, clock, "tc0480scp", __FILE__),
-	// m_ctrl[0x18](0),
-	m_ram(NULL),
-	//m_bg_ram[4](NULL),
 	m_tx_ram(NULL),
 	m_char_ram(NULL),
-	//m_bgscroll_ram[4](NULL),
-	//m_rowzoom_ram[4](NULL),
-	//m_bgcolumn_ram[4](NULL),
-	//m_bgscrollx[4](NULL),
-	//m_bgscrolly[4](NULL),
 	m_pri_reg(0),
 	m_dblwidth(0),
 	m_gfxnum(0),
@@ -163,6 +168,17 @@ tc0480scp_device::tc0480scp_device(const machine_config &mconfig, const char *ta
 	m_gfxdecode(*this),
 	m_palette(*this)
 {
+	memset(m_ctrl, 0, sizeof(m_ctrl));
+
+	for (int i = 0; i < 4; i++)
+	{
+		m_bg_ram[i] = NULL;
+		m_bgscroll_ram[i] = NULL;
+		m_rowzoom_ram[i] = NULL;
+		m_bgcolumn_ram[i] = NULL;
+		m_bgscrollx[i] = 0;
+		m_bgscrolly[i] = 0;
+	}
 }
 
 //-------------------------------------------------
@@ -275,15 +291,18 @@ void tc0480scp_device::device_start()
 		m_tilemap[3][i]->set_scroll_rows(512);
 	}
 
-	m_ram = auto_alloc_array_clear(machine(), UINT16, TC0480SCP_RAM_SIZE / 2);
-
+	m_ram.resize_and_clear(TC0480SCP_RAM_SIZE / 2);
 	set_layer_ptrs();
 
 	/* create the char set (gfx will then be updated dynamically from RAM) */
-	m_gfxdecode->set_gfx(m_txnum, global_alloc(gfx_element(m_palette, tc0480scp_charlayout, (UINT8 *)m_char_ram, NATIVE_ENDIAN_VALUE_LE_BE(8,0), 64, 0)));
+	m_gfxdecode->set_gfx(m_txnum, global_alloc(gfx_element(m_palette, tc0480scp_charlayout, (UINT8 *)m_char_ram, NATIVE_ENDIAN_VALUE_LE_BE(8,0), 64, m_col_base)));
+	m_gfxdecode->gfx(m_gfxnum)->set_colorbase(m_col_base);
 
-	save_pointer(NAME(m_ram), TC0480SCP_RAM_SIZE / 2);
+	save_item(NAME(m_ram));
 	save_item(NAME(m_ctrl));
+	save_item(NAME(m_bgscrollx));
+	save_item(NAME(m_bgscrolly));
+	save_item(NAME(m_pri_reg));
 	save_item(NAME(m_dblwidth));
 	machine().save().register_postload(save_prepost_delegate(FUNC(tc0480scp_device::postload), this));
 }
@@ -312,7 +331,7 @@ void tc0480scp_device::common_get_tc0480bg_tile_info( tile_data &tileinfo, int t
 	int attr = ram[2 * tile_index];
 	SET_TILE_INFO_MEMBER(gfxnum,
 			code,
-			(attr & 0xff) + m_col_base,
+			(attr & 0xff),
 			TILE_FLIPYX((attr & 0xc000) >> 14));
 }
 
@@ -321,7 +340,7 @@ void tc0480scp_device::common_get_tc0480tx_tile_info( tile_data &tileinfo, int t
 	int attr = ram[tile_index];
 	SET_TILE_INFO_MEMBER(gfxnum,
 			attr & 0xff,
-			((attr & 0x3f00) >> 8) + m_col_base,
+			((attr & 0x3f00) >> 8),
 			TILE_FLIPYX((attr & 0xc000) >> 14));
 }
 
@@ -649,10 +668,6 @@ void tc0480scp_device::tilemap_update()
 TODO
 ----
 
-Broken for any rotation except ROT0. ROT180 support could probably
-be added without too much difficulty: machine_flip is there as a
-place-holder for this purpose.
-
 Wouldn't work if y needs to be > 255 (i.e. if some game uses a
 bigger than usual vertical visible area). Refer to tc0080vco
 custom draw routine for an example of dealing with this.
@@ -702,9 +717,8 @@ void tc0480scp_device::bg01_draw( screen_device &screen, bitmap_ind16 &bitmap, c
 		bitmap_ind16 &srcbitmap = m_tilemap[layer][m_dblwidth]->pixmap();
 		bitmap_ind8 &flagsbitmap = m_tilemap[layer][m_dblwidth]->flagsmap();
 		int flip = m_pri_reg & 0x40;
-		int i, y, y_index, src_y_index, row_index;
+		int y_index, src_y_index, row_index;
 		int x_index, x_step;
-		int machine_flip = 0;   /* for  ROT 180 ? */
 
 		UINT16 screen_width = 512; //cliprect.width();
 		UINT16 min_y = cliprect.min_y;
@@ -731,12 +745,7 @@ void tc0480scp_device::bg01_draw( screen_device &screen, bitmap_ind16 &bitmap, c
 			y_index -= (m_y_offset - min_y) * zoomy;
 		}
 
-		if (!machine_flip)
-			y = min_y;
-		else
-			y = max_y;
-
-		do
+		for (int y = min_y; y <= max_y; y++)
 		{
 			src_y_index = (y_index >> 16) & 0x1ff;
 
@@ -755,7 +764,7 @@ void tc0480scp_device::bg01_draw( screen_device &screen, bitmap_ind16 &bitmap, c
 
 			if (flags & TILEMAP_DRAW_OPAQUE)
 			{
-				for (i = 0; i < screen_width; i++)
+				for (int i = 0; i < screen_width; i++)
 				{
 					*dst16++ = src16[(x_index >> 16) & width_mask];
 					x_index += x_step;
@@ -763,7 +772,7 @@ void tc0480scp_device::bg01_draw( screen_device &screen, bitmap_ind16 &bitmap, c
 			}
 			else
 			{
-				for (i = 0; i < screen_width; i++)
+				for (int i = 0; i < screen_width; i++)
 				{
 					if (tsrc[(x_index >> 16) & width_mask])
 						*dst16++ = src16[(x_index >> 16) & width_mask];
@@ -776,13 +785,7 @@ void tc0480scp_device::bg01_draw( screen_device &screen, bitmap_ind16 &bitmap, c
 			taitoic_drawscanline(bitmap, cliprect, 0, y, scanline, (flags & TILEMAP_DRAW_OPAQUE) ? 0 : 1, ROT0, screen.priority(), priority);
 
 			y_index += zoomy;
-			if (!machine_flip)
-				y++;
-			else
-				y--;
 		}
-		while ((!machine_flip && y <= max_y) || (machine_flip && y >= min_y));
-
 	}
 }
 
@@ -792,10 +795,6 @@ void tc0480scp_device::bg01_draw( screen_device &screen, bitmap_ind16 &bitmap, c
 
 TODO
 ----
-
-Broken for any rotation except ROT0. ROT180 support could probably
-be added without too much difficulty: machine_flip is there as a
-place-holder for this purpose.
 
 Wouldn't work if y needs to be > 255 (i.e. if some game uses a
 bigger than usual vertical visible area). Refer to tc0080vco
@@ -834,12 +833,11 @@ void tc0480scp_device::bg23_draw(screen_device &screen, bitmap_ind16 &bitmap, co
 
 	UINT16 *dst16, *src16;
 	UINT8 *tsrc;
-	int i, y, y_index, src_y_index, row_index, row_zoom;
+	int y_index, src_y_index, row_index, row_zoom;
 	int sx, x_index, x_step;
 	UINT32 zoomx, zoomy;
 	UINT16 scanline[512];
 	int flipscreen = m_pri_reg & 0x40;
-	int machine_flip = 0;   /* for  ROT 180 ? */
 
 	UINT16 screen_width = 512; //cliprect.width();
 	UINT16 min_y = cliprect.min_y;
@@ -873,13 +871,7 @@ void tc0480scp_device::bg23_draw(screen_device &screen, bitmap_ind16 &bitmap, co
 		y_index -= (m_y_offset - min_y) * zoomy;
 	}
 
-
-	if (!machine_flip)
-		y = min_y;
-	else
-		y = max_y;
-
-	do
+	for (int y = min_y; y <= max_y; y++)
 	{
 		if (!flipscreen)
 			src_y_index = ((y_index>>16) + m_bgcolumn_ram[layer][(y - m_y_offset) & 0x1ff]) & 0x1ff;
@@ -918,7 +910,7 @@ void tc0480scp_device::bg23_draw(screen_device &screen, bitmap_ind16 &bitmap, co
 
 		if (flags & TILEMAP_DRAW_OPAQUE)
 		{
-			for (i = 0; i < screen_width; i++)
+			for (int i = 0; i < screen_width; i++)
 			{
 				*dst16++ = src16[(x_index >> 16) & width_mask];
 				x_index += x_step;
@@ -926,7 +918,7 @@ void tc0480scp_device::bg23_draw(screen_device &screen, bitmap_ind16 &bitmap, co
 		}
 		else
 		{
-			for (i = 0; i < screen_width; i++)
+			for (int i = 0; i < screen_width; i++)
 			{
 				if (tsrc[(x_index >> 16) & width_mask])
 					*dst16++ = src16[(x_index >> 16) & width_mask];
@@ -939,12 +931,7 @@ void tc0480scp_device::bg23_draw(screen_device &screen, bitmap_ind16 &bitmap, co
 		taitoic_drawscanline(bitmap, cliprect, 0, y, scanline, (flags & TILEMAP_DRAW_OPAQUE) ? 0 : 1, ROT0, screen.priority(), priority);
 
 		y_index += zoomy;
-		if (!machine_flip)
-			y++;
-		else
-			y--;
 	}
-	while ((!machine_flip && y<=max_y) || (machine_flip && y>=min_y));
 }
 
 
@@ -1032,19 +1019,19 @@ void tc0480scp_device::postload()
 	m_bgscrollx[3] = reg;
 
 	reg = m_ctrl[4];
-	if (!flip)  reg = -reg;
+	if (flip)  reg = -reg;
 	m_bgscrolly[0] = reg;
 
 	reg = m_ctrl[5];
-	if (!flip)  reg = -reg;
+	if (flip)  reg = -reg;
 	m_bgscrolly[1] = reg;
 
 	reg = m_ctrl[6];
-	if (!flip)  reg = -reg;
+	if (flip)  reg = -reg;
 	m_bgscrolly[2] = reg;
 
 	reg = m_ctrl[7];
-	if (!flip)  reg = -reg;
+	if (flip)  reg = -reg;
 	m_bgscrolly[3] = reg;
 
 	reg = m_ctrl[0x0c];

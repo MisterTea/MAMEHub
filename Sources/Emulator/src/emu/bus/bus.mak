@@ -16,6 +16,47 @@ BUSOBJ = $(EMUOBJ)/bus
 
 #-------------------------------------------------
 #
+#@src/emu/bus/a7800/a78_slot.h,BUSES += A7800
+#-------------------------------------------------
+
+ifneq ($(filter A7800,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/a7800
+BUSOBJS += $(BUSOBJ)/a7800/a78_slot.o
+BUSOBJS += $(BUSOBJ)/a7800/rom.o
+BUSOBJS += $(BUSOBJ)/a7800/hiscore.o
+BUSOBJS += $(BUSOBJ)/a7800/xboard.o
+BUSOBJS += $(BUSOBJ)/a7800/cpuwiz.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/a800/a800_slot.h,BUSES += A800
+#-------------------------------------------------
+
+ifneq ($(filter A800,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/a800
+BUSOBJS += $(BUSOBJ)/a800/a800_slot.o
+BUSOBJS += $(BUSOBJ)/a800/rom.o
+BUSOBJS += $(BUSOBJ)/a800/oss.o
+BUSOBJS += $(BUSOBJ)/a800/sparta.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/a8sio/a8sio.h,BUSES += A8SIO
+#-------------------------------------------------
+
+ifneq ($(filter A8SIO,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/a8sio
+BUSOBJS += $(BUSOBJ)/a8sio/a8sio.o
+BUSOBJS += $(BUSOBJ)/a8sio/cassette.o
+endif
+
+
+#-------------------------------------------------
+#
 #@src/emu/bus/abcbus/abcbus.h,BUSES += ABCBUS
 #-------------------------------------------------
 
@@ -64,6 +105,44 @@ BUSOBJS += $(BUSOBJ)/adamnet/fdc.o
 BUSOBJS += $(BUSOBJ)/adamnet/kb.o
 BUSOBJS += $(BUSOBJ)/adamnet/printer.o
 BUSOBJS += $(BUSOBJ)/adamnet/spi.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/apf/slot.h,BUSES += APF
+#-------------------------------------------------
+
+ifneq ($(filter APF,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/apf
+BUSOBJS += $(BUSOBJ)/apf/slot.o
+BUSOBJS += $(BUSOBJ)/apf/rom.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/arcadia/slot.h,BUSES += ARCADIA
+#-------------------------------------------------
+
+ifneq ($(filter ARCADIA,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/arcadia
+BUSOBJS += $(BUSOBJ)/arcadia/slot.o
+BUSOBJS += $(BUSOBJ)/arcadia/rom.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/astrocde/slot.h,BUSES += ASTROCADE
+#-------------------------------------------------
+
+ifneq ($(filter ASTROCADE,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/astrocde
+BUSOBJS += $(BUSOBJ)/astrocde/slot.o
+BUSOBJS += $(BUSOBJ)/astrocde/rom.o
+BUSOBJS += $(BUSOBJ)/astrocde/exp.o
+BUSOBJS += $(BUSOBJ)/astrocde/ram.o
 endif
 
 
@@ -199,6 +278,18 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/bus/chanf/slot.h,BUSES += CHANNELF
+#-------------------------------------------------
+
+ifneq ($(filter CHANNELF,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/chanf
+BUSOBJS += $(BUSOBJ)/chanf/slot.o
+BUSOBJS += $(BUSOBJ)/chanf/rom.o
+endif
+
+
+#-------------------------------------------------
+#
 #@src/emu/bus/comx35/exp.h,BUSES += COMX35
 #-------------------------------------------------
 
@@ -228,6 +319,37 @@ BUSOBJS += $(BUSOBJ)/coleco/hand.o
 BUSOBJS += $(BUSOBJ)/coleco/sac.o
 BUSOBJS += $(BUSOBJ)/coleco/exp.o
 BUSOBJS += $(BUSOBJ)/coleco/std.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/crvision/slot.h,BUSES += CRVISION
+#-------------------------------------------------
+
+ifneq ($(filter CRVISION,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/crvision
+BUSOBJS += $(BUSOBJ)/crvision/slot.o
+BUSOBJS += $(BUSOBJ)/crvision/rom.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/dmv/dmv.h,BUSES += DMV
+#-------------------------------------------------
+
+ifneq ($(filter DMV,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/dmv
+BUSOBJS += $(BUSOBJ)/dmv/dmvbus.o
+BUSOBJS += $(BUSOBJ)/dmv/k210.o
+BUSOBJS += $(BUSOBJ)/dmv/k220.o
+BUSOBJS += $(BUSOBJ)/dmv/k230.o
+BUSOBJS += $(BUSOBJ)/dmv/k233.o
+BUSOBJS += $(BUSOBJ)/dmv/k801.o
+BUSOBJS += $(BUSOBJ)/dmv/k803.o
+BUSOBJS += $(BUSOBJ)/dmv/k806.o
+BUSOBJS += $(BUSOBJ)/dmv/ram.o
 endif
 
 
@@ -269,6 +391,20 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/bus/generic/slot.h,BUSES += GENERIC
+#-------------------------------------------------
+
+ifneq ($(filter GENERIC,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/generic
+BUSOBJS += $(BUSOBJ)/generic/slot.o
+BUSOBJS += $(BUSOBJ)/generic/carts.o
+BUSOBJS += $(BUSOBJ)/generic/ram.o
+BUSOBJS += $(BUSOBJ)/generic/rom.o
+endif
+
+
+#-------------------------------------------------
+#
 #@src/emu/bus/ieee488/ieee488.h,BUSES += IEEE488
 #-------------------------------------------------
 
@@ -279,6 +415,7 @@ BUSOBJS += $(BUSOBJ)/ieee488/c2031.o
 BUSOBJS += $(BUSOBJ)/ieee488/c2040.o
 BUSOBJS += $(BUSOBJ)/ieee488/c2040fdc.o
 BUSOBJS += $(BUSOBJ)/ieee488/c8050.o
+BUSOBJS += $(BUSOBJ)/ieee488/c8050fdc.o
 BUSOBJS += $(BUSOBJ)/ieee488/c8280.o
 BUSOBJS += $(BUSOBJ)/ieee488/d9060.o
 BUSOBJS += $(BUSOBJ)/ieee488/softbox.o
@@ -320,6 +457,20 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/bus/intv/slot.h,BUSES += INTV
+#-------------------------------------------------
+
+ifneq ($(filter INTV,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/intv
+BUSOBJS += $(BUSOBJ)/intv/slot.o
+BUSOBJS += $(BUSOBJ)/intv/rom.o
+BUSOBJS += $(BUSOBJ)/intv/voice.o
+BUSOBJS += $(BUSOBJ)/intv/ecs.o
+endif
+
+
+#-------------------------------------------------
+#
 #@src/emu/bus/isa/isa.h,BUSES += ISA
 #-------------------------------------------------
 
@@ -336,6 +487,7 @@ BUSOBJS += $(BUSOBJ)/isa/mufdc.o
 BUSOBJS += $(BUSOBJ)/isa/finalchs.o
 BUSOBJS += $(BUSOBJ)/isa/gblaster.o
 BUSOBJS += $(BUSOBJ)/isa/gus.o
+BUSOBJS += $(BUSOBJ)/isa/sb16.o
 BUSOBJS += $(BUSOBJ)/isa/hdc.o
 BUSOBJS += $(BUSOBJ)/isa/ibm_mfc.o
 BUSOBJS += $(BUSOBJ)/isa/mpu401.o
@@ -363,6 +515,7 @@ BUSOBJS += $(BUSOBJ)/isa/pc1640_iga.o
 BUSOBJS += $(BUSOBJ)/isa/3c503.o
 BUSOBJS += $(BUSOBJ)/isa/ne1000.o
 BUSOBJS += $(BUSOBJ)/isa/ne2000.o
+BUSOBJS += $(BUSOBJ)/isa/3c505.o
 BUSOBJS += $(BUSOBJ)/isa/lpt.o
 BUSOBJS += $(BUSOBJ)/isa/p1_fdc.o
 BUSOBJS += $(BUSOBJ)/isa/p1_hdc.o
@@ -371,8 +524,9 @@ BUSOBJS += $(BUSOBJ)/isa/mc1502_fdc.o
 BUSOBJS += $(BUSOBJ)/isa/mc1502_rom.o
 BUSOBJS += $(BUSOBJ)/isa/xsu_cards.o
 BUSOBJS += $(BUSOBJ)/isa/sc499.o
-BUSOBJS += $(BUSOBJ)/isa/3c505.o
 BUSOBJS += $(BUSOBJ)/isa/aga.o
+BUSOBJS += $(BUSOBJ)/isa/svga_trident.o
+BUSOBJS += $(BUSOBJ)/isa/num9rev.o
 endif
 
 #-------------------------------------------------
@@ -412,6 +566,7 @@ BUSOBJS += $(BUSOBJ)/msx_cart/ascii.o
 BUSOBJS += $(BUSOBJ)/msx_cart/bm_012.o
 BUSOBJS += $(BUSOBJ)/msx_cart/cartridge.o
 BUSOBJS += $(BUSOBJ)/msx_cart/crossblaim.o
+BUSOBJS += $(BUSOBJ)/msx_cart/disk.o
 BUSOBJS += $(BUSOBJ)/msx_cart/dooly.o
 BUSOBJS += $(BUSOBJ)/msx_cart/fmpac.o
 BUSOBJS += $(BUSOBJ)/msx_cart/halnote.o
@@ -444,6 +599,20 @@ BUSOBJS += $(BUSOBJ)/kc/d004.o
 BUSOBJS += $(BUSOBJ)/kc/ram.o
 BUSOBJS += $(BUSOBJ)/kc/rom.o
 endif
+
+#-------------------------------------------------
+#
+#@src/emu/bus/odyssey2/slot.h,BUSES += O2
+#-------------------------------------------------
+
+ifneq ($(filter O2,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/odyssey2
+BUSOBJS += $(BUSOBJ)/odyssey2/slot.o
+BUSOBJS += $(BUSOBJ)/odyssey2/rom.o
+BUSOBJS += $(BUSOBJ)/odyssey2/chess.o
+BUSOBJS += $(BUSOBJ)/odyssey2/voice.o
+endif
+
 
 #-------------------------------------------------
 #
@@ -490,10 +659,12 @@ BUSOBJS += $(BUSOBJ)/pet/c2n.o
 BUSOBJS += $(BUSOBJ)/pet/diag264_lb_tape.o
 BUSOBJS += $(BUSOBJ)/pet/exp.o
 BUSOBJS += $(BUSOBJ)/pet/64k.o
+BUSOBJS += $(BUSOBJ)/pet/hsg.o
 BUSOBJS += $(BUSOBJ)/pet/superpet.o
 BUSOBJS += $(BUSOBJ)/pet/user.o
 BUSOBJS += $(BUSOBJ)/pet/diag.o
 BUSOBJS += $(BUSOBJ)/pet/petuja.o
+BUSOBJS += $(BUSOBJ)/pet/cb2snd.o
 endif
 
 
@@ -533,6 +704,19 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/bus/spc1000/exp.h,BUSES += SPC1000
+#-------------------------------------------------
+
+ifneq ($(filter SPC1000,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/spc1000
+BUSOBJS += $(BUSOBJ)/spc1000/exp.o
+BUSOBJS += $(BUSOBJ)/spc1000/fdd.o
+BUSOBJS += $(BUSOBJ)/spc1000/vdp.o
+endif
+
+
+#-------------------------------------------------
+#
 #@src/emu/bus/tvc/tvc.h,BUSES += TVC
 #-------------------------------------------------
 
@@ -545,18 +729,57 @@ endif
 
 #-------------------------------------------------
 #
-#@src/emu/bus/vcs/ctrl.h,BUSES += VCS
+#@src/emu/bus/vc4000/slot.h,BUSES += VC4000
+#-------------------------------------------------
+
+ifneq ($(filter VC4000,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/vc4000
+BUSOBJS += $(BUSOBJ)/vc4000/slot.o
+BUSOBJS += $(BUSOBJ)/vc4000/rom.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/vcs/vcs_slot.h,BUSES += VCS
 #-------------------------------------------------
 
 ifneq ($(filter VCS,$(BUSES)),)
 OBJDIRS += $(BUSOBJ)/vcs
-BUSOBJS += $(BUSOBJ)/vcs/ctrl.o
-BUSOBJS += $(BUSOBJ)/vcs/joystick.o
-BUSOBJS += $(BUSOBJ)/vcs/joybooster.o
-BUSOBJS += $(BUSOBJ)/vcs/keypad.o
-BUSOBJS += $(BUSOBJ)/vcs/lightpen.o
-BUSOBJS += $(BUSOBJ)/vcs/paddles.o
-BUSOBJS += $(BUSOBJ)/vcs/wheel.o
+BUSOBJS += $(BUSOBJ)/vcs/vcs_slot.o
+BUSOBJS += $(BUSOBJ)/vcs/rom.o
+BUSOBJS += $(BUSOBJ)/vcs/compumat.o
+BUSOBJS += $(BUSOBJ)/vcs/dpc.o
+BUSOBJS += $(BUSOBJ)/vcs/scharger.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/vcs/ctrl.h,BUSES += VCS_CTRL
+#-------------------------------------------------
+
+ifneq ($(filter VCS_CTRL,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/vcs_ctrl
+BUSOBJS += $(BUSOBJ)/vcs_ctrl/ctrl.o
+BUSOBJS += $(BUSOBJ)/vcs_ctrl/joystick.o
+BUSOBJS += $(BUSOBJ)/vcs_ctrl/joybooster.o
+BUSOBJS += $(BUSOBJ)/vcs_ctrl/keypad.o
+BUSOBJS += $(BUSOBJ)/vcs_ctrl/lightpen.o
+BUSOBJS += $(BUSOBJ)/vcs_ctrl/paddles.o
+BUSOBJS += $(BUSOBJ)/vcs_ctrl/wheel.o
+endif
+
+
+#-------------------------------------------------
+#
+#@src/emu/bus/vectrex/slot.h,BUSES += VECTREX
+#-------------------------------------------------
+
+ifneq ($(filter VECTREX,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/vectrex
+BUSOBJS += $(BUSOBJ)/vectrex/slot.o
+BUSOBJS += $(BUSOBJ)/vectrex/rom.o
 endif
 
 
@@ -581,6 +804,7 @@ endif
 ifneq ($(filter VIC20,$(BUSES)),)
 OBJDIRS += $(BUSOBJ)/vic20
 BUSOBJS += $(BUSOBJ)/vic20/exp.o
+BUSOBJS += $(BUSOBJ)/vic20/fe3.o
 BUSOBJS += $(BUSOBJ)/vic20/megacart.o
 BUSOBJS += $(BUSOBJ)/vic20/std.o
 BUSOBJS += $(BUSOBJ)/vic20/vic1010.o
@@ -701,6 +925,13 @@ BUSOBJS += $(BUSOBJ)/a2bus/a2corvus.o
 BUSOBJS += $(BUSOBJ)/a2bus/a2diskiing.o
 BUSOBJS += $(BUSOBJ)/a2bus/a2mcms.o
 BUSOBJS += $(BUSOBJ)/a2bus/a2dx1.o
+BUSOBJS += $(BUSOBJ)/a2bus/timemasterho.o
+BUSOBJS += $(BUSOBJ)/a2bus/mouse.o
+BUSOBJS += $(BUSOBJ)/a2bus/corvfdc01.o
+BUSOBJS += $(BUSOBJ)/a2bus/corvfdc02.o
+BUSOBJS += $(BUSOBJ)/a2bus/ramcard16k.o
+BUSOBJS += $(BUSOBJ)/a2bus/ramcard128k.o
+BUSOBJS += $(BUSOBJ)/a2bus/ezcgi.o
 endif
 
 #-------------------------------------------------
@@ -742,9 +973,12 @@ BUSOBJS += $(BUSOBJ)/centronics/covox.o
 BUSOBJS += $(BUSOBJ)/centronics/dsjoy.o
 BUSOBJS += $(BUSOBJ)/centronics/epson_ex800.o
 BUSOBJS += $(BUSOBJ)/centronics/epson_lx800.o
+BUSOBJS += $(BUSOBJ)/centronics/epson_lx810l.o
 BUSOBJS += $(BUSOBJ)/centronics/printer.o
+BUSOBJS += $(BUSOBJ)/centronics/digiblst.o
 $(BUSOBJ)/centronics/epson_ex800.o:    $(EMUOBJ)/layout/ex800.lh
 $(BUSOBJ)/centronics/epson_lx800.o:    $(EMUOBJ)/layout/lx800.lh
+$(BUSOBJ)/centronics/epson_lx810l.o:   $(EMUOBJ)/layout/lx800.lh
 endif
 
 #-------------------------------------------------
@@ -761,6 +995,7 @@ BUSOBJS += $(BUSOBJ)/rs232/printer.o
 BUSOBJS += $(BUSOBJ)/rs232/rs232.o
 BUSOBJS += $(BUSOBJ)/rs232/ser_mouse.o
 BUSOBJS += $(BUSOBJ)/rs232/terminal.o
+BUSOBJS += $(BUSOBJ)/rs232/xvd701.o
 endif
 
 #-------------------------------------------------
@@ -777,19 +1012,19 @@ endif
 
 #-------------------------------------------------
 #
-#@src/emu/bus/pci/pci.h,BUSES += PCI
+#@src/emu/bus/lpci/pci.h,BUSES += LPCI
 #-------------------------------------------------
 
-ifneq ($(filter PCI,$(BUSES)),)
-OBJDIRS += $(BUSOBJ)/pci
-BUSOBJS += $(BUSOBJ)/pci/pci.o
-BUSOBJS += $(BUSOBJ)/pci/cirrus.o
-BUSOBJS += $(BUSOBJ)/pci/i82371ab.o
-BUSOBJS += $(BUSOBJ)/pci/i82371sb.o
-BUSOBJS += $(BUSOBJ)/pci/i82439tx.o
-BUSOBJS += $(BUSOBJ)/pci/northbridge.o
-BUSOBJS += $(BUSOBJ)/pci/southbridge.o
-BUSOBJS += $(BUSOBJ)/pci/mpc105.o
+ifneq ($(filter LPCI,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/lpci
+BUSOBJS += $(BUSOBJ)/lpci/pci.o
+BUSOBJS += $(BUSOBJ)/lpci/cirrus.o
+BUSOBJS += $(BUSOBJ)/lpci/i82371ab.o
+BUSOBJS += $(BUSOBJ)/lpci/i82371sb.o
+BUSOBJS += $(BUSOBJ)/lpci/i82439tx.o
+BUSOBJS += $(BUSOBJ)/lpci/northbridge.o
+BUSOBJS += $(BUSOBJ)/lpci/southbridge.o
+BUSOBJS += $(BUSOBJ)/lpci/mpc105.o
 endif
 
 #-------------------------------------------------
@@ -813,6 +1048,7 @@ BUSOBJS += $(BUSOBJ)/nes/cne.o
 BUSOBJS += $(BUSOBJ)/nes/cony.o
 BUSOBJS += $(BUSOBJ)/nes/datach.o
 BUSOBJS += $(BUSOBJ)/nes/discrete.o
+BUSOBJS += $(BUSOBJ)/nes/disksys.o
 BUSOBJS += $(BUSOBJ)/nes/event.o
 BUSOBJS += $(BUSOBJ)/nes/ggenie.o
 BUSOBJS += $(BUSOBJ)/nes/henggedianzi.o
@@ -852,6 +1088,31 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/bus/nes_ctrl/ctrl.h,BUSES += NES_CTRL
+#-------------------------------------------------
+
+ifneq ($(filter NES_CTRL,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/nes_ctrl
+BUSOBJS += $(BUSOBJ)/nes_ctrl/ctrl.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/joypad.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/4score.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/arkpaddle.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/bcbattle.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/ftrainer.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/fckeybrd.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/hori.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/konamihs.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/miracle.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/mjpanel.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/pachinko.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/partytap.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/powerpad.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/suborkey.o
+BUSOBJS += $(BUSOBJ)/nes_ctrl/zapper.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/bus/snes/snes_slot.h,BUSES += SNES
 #-------------------------------------------------
 
@@ -874,6 +1135,34 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/bus/snes_ctrl/ctrl.h,BUSES += SNES_CTRL
+#-------------------------------------------------
+
+ifneq ($(filter SNES_CTRL,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/snes_ctrl
+BUSOBJS += $(BUSOBJ)/snes_ctrl/ctrl.o
+BUSOBJS += $(BUSOBJ)/snes_ctrl/bcbattle.o
+BUSOBJS += $(BUSOBJ)/snes_ctrl/joypad.o
+BUSOBJS += $(BUSOBJ)/snes_ctrl/miracle.o
+BUSOBJS += $(BUSOBJ)/snes_ctrl/mouse.o
+BUSOBJS += $(BUSOBJ)/snes_ctrl/multitap.o
+BUSOBJS += $(BUSOBJ)/snes_ctrl/pachinko.o
+BUSOBJS += $(BUSOBJ)/snes_ctrl/sscope.o
+BUSOBJS += $(BUSOBJ)/snes_ctrl/twintap.o
+endif
+
+#-------------------------------------------------
+#
+#@src/emu/bus/vboy/slot.h,BUSES += VBOY
+#-------------------------------------------------
+ifneq ($(filter VBOY,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/vboy
+BUSOBJS += $(BUSOBJ)/vboy/slot.o
+BUSOBJS += $(BUSOBJ)/vboy/rom.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/bus/megadrive/md_slot.h,BUSES += MEGADRIVE
 #-------------------------------------------------
 
@@ -882,6 +1171,7 @@ OBJDIRS += $(BUSOBJ)/megadrive
 BUSOBJS += $(BUSOBJ)/megadrive/md_slot.o
 BUSOBJS += $(BUSOBJ)/megadrive/md_carts.o
 BUSOBJS += $(BUSOBJ)/megadrive/eeprom.o
+BUSOBJS += $(BUSOBJ)/megadrive/ggenie.o
 BUSOBJS += $(BUSOBJ)/megadrive/jcart.o
 BUSOBJS += $(BUSOBJ)/megadrive/rom.o
 BUSOBJS += $(BUSOBJ)/megadrive/sk.o
@@ -921,6 +1211,7 @@ BUSOBJS += $(BUSOBJ)/neogeo/bootleg_prot.o
 BUSOBJS += $(BUSOBJ)/neogeo/bootleg_cart.o
 BUSOBJS += $(BUSOBJ)/neogeo/bootleg_hybrid_cart.o
 BUSOBJS += $(BUSOBJ)/neogeo/sbp_prot.o
+BUSOBJS += $(BUSOBJ)/neogeo/kog_prot.o
 BUSOBJS += $(BUSOBJ)/neogeo/rom.o
 endif
 
@@ -947,6 +1238,8 @@ ifneq ($(filter SEGA8,$(BUSES)),)
 OBJDIRS += $(BUSOBJ)/sega8
 BUSOBJS += $(BUSOBJ)/sega8/sega8_slot.o
 BUSOBJS += $(BUSOBJ)/sega8/rom.o
+BUSOBJS += $(BUSOBJ)/sega8/ccatch.o
+BUSOBJS += $(BUSOBJ)/sega8/mgear.o
 endif
 
 #-------------------------------------------------
@@ -964,6 +1257,7 @@ BUSOBJS += $(BUSOBJ)/sms_ctrl/rfu.o
 BUSOBJS += $(BUSOBJ)/sms_ctrl/sports.o
 BUSOBJS += $(BUSOBJ)/sms_ctrl/sportsjp.o
 BUSOBJS += $(BUSOBJ)/sms_ctrl/multitap.o
+BUSOBJS += $(BUSOBJ)/sms_ctrl/graphic.o
 endif
 
 #-------------------------------------------------
@@ -1016,6 +1310,17 @@ endif
 
 #-------------------------------------------------
 #
+#@src/emu/bus/gamegear/ggext.h,BUSES += GAMEGEAR
+#-------------------------------------------------
+
+ifneq ($(filter GAMEGEAR,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/gamegear
+BUSOBJS += $(BUSOBJ)/gamegear/ggext.o
+BUSOBJS += $(BUSOBJ)/gamegear/smsctrladp.o
+endif
+
+#-------------------------------------------------
+#
 #@src/emu/bus/gba/gba_slot.h,BUSES += GBA
 #-------------------------------------------------
 
@@ -1049,6 +1354,7 @@ BUSOBJS += $(BUSOBJ)/coco/coco_orch90.o
 BUSOBJS += $(BUSOBJ)/coco/coco_pak.o
 BUSOBJS += $(BUSOBJ)/coco/coco_fdc.o
 BUSOBJS += $(BUSOBJ)/coco/coco_multi.o
+BUSOBJS += $(BUSOBJ)/coco/coco_dwsock.o
 endif
 
 #-------------------------------------------------
@@ -1063,6 +1369,10 @@ BUSOBJS += $(BUSOBJ)/cpc/cpc_rom.o
 BUSOBJS += $(BUSOBJ)/cpc/cpc_pds.o
 BUSOBJS += $(BUSOBJ)/cpc/cpc_rs232.o
 BUSOBJS += $(BUSOBJ)/cpc/mface2.o
+BUSOBJS += $(BUSOBJ)/cpc/symbfac2.o
+BUSOBJS += $(BUSOBJ)/cpc/amdrum.o
+BUSOBJS += $(BUSOBJ)/cpc/playcity.o
+BUSOBJS += $(BUSOBJ)/cpc/smartwatch.o
 endif
 
 #-------------------------------------------------
@@ -1084,6 +1394,16 @@ ifneq ($(filter PCE,$(BUSES)),)
 OBJDIRS += $(BUSOBJ)/pce
 BUSOBJS += $(BUSOBJ)/pce/pce_slot.o
 BUSOBJS += $(BUSOBJ)/pce/pce_rom.o
+endif
+
+#-------------------------------------------------
+#
+#@src/emu/bus/scv/slot.h,BUSES += SCV
+#-------------------------------------------------
+ifneq ($(filter SCV,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/scv
+BUSOBJS += $(BUSOBJ)/scv/slot.o
+BUSOBJS += $(BUSOBJ)/scv/rom.o
 endif
 
 #-------------------------------------------------
@@ -1133,6 +1453,8 @@ BUSOBJS += $(BUSOBJ)/scsi/acb4070.o
 BUSOBJS += $(BUSOBJ)/scsi/d9060hd.o
 BUSOBJS += $(BUSOBJ)/scsi/sa1403d.o
 BUSOBJS += $(BUSOBJ)/scsi/s1410.o
+BUSOBJS += $(BUSOBJ)/scsi/pc9801_sasi.o
+BUSOBJS += $(BUSOBJ)/scsi/omti5100.o
 endif
 
 #-------------------------------------------------
@@ -1235,4 +1557,28 @@ BUSOBJS += $(BUSOBJ)/vtech/ioexp/ioexp.o
 BUSOBJS += $(BUSOBJ)/vtech/ioexp/carts.o
 BUSOBJS += $(BUSOBJ)/vtech/ioexp/joystick.o
 BUSOBJS += $(BUSOBJ)/vtech/ioexp/printer.o
+endif
+
+#-------------------------------------------------
+#
+#@src/emu/bus/wswan/slot.h,BUSES += WSWAN
+#-------------------------------------------------
+
+ifneq ($(filter WSWAN,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/wswan
+BUSOBJS += $(BUSOBJ)/wswan/slot.o
+BUSOBJS += $(BUSOBJ)/wswan/rom.o
+endif
+
+#-------------------------------------------------
+#
+#@src/emu/bus/psx/ctlrport.h,BUSES += PSX_CONTROLLER
+#-------------------------------------------------
+
+ifneq ($(filter PSX_CONTROLLER,$(BUSES)),)
+OBJDIRS += $(BUSOBJ)/psx
+BUSOBJS += $(BUSOBJ)/psx/ctlrport.o
+BUSOBJS += $(BUSOBJ)/psx/analogue.o
+BUSOBJS += $(BUSOBJ)/psx/multitap.o
+BUSOBJS += $(BUSOBJ)/psx/memcard.o
 endif

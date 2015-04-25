@@ -6,13 +6,11 @@ Exidy discrete hardware games
  Attack (1977)
  Death Race (1976)
  Destruction Derby (1975)
- Football (1978)
- Old Time Basketball (1976)
  Spiders From Space (1976)
  Score (1977)
  Super Death Chase (1977)
  Table Football (1975)
- Tv Pinball (1974)
+ TV Pinball (1974)
 
 ***************************************************************************/
 
@@ -36,14 +34,6 @@ Exidy discrete hardware games
 #define VBEND                   (16)
 
 #define HRES_MULT                   (1)
-
-fixedfreq_interface fixedfreq_mode_attack = {
-	MASTER_CLOCK,
-	H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL,
-	V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL,
-	1,  /* non-interlaced */
-	0.30
-};
 // end
 
 
@@ -108,9 +98,13 @@ static MACHINE_CONFIG_START( attack, exidyttl_state )
 	MCFG_NETLIST_SETUP(attack)
 
 	/* video hardware */
-	MCFG_FIXFREQ_ADD("fixfreq", "screen", fixedfreq_mode_attack)
+	MCFG_FIXFREQ_ADD("fixfreq", "screen")
+	MCFG_FIXFREQ_MONITOR_CLOCK(MASTER_CLOCK)
+	MCFG_FIXFREQ_HORZ_PARAMS(H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL)
+	MCFG_FIXFREQ_VERT_PARAMS(V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL)
+	MCFG_FIXFREQ_FIELDCOUNT(1)
+	MCFG_FIXFREQ_SYNC_THRESHOLD(0.30)
 MACHINE_CONFIG_END
-
 
 static MACHINE_CONFIG_START( deathrac, exidyttl_state )
 
@@ -119,7 +113,12 @@ static MACHINE_CONFIG_START( deathrac, exidyttl_state )
 	MCFG_NETLIST_SETUP(attack)
 
 	/* video hardware */
-	MCFG_FIXFREQ_ADD("fixfreq", "screen", fixedfreq_mode_attack)
+	MCFG_FIXFREQ_ADD("fixfreq", "screen")
+	MCFG_FIXFREQ_MONITOR_CLOCK(MASTER_CLOCK)
+	MCFG_FIXFREQ_HORZ_PARAMS(H_TOTAL-67,H_TOTAL-40,H_TOTAL-8,H_TOTAL)
+	MCFG_FIXFREQ_VERT_PARAMS(V_TOTAL-22,V_TOTAL-19,V_TOTAL-12,V_TOTAL)
+	MCFG_FIXFREQ_FIELDCOUNT(1)
+	MCFG_FIXFREQ_SYNC_THRESHOLD(0.30)
 MACHINE_CONFIG_END
 
 
@@ -134,12 +133,24 @@ ROM_START( attckexd )
 	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )
 
 	ROM_REGION( 0x0400, "roms", ROMREGION_ERASE00 )
-	ROM_LOAD( "attack.a1",     0x0000, 0x0200, CRC(5afd5aff) SHA1(051915c43b33f476597b2adddda7ae2f5d4fe214) )
-	ROM_LOAD( "attack.b1",     0x0000, 0x0200, CRC(92d0fbf4) SHA1(31f7e04c4cd1fb36404b22a26d7e62939b43d941) )
-	ROM_LOAD( "attack.c1",     0x0000, 0x0200, CRC(25625d6e) SHA1(d61ff867a226a01781e689c124b93159a92dc057) )
-	ROM_LOAD( "attack.d1",     0x0000, 0x0200, CRC(2ff8dd6b) SHA1(21921faa26f95414070df12d30a9bcdc0b674c00) )
-	ROM_LOAD( "attack.j6",     0x0000, 0x0200, CRC(21f87c1a) SHA1(1881142ecceee1175f1837e63b7258a08ed293d6) )
-	ROM_LOAD( "attack.k6",     0x0000, 0x0200, CRC(ba5115b3) SHA1(1679b07e8a9376789c9cf15fe16e97003e9267be) )
+	ROM_LOAD( "attack.a1",     0x0000, 0x0100, CRC(d9b116b8) SHA1(eb988d4f6a46ed7e2657d87343cd925aba678a21) )
+	ROM_LOAD( "attack.b1",     0x0000, 0x0100, CRC(2317197f) SHA1(03cfc56bd7166e1af071b8fd0700350f51940ca5) )
+	ROM_LOAD( "attack.c1",     0x0000, 0x0100, CRC(7391e44c) SHA1(0a2c9b8f4738c1a49a3169e42817bcd624a4364c) )
+	ROM_LOAD( "attack.d1",     0x0000, 0x0100, CRC(d4a06439) SHA1(3da394196810bcdcfd76b2f5c3b06dbc636f875d) )
+	ROM_LOAD( "attack.j6",     0x0000, 0x0100, CRC(1ce2921c) SHA1(ba2af281af2770a623de2c82a79be350b030c59f) )
+	ROM_LOAD( "attack.k6",     0x0000, 0x0100, CRC(e120839f) SHA1(74dc19a732238d35e467d814ead581a60463aaa2) )
+ROM_END
+
+ROM_START( attckexd2 )  //  These are likely an overdump, but we are waiting for confirmation before removing the files
+	ROM_REGION( 0x10000, "maincpu", ROMREGION_ERASE00 )
+
+	ROM_REGION( 0x0400, "roms", ROMREGION_ERASE00 )
+	ROM_LOAD( "attack__set2.a1",     0x0000, 0x0200, CRC(5afd5aff) SHA1(051915c43b33f476597b2adddda7ae2f5d4fe214) )
+	ROM_LOAD( "attack__set2.b1",     0x0000, 0x0200, CRC(92d0fbf4) SHA1(31f7e04c4cd1fb36404b22a26d7e62939b43d941) )
+	ROM_LOAD( "attack__set2.c1",     0x0000, 0x0200, CRC(25625d6e) SHA1(d61ff867a226a01781e689c124b93159a92dc057) )
+	ROM_LOAD( "attack__set2.d1",     0x0000, 0x0200, CRC(2ff8dd6b) SHA1(21921faa26f95414070df12d30a9bcdc0b674c00) )
+	ROM_LOAD( "attack__set2.j6",     0x0000, 0x0200, CRC(21f87c1a) SHA1(1881142ecceee1175f1837e63b7258a08ed293d6) )
+	ROM_LOAD( "attack__set2.k6",     0x0000, 0x0200, CRC(ba5115b3) SHA1(1679b07e8a9376789c9cf15fe16e97003e9267be) )
 ROM_END
 
 
@@ -198,5 +209,6 @@ ROM_END
 
 
 
-GAME( 1977, attckexd,  0, attack,   0, driver_device,  0, ROT0, "Exidy", "Attack [TTL]", GAME_IS_SKELETON )
-GAME( 1976, deathrac,  0, deathrac, 0, driver_device,  0, ROT0, "Exidy", "Death Race [TTL]", GAME_IS_SKELETON )
+GAME( 1977, attckexd,  0,        attack,   0, driver_device,  0, ROT0, "Exidy", "Attack (Set 1) [TTL]", GAME_IS_SKELETON )
+GAME( 1977, attckexd2, attckexd, attack,   0, driver_device,  0, ROT0, "Exidy", "Attack (Set 2) [TTL]", GAME_IS_SKELETON )
+GAME( 1976, deathrac,  0,        deathrac, 0, driver_device,  0, ROT0, "Exidy", "Death Race [TTL]", GAME_IS_SKELETON )

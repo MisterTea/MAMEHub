@@ -315,7 +315,7 @@ READ64_MEMBER(dc_cons_state::dc_pdtra_r )
 {
 	UINT64 out = PCTRA<<32;
 
-	out |= PDTRA & ~0x0103;
+	out |= PDTRA & ~0x0303;
 
 	// if both bits are inputs
 	if (!(PCTRA & 0x5))
@@ -333,8 +333,8 @@ READ64_MEMBER(dc_cons_state::dc_pdtra_r )
 	}
 
 	/*
-	cable setting, (0-1) VGA, (2) TV RGB (3) TV VBS/Y + S/C.
-	Note: several games doesn't like VGA setting (i.e. Idol Janshi wo Tsukucchaou, Airforce Delta), so hard-wire it to most common setting for now.
+	cable setting, (0) VGA, (2) TV RGB (3) TV VBS/Y + S/C.
+	Note: several games doesn't like VGA setting (i.e. Idol Janshi wo Tsukucchaou, Airforce Delta), default to composite.
 	*/
 	out |= ioport("SCREEN_TYPE")->read() << 8;
 
@@ -569,9 +569,10 @@ static INPUT_PORTS_START( dc )
 	PORT_DIPSETTING(    0x01, DEF_STR( On ) )
 
 	PORT_START("SCREEN_TYPE")
-	PORT_CONFNAME( 0x01, 0x01, "Screen Connection Type" )
+	PORT_CONFNAME( 0x03, 0x03, "Screen Connection Type" )
 	PORT_CONFSETTING(    0x00, "VGA" )
-	PORT_CONFSETTING(    0x01, "Composite" )
+	PORT_CONFSETTING(    0x02, "Composite" )
+	PORT_CONFSETTING(    0x03, "S-Video" )
 INPUT_PORTS_END
 
 MACHINE_RESET_MEMBER(dc_cons_state,dc_console)
@@ -694,7 +695,7 @@ This seems to be a proper Japanese BIOS. This BIOS was used at least by early Ja
 Code-wise, it has major differences compared to later BIOS versions.
 
 
-"dcjp_ntsc.bin", 0x000000, 0x020000, CRC(5F92BF76) SHA1(BE78B834F512AB2CF3D67B96E377C9F3093FF82A) )  // Flash
+"dcjp_ntsc.bin", 0x000000, 0x020000, CRC(5f92bf76) SHA1(be78b834f512ab2cf3d67b96e377c9f3093ff82a) )  // Flash
 Checking at 0x0001A000 and the mirrored data at 0x0001A0A0 gives away that this is hacked from a PAL/European flash file.
 The broadcast (0x0001A004) is also set at 50Hz which is a PAL standard.
 
@@ -731,16 +732,16 @@ ROM_START( dcjp )
 
 	ROM_REGION(0x020000, "dcflash", 0)
 	/* ROM_LOAD( "dcjp_ntsc.bad", 0x000000, 0x020000, BAD_DUMP CRC(307a7035) SHA1(1411423a9d071340ea52c56e19c1aafc4e1309ee) )      // Hacked Flash */
-	ROM_LOAD( "dcjp_ntsc.bin", 0x000000, 0x020000, BAD_DUMP CRC(5F92BF76) SHA1(BE78B834F512AB2CF3D67B96E377C9F3093FF82A) )  // Flash
+	ROM_LOAD( "dcjp_ntsc.bin", 0x000000, 0x020000, BAD_DUMP CRC(5f92bf76) SHA1(be78b834f512ab2cf3d67b96e377c9f3093ff82a) )  // Flash
 	ROM_FILL( 0x1a004, 1, 0x30 ) // patch broadcast back to NTSC
 ROM_END
 
 ROM_START( dcdev )
 	ROM_REGION(0x200000, "maincpu", 0)
-	ROM_LOAD( "hkt-0120.bin", 0x000000, 0x200000, CRC(2186E0E5) SHA1(6BD18FB83F8FDB56F1941E079580E5DD672A6DAD) )        // BIOS
+	ROM_LOAD( "hkt-0120.bin", 0x000000, 0x200000, CRC(2186e0e5) SHA1(6bd18fb83f8fdb56f1941e079580e5dd672a6dad) )        // BIOS
 
 	ROM_REGION(0x020000, "dcflash", 0)
-	ROM_LOAD( "hkt-0120-flash.bin", 0x000000, 0x020000, CRC(7784C304) SHA1(31EF57F550D8CD13E40263CBC657253089E53034) )  // Flash
+	ROM_LOAD( "hkt-0120-flash.bin", 0x000000, 0x020000, CRC(7784c304) SHA1(31ef57f550d8cd13e40263cbc657253089e53034) )  // Flash
 ROM_END
 
 ROM_START( dcprt )
@@ -748,7 +749,7 @@ ROM_START( dcprt )
 	ROM_LOAD( "katana-set5-v0.41-98-08-27.bin", 0x000000, 0x200000, CRC(485877bd) SHA1(dc1af1f1248ffa87d57bc5ef2ea41aac95ecfc5e) ) // BIOS
 
 	ROM_REGION(0x020000, "dcflash", 0)
-	ROM_LOAD( "dcjp_ntsc.bin", 0x000000, 0x020000, CRC(5F92BF76) SHA1(BE78B834F512AB2CF3D67B96E377C9F3093FF82A) )  // Flash
+	ROM_LOAD( "dcjp_ntsc.bin", 0x000000, 0x020000, CRC(5f92bf76) SHA1(be78b834f512ab2cf3d67b96e377c9f3093ff82a) )  // Flash
 ROM_END
 
 /*    YEAR  NAME    PARENT  COMPAT  MACHINE INPUT   INIT      COMPANY FULLNAME */

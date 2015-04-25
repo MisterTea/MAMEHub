@@ -364,7 +364,7 @@ UINT32 taitojc_state::screen_update_dendego(screen_device &screen, bitmap_ind16 
 	if (level != output_get_value("counter0"))
 		output_set_value("counter0", level);
 
-	btn = (ioport("ANALOG1")->read() & 0xff);
+	btn = m_analog_ports[0]->read() & 0xff;
 	for (level = 10; level > 0; level--)
 		if (btn >= dendego_brake_table[level]) break;
 
@@ -480,10 +480,9 @@ void taitojc_renderer::render_texture_scan(INT32 scanline, const extent_t &exten
 	}
 }
 
-void taitojc_renderer::render_polygons(running_machine &machine, UINT16 *polygon_fifo, int length)
+void taitojc_renderer::render_polygons(UINT16 *polygon_fifo, int length)
 {
-//  taitojc_state *state = machine.driver_data<taitojc_state>();
-	const rectangle visarea = machine.first_screen()->visible_area();
+	const rectangle visarea = machine().first_screen()->visible_area();
 	vertex_t vert[4];
 	int i;
 	int ptr;

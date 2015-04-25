@@ -99,8 +99,8 @@ public:
 	UINT8 *m_char_rom;
 	UINT8 *m_aux_pcg;
 
-	required_shared_ptr<UINT8> m_video_ram_1;
-	required_shared_ptr<UINT8> m_video_ram_2;
+	required_shared_ptr<UINT16> m_video_ram_1;
+	required_shared_ptr<UINT16> m_video_ram_2;
 
 	required_device<palette_device> m_palette;
 
@@ -210,9 +210,9 @@ UPD7220_DRAW_TEXT_LINE_MEMBER( apc_state::hgdc_draw_text )
 //      tile_addr = addr+(x*(m_video_ff[WIDTH40_REG]+1));
 		tile_addr = addr+(x*(1));
 
-		tile = m_video_ram_1[(tile_addr*2+1) & 0x1fff] & 0x00ff;
-		tile_sel = m_video_ram_1[(tile_addr*2) & 0x1fff] & 0x00ff;
-		attr = (m_video_ram_1[(tile_addr*2 & 0x1fff) | 0x2000] & 0x00ff);
+		tile = (m_video_ram_1[((tile_addr*2) & 0x1fff) >> 1] >> 8) & 0x00ff;
+		tile_sel = m_video_ram_1[((tile_addr*2) & 0x1fff) >> 1] & 0x00ff;
+		attr = (m_video_ram_1[((tile_addr*2 & 0x1fff) | 0x2000) >> 1] & 0x00ff);
 
 		u_line = attr & 0x01;
 		o_line = attr & 0x02;
@@ -230,7 +230,7 @@ UPD7220_DRAW_TEXT_LINE_MEMBER( apc_state::hgdc_draw_text )
 				int res_x,res_y;
 
 				res_x = (x*8+xi);
-				res_y = y*lr+yi;
+				res_y = y+yi;
 
 				if(!machine().first_screen()->visible_area().contains(res_x, res_y))
 					continue;
@@ -784,11 +784,11 @@ GFXDECODE_END
 
 
 
-static ADDRESS_MAP_START( upd7220_1_map, AS_0, 8, apc_state)
+static ADDRESS_MAP_START( upd7220_1_map, AS_0, 16, apc_state)
 	AM_RANGE(0x00000, 0x3ffff) AM_RAM AM_SHARE("video_ram_1")
 ADDRESS_MAP_END
 
-static ADDRESS_MAP_START( upd7220_2_map, AS_0, 8, apc_state )
+static ADDRESS_MAP_START( upd7220_2_map, AS_0, 16, apc_state )
 	AM_RANGE(0x00000, 0x3ffff) AM_RAM AM_SHARE("video_ram_2")
 ADDRESS_MAP_END
 

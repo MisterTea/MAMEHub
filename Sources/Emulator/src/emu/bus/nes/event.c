@@ -150,7 +150,7 @@ void nes_event_device::set_prg()
 	if (m_reg[1] & 0x10)
 	{
 		m_timer_enabled = 1;
-		machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
+		m_maincpu->set_input_line(M6502_IRQ_LINE, CLEAR_LINE);
 	}
 	else
 	{
@@ -233,7 +233,7 @@ void nes_event_device::device_timer(emu_timer &timer, device_timer_id id, int pa
 		m_timer_count--;
 		if (!m_timer_count)
 		{
-			machine().device("maincpu")->execute().set_input_line(M6502_IRQ_LINE, HOLD_LINE);
+			m_maincpu->set_input_line(M6502_IRQ_LINE, HOLD_LINE);
 			event_timer->reset();
 		}
 	}

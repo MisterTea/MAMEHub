@@ -41,6 +41,8 @@ sms_gender_adapter_device::sms_gender_adapter_device(const machine_config &mconf
 
 void sms_gender_adapter_device::device_start()
 {
+	if (m_subslot->m_cart)
+		m_subslot->m_cart->save_ram();
 }
 
 
@@ -85,17 +87,6 @@ WRITE8_MEMBER(sms_gender_adapter_device::write_ram)
 {
 	m_subslot->write_ram(space, offset, data);
 }
-
-static SLOT_INTERFACE_START(sms_cart)
-	SLOT_INTERFACE_INTERNAL("rom",  SEGA8_ROM_STD)
-	SLOT_INTERFACE_INTERNAL("codemasters",  SEGA8_ROM_CODEMASTERS)
-	SLOT_INTERFACE_INTERNAL("4pak",  SEGA8_ROM_4PAK)
-	SLOT_INTERFACE_INTERNAL("zemina",  SEGA8_ROM_ZEMINA)
-	SLOT_INTERFACE_INTERNAL("nemesis",  SEGA8_ROM_NEMESIS)
-	SLOT_INTERFACE_INTERNAL("janggun",  SEGA8_ROM_JANGGUN)
-	SLOT_INTERFACE_INTERNAL("korean",  SEGA8_ROM_KOREAN)
-	SLOT_INTERFACE_INTERNAL("korean_nb",  SEGA8_ROM_KOREAN_NB)
-SLOT_INTERFACE_END
 
 //-------------------------------------------------
 //  machine_config_additions - device-specific

@@ -96,26 +96,26 @@ To do:
 #include "cpu/m68000/m68000.h"
 #include "machine/eepromser.h"
 #include "sound/okim6295.h"
-#include "sound/st0016.h"
-#include "includes/st0016.h"
-#include "cpu/z80/z80.h"
+#include "machine/st0016.h"
 #include "video/st0020.h"
 #include "machine/nvram.h"
 
-class darkhors_state : public st0016_state
+class darkhors_state : public driver_device
 {
 public:
 	darkhors_state(const machine_config &mconfig, device_type type, const char *tag)
-		: st0016_state(mconfig, type, tag),
+		: driver_device(mconfig, type, tag),
 		m_tmapram(*this, "tmapram"),
 		m_tmapscroll(*this, "tmapscroll"),
 		m_tmapram2(*this, "tmapram2"),
 		m_tmapscroll2(*this, "tmapscroll2"),
 		m_spriteram(*this, "spriteram"),
 		m_gdfs_st0020(*this, "st0020_spr"),
-		m_maincpu(*this, "maincpu"),
+		m_gamecpu(*this, "gamecpu"),
 		m_eeprom(*this, "eeprom"),
-		m_palette(*this, "palette") { }
+		m_palette(*this, "palette"),
+		m_gfxdecode(*this, "gfxdecode")
+	{ }
 
 	tilemap_t *m_tmap;
 	tilemap_t *m_tmap2;
@@ -129,14 +129,14 @@ public:
 	int m_jclub2_gfx_index;
 	optional_shared_ptr<UINT32> m_spriteram;
 	optional_device<st0020_device> m_gdfs_st0020;
-	required_device<cpu_device> m_maincpu;
+	required_device<cpu_device> m_gamecpu;
 	required_device<eeprom_serial_93cxx_device> m_eeprom;
 	required_device<palette_device> m_palette;
 	DECLARE_WRITE32_MEMBER(darkhors_tmapram_w);
 	DECLARE_WRITE32_MEMBER(darkhors_tmapram2_w);
 	DECLARE_WRITE32_MEMBER(darkhors_input_sel_w);
 	DECLARE_READ32_MEMBER(darkhors_input_sel_r);
-DECLARE_READ32_MEMBER(p_4e0000);
+	DECLARE_READ32_MEMBER(p_4e0000);
 	DECLARE_READ32_MEMBER(p_580000);
 	DECLARE_READ32_MEMBER(p_580004);
 	DECLARE_READ32_MEMBER(p_580008);
@@ -156,6 +156,9 @@ DECLARE_READ32_MEMBER(p_4e0000);
 	UINT32 screen_update_jclub2o(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect);
 	TIMER_DEVICE_CALLBACK_MEMBER(darkhors_irq);
 	void draw_sprites_darkhors(bitmap_ind16 &bitmap, const rectangle &cliprect);
+	required_device<gfxdecode_device> m_gfxdecode;
+
+	WRITE8_MEMBER(st0016_rom_bank_w); // temp?
 };
 
 
@@ -949,17 +952,17 @@ TIMER_DEVICE_CALLBACK_MEMBER(darkhors_state::darkhors_irq)
 	int scanline = param;
 
 	if(scanline == 248)
-		m_maincpu->set_input_line(5, HOLD_LINE);
+		m_gamecpu->set_input_line(5, HOLD_LINE);
 
 	if(scanline == 0)
-		m_maincpu->set_input_line(3, HOLD_LINE);
+		m_gamecpu->set_input_line(3, HOLD_LINE);
 
 	if(scanline == 128)
-		m_maincpu->set_input_line(4, HOLD_LINE);
+		m_gamecpu->set_input_line(4, HOLD_LINE);
 }
 
 static MACHINE_CONFIG_START( darkhors, darkhors_state )
-	MCFG_CPU_ADD("maincpu", M68EC020, 12000000) // 36MHz/3 ??
+	MCFG_CPU_ADD("gamecpu", M68EC020, 12000000) // 36MHz/3 ??
 	MCFG_CPU_PROGRAM_MAP(darkhors_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", darkhors_state, darkhors_irq, "screen", 0, 1)
 
@@ -996,13 +999,13 @@ VIDEO_START_MEMBER(darkhors_state,jclub2)
 UINT32 darkhors_state::screen_update_jclub2(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
 	// this isn't an st0020..
-	m_gdfs_st0020->st0020_draw_all(machine(), bitmap, cliprect);
+	m_gdfs_st0020->st0020_draw_all(bitmap, cliprect);
 
 	return 0;
 }
 
 static MACHINE_CONFIG_START( jclub2, darkhors_state )
-	MCFG_CPU_ADD("maincpu", M68EC020, 12000000)
+	MCFG_CPU_ADD("gamecpu", M68EC020, 12000000)
 	MCFG_CPU_PROGRAM_MAP(jclub2_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", darkhors_state, darkhors_irq, "screen", 0, 1)
 
@@ -1038,15 +1041,22 @@ MACHINE_CONFIG_END
 static ADDRESS_MAP_START( st0016_mem, AS_PROGRAM, 8, darkhors_state )
 	AM_RANGE(0x0000, 0x7fff) AM_ROM
 	AM_RANGE(0x8000, 0xbfff) AM_ROMBANK("bank1")
-	AM_RANGE(0xe900, 0xe9ff) AM_DEVREADWRITE("stsnd", st0016_device, st0016_snd_r, st0016_snd_w)
-	AM_RANGE(0xec00, 0xec1f) AM_READ(st0016_character_ram_r) AM_WRITE(st0016_character_ram_w)
+	//AM_RANGE(0xe900, 0xe9ff) // sound - internal
+	//AM_RANGE(0xec00, 0xec1f) AM_READ(st0016_character_ram_r) AM_WRITE(st0016_character_ram_w)
 	AM_RANGE(0xe82f, 0xe830) AM_READNOP
 	AM_RANGE(0xf000, 0xffff) AM_RAM
 ADDRESS_MAP_END
 
+// common rombank? should go in machine/st0016 with larger address space exposed?
+WRITE8_MEMBER(darkhors_state::st0016_rom_bank_w)
+{
+	membank("bank1")->set_base(memregion("maincpu")->base() + (data* 0x4000));
+}
+
+
 static ADDRESS_MAP_START( st0016_io, AS_IO, 8, darkhors_state )
 	ADDRESS_MAP_GLOBAL_MASK(0xff)
-	AM_RANGE(0x00, 0xbf) AM_READ(st0016_vregs_r) AM_WRITE(st0016_vregs_w)
+	//AM_RANGE(0x00, 0xbf) AM_READ(st0016_vregs_r) AM_WRITE(st0016_vregs_w)
 	//AM_RANGE(0xc0, 0xc0) AM_READ(cmd1_r)
 	//AM_RANGE(0xc1, 0xc1) AM_READ(cmd2_r)
 	//AM_RANGE(0xc2, 0xc2) AM_READ(cmd_stat8_r)
@@ -1055,10 +1065,6 @@ static ADDRESS_MAP_START( st0016_io, AS_IO, 8, darkhors_state )
 	//AM_RANGE(0xf0, 0xf0) AM_READ(st0016_dma_r)
 ADDRESS_MAP_END
 
-static const st0016_interface st0016_config =
-{
-	&st0016_charram
-};
 
 VIDEO_START_MEMBER(darkhors_state,jclub2o)
 {
@@ -1066,16 +1072,16 @@ VIDEO_START_MEMBER(darkhors_state,jclub2o)
 
 UINT32 darkhors_state::screen_update_jclub2o(screen_device &screen, bitmap_ind16 &bitmap, const rectangle &cliprect)
 {
-	m_gdfs_st0020->st0020_draw_all(machine(), bitmap, cliprect);
+	m_gdfs_st0020->st0020_draw_all(bitmap, cliprect);
 	return 0;
 }
 
 static MACHINE_CONFIG_START( jclub2o, darkhors_state )
-	MCFG_CPU_ADD("maincpu", M68EC020, 12000000)
+	MCFG_CPU_ADD("gamecpu", M68EC020, 12000000)
 	MCFG_CPU_PROGRAM_MAP(jclub2o_map)
 	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", darkhors_state, darkhors_irq, "screen", 0, 1)
 
-	MCFG_CPU_ADD("st0016",Z80,8000000)
+	MCFG_CPU_ADD("maincpu",ST0016_CPU,8000000)
 	MCFG_CPU_PROGRAM_MAP(st0016_mem)
 	MCFG_CPU_IO_MAP(st0016_io)
 	MCFG_CPU_VBLANK_INT_DRIVER("screen", darkhors_state,  irq0_line_hold)
@@ -1104,12 +1110,6 @@ static MACHINE_CONFIG_START( jclub2o, darkhors_state )
 
 	MCFG_VIDEO_START_OVERRIDE(darkhors_state,jclub2o)
 
-	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
-
-	MCFG_ST0016_ADD("stsnd", 0)
-	MCFG_SOUND_CONFIG(st0016_config)
-	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
-	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
 
 
@@ -1122,7 +1122,7 @@ MACHINE_CONFIG_END
 ***************************************************************************/
 
 ROM_START( darkhors )
-	ROM_REGION( 0x100000, "maincpu", 0 )    // 68EC020 code
+	ROM_REGION( 0x100000, "gamecpu", 0 )    // 68EC020 code
 	ROM_LOAD32_WORD_SWAP( "prg2", 0x00000, 0x80000, CRC(f2ec5818) SHA1(326937a331496880f517f41b0b8ab54e55fd7af7) )
 	ROM_LOAD32_WORD_SWAP( "prg1", 0x00002, 0x80000, CRC(b80f8f59) SHA1(abc26dd8b36da0d510978364febe385f69fb317f) )
 
@@ -1197,7 +1197,7 @@ Provided to you by Belgium Dump Team Gerald (COY) on 18/01/2007.
 
 // this contains mutliple sets, although splitting them as listed above makes no sense.. especially not the 'subcpu' roms
 ROM_START( jclub2 )
-	ROM_REGION( 0x200000, "maincpu", 0 )    // 68EC020 code  + compressed GFX
+	ROM_REGION( 0x200000, "gamecpu", 0 )    // 68EC020 code  + compressed GFX
 	// main program (similar to main program of bootleg
 	ROM_LOAD16_WORD_SWAP( "m88-01b.u38",0x00000, 0x200000, CRC(f1054c69) SHA1(be6d92653f0d3cc0a36a2ff0798043f4a95439bc) )
 	ROM_LOAD16_WORD_SWAP( "m88-01a.u38",0x00000, 0x200000, CRC(c1243e1c) SHA1(2a5857738b8950daf77ddaa8304b765f809f8241) ) // alt revision?
@@ -1255,7 +1255,7 @@ Provided to you by Belgium Dump Team Gerald (COY) on 18/01/2007.
 
 // this contains mutliple sets
 ROM_START( jclub2o )
-	ROM_REGION( 0x200000, "maincpu", 0 )    // 68EC020 code + compressed gfx
+	ROM_REGION( 0x200000, "gamecpu", 0 )    // 68EC020 code + compressed gfx
 	ROM_LOAD16_WORD_SWAP( "sx006a-01.106",0x00000, 0x200000, CRC(55e249bc) SHA1(ed0f066ed17f047760b712cbbfba1a62d4b452ba) )
 	ROM_LOAD16_WORD_SWAP( "sx006b-01.u26",0x00000, 0x200000, CRC(f730dded) SHA1(efb966dcb98440a072d4825ef2788c85acdfd103) )  // alt revision?
 
@@ -1265,7 +1265,7 @@ ROM_START( jclub2o )
 	ROM_LOAD16_WORD_SWAP( "jc2-110x.u27",0x00000, 0x080000, CRC(03aa6882) SHA1(e0343bc77a19994ddafa614891663b40e1476332) )
 	ROM_LOAD16_WORD_SWAP( "jc2-112x.u27",0x00000, 0x080000, CRC(e1ab93bd) SHA1(78b618b3f7819bd5351ebf949f328fec7795cec9) ) // alt revision?
 
-	ROM_REGION( 0x80000, "st0016", 0 ) // z80 core (used for sound?)
+	ROM_REGION( 0x80000, "maincpu", 0 ) // z80 core (used for sound?)
 	ROM_LOAD( "sx006-04.u87", 0x00000, 0x80000, CRC(a87adedd) SHA1(1cd5af2d03738fff2230b46241659179467c828c) )
 
 	ROM_REGION( 0x100, "eeprom", 0 ) // eeprom 16 bit one!!!
@@ -1278,7 +1278,7 @@ ROM_END
   Maybe upgraded to a release candidate software revision.
 */
 ROM_START( jclub2ob )
-	ROM_REGION( 0x200000, "maincpu", 0 )    // 68EC020 code + compressed gfx
+	ROM_REGION( 0x200000, "gamecpu", 0 )    // 68EC020 code + compressed gfx
 	ROM_LOAD16_WORD_SWAP( "sx006a-01.u26",0x00000, 0x200000, CRC(55e249bc) SHA1(ed0f066ed17f047760b712cbbfba1a62d4b452ba) )
 
 	ROM_REGION( 0x200000, "patch", 0 )  // 68EC020 code
@@ -1286,7 +1286,7 @@ ROM_START( jclub2ob )
 	// overriding the initial 0x80000 bytes of the program rom.
 	ROM_LOAD16_WORD_SWAP( "203x-rom1.u27",0x00000, 0x080000, CRC(7446ed3e) SHA1(b0936e42549280e2965159270429c4fdacba114a) )
 
-	ROM_REGION( 0x80000, "st0016", 0 ) // z80 core (used for sound?)
+	ROM_REGION( 0x80000, "maincpu", 0 ) // z80 core (used for sound?)
 	ROM_LOAD( "sx006-04.u87", 0x00000, 0x80000, CRC(a87adedd) SHA1(1cd5af2d03738fff2230b46241659179467c828c) )
 
 	ROM_REGION( 0x100, "eeprom", 0 ) // eeprom 16 bit one!!!

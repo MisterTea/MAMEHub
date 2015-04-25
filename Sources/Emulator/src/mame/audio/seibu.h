@@ -44,20 +44,14 @@ public:
 	~seibu_sound_device() {}
 
 	DECLARE_READ16_MEMBER( main_word_r );
-	DECLARE_READ8_MEMBER( main_v30_r );
 	DECLARE_WRITE16_MEMBER( main_word_w );
-	DECLARE_WRITE8_MEMBER( main_v30_w );
-
 	DECLARE_WRITE16_MEMBER( main_mustb_w );
-
 	DECLARE_WRITE8_MEMBER( irq_clear_w );
 	DECLARE_WRITE8_MEMBER( rst10_ack_w );
 	DECLARE_WRITE8_MEMBER( rst18_ack_w );
 	DECLARE_WRITE8_MEMBER( bank_w );
 	DECLARE_WRITE8_MEMBER( coin_w );
-	void ym3812_irqhandler(int linestate);
-	WRITE_LINE_MEMBER(ym2151_irqhandler);
-	void ym2203_irqhandler(int linestate);
+	WRITE_LINE_MEMBER( fm_irqhandler );
 	DECLARE_READ8_MEMBER( soundlatch_r );
 	DECLARE_READ8_MEMBER( main_data_pending_r );
 	DECLARE_WRITE8_MEMBER( main_data_w );
@@ -77,6 +71,8 @@ protected:
 	UINT8 m_sub2main[2];
 	int m_main2sub_pending;
 	int m_sub2main_pending;
+	UINT8 m_rst10_irq;
+	UINT8 m_rst18_irq;
 
 	enum
 	{
@@ -92,10 +88,6 @@ extern const device_type SEIBU_SOUND;
 
 
 // Seibu ADPCM device
-
-struct seibu_adpcm_interface
-{
-};
 
 class seibu_adpcm_device : public device_t,
 									public device_sound_interface
@@ -125,7 +117,6 @@ protected:
 	UINT32 m_end;
 	UINT8 m_nibble;
 	UINT8 m_playing;
-	//UINT8 m_allocated;
 	const char *m_rom_tag;
 	UINT8 *m_base;
 };
@@ -141,13 +132,23 @@ extern const device_type SEIBU_ADPCM;
 	PORT_START("COIN")                                              \
 	PORT_BIT( 0x01, IP_ACTIVE_HIGH, IPT_COIN1 ) PORT_IMPULSE(4)     \
 	PORT_BIT( 0x02, IP_ACTIVE_HIGH, IPT_COIN2 ) PORT_IMPULSE(4)     \
-	PORT_BIT( 0xfc, IP_ACTIVE_HIGH, IPT_UNUSED )
+	PORT_BIT( 0x04, IP_ACTIVE_HIGH, IPT_UNUSED )                    \
+	PORT_BIT( 0x08, IP_ACTIVE_HIGH, IPT_UNUSED )                    \
+	PORT_BIT( 0x10, IP_ACTIVE_HIGH, IPT_UNUSED )                    \
+	PORT_BIT( 0x20, IP_ACTIVE_HIGH, IPT_UNUSED )                    \
+	PORT_BIT( 0x40, IP_ACTIVE_HIGH, IPT_UNUSED )                    \
+	PORT_BIT( 0x80, IP_ACTIVE_HIGH, IPT_UNUSED )
 
 #define SEIBU_COIN_INPUTS_INVERT                                    \
 	PORT_START("COIN")                                              \
 	PORT_BIT( 0x01, IP_ACTIVE_LOW, IPT_COIN1 ) PORT_IMPULSE(4)      \
 	PORT_BIT( 0x02, IP_ACTIVE_LOW, IPT_COIN2 ) PORT_IMPULSE(4)      \
-	PORT_BIT( 0xfc, IP_ACTIVE_LOW, IPT_UNUSED )
+	PORT_BIT( 0x04, IP_ACTIVE_LOW, IPT_UNUSED )                     \
+	PORT_BIT( 0x08, IP_ACTIVE_LOW, IPT_UNUSED )                     \
+	PORT_BIT( 0x10, IP_ACTIVE_LOW, IPT_UNUSED )                     \
+	PORT_BIT( 0x20, IP_ACTIVE_LOW, IPT_UNUSED )                     \
+	PORT_BIT( 0x40, IP_ACTIVE_LOW, IPT_UNUSED )                     \
+	PORT_BIT( 0x80, IP_ACTIVE_LOW, IPT_UNUSED )
 
 
 #define SEIBU_SOUND_SYSTEM_CPU(freq)                                \
@@ -188,8 +189,8 @@ extern const device_type SEIBU_ADPCM;
 #define SEIBU_SOUND_SYSTEM_YM3812_INTERFACE(freq1,freq2)            \
 	MCFG_SPEAKER_STANDARD_MONO("mono")                              \
 																	\
-	MCFG_SOUND_ADD("ymsnd", YM3812, freq1)                              \
-	MCFG_YM3812_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, ym3812_irqhandler)) \
+	MCFG_SOUND_ADD("ymsnd", YM3812, freq1)                          \
+	MCFG_YM3812_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, fm_irqhandler)) \
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)                      \
 																	\
 	MCFG_OKIM6295_ADD("oki", freq2, OKIM6295_PIN7_LOW)              \
@@ -198,8 +199,8 @@ extern const device_type SEIBU_ADPCM;
 #define SEIBU_SOUND_SYSTEM_YM3812_RAIDEN_INTERFACE(freq1,freq2)     \
 	MCFG_SPEAKER_STANDARD_MONO("mono")                              \
 																	\
-	MCFG_SOUND_ADD("ymsnd", YM3812, freq1)                              \
-	MCFG_YM3812_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, ym3812_irqhandler)) \
+	MCFG_SOUND_ADD("ymsnd", YM3812, freq1)                          \
+	MCFG_YM3812_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, fm_irqhandler)) \
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)                      \
 																	\
 	MCFG_OKIM6295_ADD("oki", freq2, OKIM6295_PIN7_HIGH)             \
@@ -208,8 +209,8 @@ extern const device_type SEIBU_ADPCM;
 #define SEIBU_SOUND_SYSTEM_YM2151_INTERFACE(freq1,freq2)            \
 	MCFG_SPEAKER_STANDARD_MONO("mono")                              \
 																	\
-	MCFG_YM2151_ADD("ymsnd", freq1)                             \
-	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, ym2151_irqhandler)) \
+	MCFG_YM2151_ADD("ymsnd", freq1)                                 \
+	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, fm_irqhandler)) \
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)                               \
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)                               \
 																	\
@@ -219,16 +220,16 @@ extern const device_type SEIBU_ADPCM;
 #define SEIBU_AIRRAID_SOUND_SYSTEM_YM2151_INTERFACE(freq1)          \
 	MCFG_SPEAKER_STANDARD_MONO("mono")                              \
 																	\
-	MCFG_YM2151_ADD("ymsnd", freq1)                             \
-	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, ym2151_irqhandler)) \
+	MCFG_YM2151_ADD("ymsnd", freq1)                                 \
+	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, fm_irqhandler)) \
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)                               \
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)
 
-#define SEIBU_SOUND_SYSTEM_YM2151_RAIDEN2_INTERFACE(freq1,freq2,regiona, regionb)       \
+#define SEIBU_SOUND_SYSTEM_YM2151_RAIDEN2_INTERFACE(freq1, freq2, regiona, regionb) \
 	MCFG_SPEAKER_STANDARD_MONO("mono")                              \
 																	\
-	MCFG_YM2151_ADD("ymsnd", freq1)                             \
-	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, ym2151_irqhandler)) \
+	MCFG_YM2151_ADD("ymsnd", freq1)                                 \
+	MCFG_YM2151_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, fm_irqhandler)) \
 	MCFG_SOUND_ROUTE(0, "mono", 0.50)                               \
 	MCFG_SOUND_ROUTE(1, "mono", 0.50)                               \
 																	\
@@ -242,7 +243,7 @@ extern const device_type SEIBU_ADPCM;
 	MCFG_SPEAKER_STANDARD_MONO("mono")                              \
 																	\
 	MCFG_SOUND_ADD("ym1", YM2203, freq)                             \
-	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, ym2203_irqhandler)) \
+	MCFG_YM2203_IRQ_HANDLER(DEVWRITELINE("seibu_sound", seibu_sound_device, fm_irqhandler)) \
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.15)                     \
 																	\
 	MCFG_SOUND_ADD("ym2", YM2203, freq)                             \
@@ -250,11 +251,11 @@ extern const device_type SEIBU_ADPCM;
 
 #define SEIBU_SOUND_SYSTEM_ADPCM_INTERFACE                          \
 	MCFG_SOUND_ADD("adpcm1", SEIBU_ADPCM, 8000)                     \
-	MCFG_SEIBU_ADPCM_ROMREGION("adpcm1")                      \
+	MCFG_SEIBU_ADPCM_ROMREGION("adpcm1")                            \
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)                     \
 																	\
 	MCFG_SOUND_ADD("adpcm2", SEIBU_ADPCM, 8000)                     \
-	MCFG_SEIBU_ADPCM_ROMREGION("adpcm2")                      \
+	MCFG_SEIBU_ADPCM_ROMREGION("adpcm2")                            \
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.40)
 
 /**************************************************************************/

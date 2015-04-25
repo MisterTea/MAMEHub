@@ -15,8 +15,8 @@
 #include <ctype.h>
 #include <stdlib.h>
 #include <time.h>
-#include <assert.h>
 #include <stdarg.h>
+#include <assert.h>
 
 #include "corestr.h"
 
@@ -33,6 +33,9 @@
 #include "formats/dsk_dsk.h"
 
 #include "formats/d88_dsk.h"
+#include "formats/imd_dsk.h"
+#include "formats/td0_dsk.h"
+#include "formats/cqm_dsk.h"
 #include "formats/pc_dsk.h"
 #include "formats/naslite_dsk.h"
 
@@ -58,12 +61,16 @@ static floppy_format_type floppy_formats[] = {
 	FLOPPY_DSK_FORMAT,
 
 	FLOPPY_D88_FORMAT,
+	FLOPPY_IMD_FORMAT,
+	FLOPPY_TD0_FORMAT,
+	FLOPPY_CQM_FORMAT,
 	FLOPPY_PC_FORMAT,
 	FLOPPY_NASLITE_FORMAT,
 
 	FLOPPY_DC42_FORMAT,
 	FLOPPY_A216S_FORMAT,
 	FLOPPY_RWTS18_FORMAT,
+	FLOPPY_EDD_FORMAT,
 
 	FLOPPY_ORIC_DSK_FORMAT,
 

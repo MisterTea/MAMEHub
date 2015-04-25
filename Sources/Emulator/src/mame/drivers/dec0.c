@@ -15,9 +15,10 @@
     * Robocop                                 (USA rev 0)
     * Hippodrome                              (USA set)
     * Fighting Fantasy                        (Japanese version of above)
+    * Secret Agent                            (World rev 3)
+    * Secret Agent                            (Japan rev 2)
     * Sly Spy                                 (USA rev 3)
     * Sly Spy                                 (USA rev 2)
-    * Secret Agent                            (World set)
     * Midnight Resistance                     (World set)
     * Midnight Resistance                     (USA set)
     * Midnight Resistance                     (Japanese set)
@@ -43,8 +44,8 @@ ToDo:
 - Fighting Fantasy (bootleg) doesn't boot at all;
 - Hook up the 68705 in Midnight Resistance (bootleg) (it might not be used, leftover from the Fighting Fantasy bootleg on the same PCB?)
 - Get rid of ROM patches in Sly Spy and Hippodrome;
-- Accurate pixel clock parameters;
 - background pen in Birdie Try is presumably wrong.
+- Pixel clock frequency isn't verified;
 - Finally, get a proper decap of the MCUs used by Bad Dudes and Birdie Try;
 
 
@@ -525,7 +526,12 @@ ADDRESS_MAP_END
 
 
 
-
+void dec0_automat_state::machine_start()
+{
+	save_item(NAME(m_automat_adpcm_byte));
+	save_item(NAME(m_automat_msm5205_vclk_toggle));
+	save_item(NAME(m_automat_scroll_regs));
+}
 
 
 /* swizzle the palette writes around so we can use the same gfx plane ordering as the originals */
@@ -1255,12 +1261,13 @@ WRITE_LINE_MEMBER(dec0_state::sound_irq2)
 /******************************************************************************/
 
 
-/* TODO: These are raw guesses, only to get ~57,41 Hz */
+/* This is guesswork, in order to get ~57,41 Hz.
+ * If real Pixel Clock isn't 5 MHz then htotal/vtotal is different too ... */
 #define DEC0_PIXEL_CLOCK XTAL_20MHz/4
-#define DEC0_HTOTAL 256+74
+#define DEC0_HTOTAL 320
 #define DEC0_HBEND 0
 #define DEC0_HBSTART 256
-#define DEC0_VTOTAL 264
+#define DEC0_VTOTAL 272
 #define DEC0_VBEND 8
 #define DEC0_VBSTART 256-8
 
@@ -2212,8 +2219,8 @@ http://uk.youtube.com/watch?v=Y-KvbKtqzaQ
 
 Rom 21 is full of 0's... i cleaned and re-dumped
 it numerous times, but i just got 0's everytime.
-It contains some of the the graphics for enemies
-on the opening stage at the very least.
+It contains some of the graphics for enemies on
+the opening stage at the very least.
 
 enjoy..
 
@@ -2473,127 +2480,177 @@ ROM_START( ffantasybl )
 ROM_END
 
 
-ROM_START( slyspy )
-	ROM_REGION( 0x60000, "maincpu", 0 ) /* 68000 code */
-	ROM_LOAD16_BYTE( "fa14-3.17l",   0x00000, 0x10000, CRC(54353a84) SHA1(899559f17705a8222fd56e9304e9b802eac8f6db) )
-	ROM_LOAD16_BYTE( "fa12-2.9l",    0x00001, 0x10000, CRC(1b534294) SHA1(cf7badea6604c47d9f3ff8a0ef326e09de1974a0) )
-	ROM_LOAD16_BYTE( "fa15.19l",     0x20000, 0x10000, CRC(04a79266) SHA1(69d256ffb1c89721f8b1e929c581f187e047b977) )
-	ROM_LOAD16_BYTE( "fa13.11l",     0x20001, 0x10000, CRC(641cc4b3) SHA1(ce0ccd14d201f411cfc02ec988b2ad4fcb0d8f5d) )
-
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound CPU */
-	ROM_LOAD( "fa10.5h",      0x00000, 0x10000, CRC(dfd2ff25) SHA1(3dcd6d50b92b49daae4b51581abe9c95f764e848) )
-
-	ROM_REGION( 0x10000, "gfx1", 0 ) /* chars */
-	ROM_LOAD( "fa05.11a",     0x04000, 0x04000, CRC(09802924) SHA1(d9bc5fe7f053afa15cd39400aae993866d1b0226) )
-	ROM_CONTINUE(             0x00000, 0x04000 )    /* the two halves are swapped */
-	ROM_LOAD( "fa04.9a",      0x0c000, 0x04000, CRC(ec25b895) SHA1(8c1d2b9a2487fd7114d37fe9dc271183c4cc1613) )
-	ROM_CONTINUE(             0x08000, 0x04000 )
-
-	ROM_REGION( 0x20000, "gfx2", 0 ) /* tiles */
-	ROM_LOAD( "fa07.17a",     0x00000, 0x10000, CRC(e932268b) SHA1(ee8ed29affa951e725cf19a5f56d3beac24420c9) )
-	ROM_LOAD( "fa06.15a",     0x10000, 0x10000, CRC(c4dd38c0) SHA1(267dbbdd5df6b13662cd307c5c95fdf643d64f45) )
-
-	ROM_REGION( 0x40000, "gfx3", 0 ) /* tiles */
-	ROM_LOAD( "fa09.22a",     0x00000, 0x20000, CRC(1395e9be) SHA1(60693ac6236ffe1e0933d81771cfad32e14514c3) )
-	ROM_LOAD( "fa08.21a",     0x20000, 0x20000, CRC(4d7464db) SHA1(82e2a3c3d78447985968220d52c7c1f1ff625d83) )
-
-	ROM_REGION( 0x80000, "gfx4", 0 ) /* sprites */
-	ROM_LOAD( "fa01.4a",      0x00000, 0x20000, CRC(99b0cd92) SHA1(2729e874730391b5fa93e9a28142c02c00eb5068) )
-	ROM_LOAD( "fa03.7a",      0x20000, 0x20000, CRC(0e7ea74d) SHA1(22078a2856933af2d31750a4a506b993fe309e9a) )
-	ROM_LOAD( "fa00.2a",      0x40000, 0x20000, CRC(f7df3fd7) SHA1(ed9e4649e0b1fcca61cf4d159b3f8a35f06102ce) )
-	ROM_LOAD( "fa02.5a",      0x60000, 0x20000, CRC(84e8da9d) SHA1(41da6042f80ea3562aa350f4f466b16db29e2aca) )
-
-	ROM_REGION( 0x40000, "oki", 0 ) /* ADPCM samples */
-	ROM_LOAD( "fa11.11k",     0x00000, 0x20000, CRC(4e547bad) SHA1(655eda4d00f8846957ed40dcbf750fba3ce19f4e) )
-
-	ROM_REGION( 0x0100, "proms", 0 )
-	ROM_LOAD( "mb7114h.21k",  0x0000, 0x0100, CRC(ad26e8d4) SHA1(827337aeb8904429a1c050279240ae38aa6ce064) )    /* Priority (not used) */
-
-	ROM_REGION( 0x0800, "plds", 0 )
-	ROM_LOAD( "pal16l8b-ta-1.bin", 0x0000, 0x0104, CRC(79a87527) SHA1(3c6ad20d5a7c41c020e671d462c0b1e4a5dda7f8) )
-	ROM_LOAD( "pal16r4a-ta-2.bin", 0x0200, 0x0104, CRC(eca31311) SHA1(a87b2721e13767f7448236d0bbb3355583fe88bb) )
-	ROM_LOAD( "pal16l8a-ta-3.bin", 0x0400, 0x0104, CRC(6c324919) SHA1(83bba4634d7ab7c4ad3083c063804fd1e7c9c10b) )
-	ROM_LOAD( "pal16l8a-ta-4.bin", 0x0600, 0x0104, CRC(116177fa) SHA1(f63802578b6f743e2d3a64e4805488d44361dcb2) )
-ROM_END
-
-ROM_START( slyspy2 )
-	ROM_REGION( 0x60000, "maincpu", 0 ) /* 68000 code */
-	ROM_LOAD16_BYTE( "fa14-2.bin",   0x00000, 0x10000, CRC(0e431e39) SHA1(ab4774966ad113e4d7004d14bfd72330d4a93a43) )
-	ROM_LOAD16_BYTE( "fa12-2.9l",    0x00001, 0x10000, CRC(1b534294) SHA1(cf7badea6604c47d9f3ff8a0ef326e09de1974a0) )
-	ROM_LOAD16_BYTE( "fa15.19l",     0x20000, 0x10000, CRC(04a79266) SHA1(69d256ffb1c89721f8b1e929c581f187e047b977) )
-	ROM_LOAD16_BYTE( "fa13.11l",     0x20001, 0x10000, CRC(641cc4b3) SHA1(ce0ccd14d201f411cfc02ec988b2ad4fcb0d8f5d) )
-
-	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound CPU */
-	ROM_LOAD( "fa10.5h",      0x00000, 0x10000, CRC(dfd2ff25) SHA1(3dcd6d50b92b49daae4b51581abe9c95f764e848) )
-
-	ROM_REGION( 0x10000, "gfx1", 0 ) /* chars */
-	ROM_LOAD( "fa05.11a",     0x04000, 0x04000, CRC(09802924) SHA1(d9bc5fe7f053afa15cd39400aae993866d1b0226) )
-	ROM_CONTINUE(             0x00000, 0x04000 )    /* the two halves are swapped */
-	ROM_LOAD( "fa04.9a",      0x0c000, 0x04000, CRC(ec25b895) SHA1(8c1d2b9a2487fd7114d37fe9dc271183c4cc1613) )
-	ROM_CONTINUE(             0x08000, 0x04000 )
-
-	ROM_REGION( 0x20000, "gfx2", 0 ) /* tiles */
-	ROM_LOAD( "fa07.17a",     0x00000, 0x10000, CRC(e932268b) SHA1(ee8ed29affa951e725cf19a5f56d3beac24420c9) )
-	ROM_LOAD( "fa06.15a",     0x10000, 0x10000, CRC(c4dd38c0) SHA1(267dbbdd5df6b13662cd307c5c95fdf643d64f45) )
-
-	ROM_REGION( 0x40000, "gfx3", 0 ) /* tiles */
-	ROM_LOAD( "fa09.22a",     0x00000, 0x20000, CRC(1395e9be) SHA1(60693ac6236ffe1e0933d81771cfad32e14514c3) )
-	ROM_LOAD( "fa08.21a",     0x20000, 0x20000, CRC(4d7464db) SHA1(82e2a3c3d78447985968220d52c7c1f1ff625d83) )
-
-	ROM_REGION( 0x80000, "gfx4", 0 ) /* sprites */
-	ROM_LOAD( "fa01.4a",      0x00000, 0x20000, CRC(99b0cd92) SHA1(2729e874730391b5fa93e9a28142c02c00eb5068) )
-	ROM_LOAD( "fa03.7a",      0x20000, 0x20000, CRC(0e7ea74d) SHA1(22078a2856933af2d31750a4a506b993fe309e9a) )
-	ROM_LOAD( "fa00.2a",      0x40000, 0x20000, CRC(f7df3fd7) SHA1(ed9e4649e0b1fcca61cf4d159b3f8a35f06102ce) )
-	ROM_LOAD( "fa02.5a",      0x60000, 0x20000, CRC(84e8da9d) SHA1(41da6042f80ea3562aa350f4f466b16db29e2aca) )
-
-	ROM_REGION( 0x40000, "oki", 0 ) /* ADPCM samples */
-	ROM_LOAD( "fa11.11k",     0x00000, 0x20000, CRC(4e547bad) SHA1(655eda4d00f8846957ed40dcbf750fba3ce19f4e) )
-
-	ROM_REGION( 0x0100, "proms", 0 )
-	ROM_LOAD( "mb7114h.21k",  0x0000, 0x0100, CRC(ad26e8d4) SHA1(827337aeb8904429a1c050279240ae38aa6ce064) )    /* Priority (not used) */
-
-	ROM_REGION( 0x0800, "plds", 0 )
-	ROM_LOAD( "pal16l8b-ta-1.bin", 0x0000, 0x0104, CRC(79a87527) SHA1(3c6ad20d5a7c41c020e671d462c0b1e4a5dda7f8) )
-	ROM_LOAD( "pal16r4a-ta-2.bin", 0x0200, 0x0104, CRC(eca31311) SHA1(a87b2721e13767f7448236d0bbb3355583fe88bb) )
-	ROM_LOAD( "pal16l8a-ta-3.bin", 0x0400, 0x0104, CRC(6c324919) SHA1(83bba4634d7ab7c4ad3083c063804fd1e7c9c10b) )
-	ROM_LOAD( "pal16l8a-ta-4.bin", 0x0600, 0x0104, CRC(116177fa) SHA1(f63802578b6f743e2d3a64e4805488d44361dcb2) )
-ROM_END
-
 ROM_START( secretag )
 	ROM_REGION( 0x60000, "maincpu", 0 ) /* 68000 code */
-	ROM_LOAD16_BYTE( "fb14-3.17l",   0x00000, 0x10000, CRC(9be6ac90) SHA1(1c78af9da63add7c77c8d2ce24924505481381b1) )
-	ROM_LOAD16_BYTE( "fb12-3.9l",   0x00001, 0x10000, CRC(28904b6b) SHA1(c3fd42c3ba5b19c3483df3ac9e44016570762de7) )
+	ROM_LOAD16_BYTE( "fb14-3.17l", 0x00000, 0x10000, CRC(9be6ac90) SHA1(1c78af9da63add7c77c8d2ce24924505481381b1) )
+	ROM_LOAD16_BYTE( "fb12-3.9l",  0x00001, 0x10000, CRC(28904b6b) SHA1(c3fd42c3ba5b19c3483df3ac9e44016570762de7) )
 	ROM_LOAD16_BYTE( "fb15.19l",   0x20000, 0x10000, CRC(106bb26c) SHA1(e5d05124b6dfc54e41dcf40916633caaa9a19823) )
 	ROM_LOAD16_BYTE( "fb13.11l",   0x20001, 0x10000, CRC(90523413) SHA1(7ea65525f2d7c577255aa01260acc5f43d136b3c) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound CPU */
-	ROM_LOAD( "fa10.5h",      0x00000, 0x10000, CRC(dfd2ff25) SHA1(3dcd6d50b92b49daae4b51581abe9c95f764e848) )
+	ROM_LOAD( "fb10.5h", 0x00000, 0x10000, CRC(dfd2ff25) SHA1(3dcd6d50b92b49daae4b51581abe9c95f764e848) )
 
 	ROM_REGION( 0x10000, "gfx1", 0 ) /* chars */
-	ROM_LOAD( "fa05.11a",     0x04000, 0x04000, CRC(09802924) SHA1(d9bc5fe7f053afa15cd39400aae993866d1b0226) )
-	ROM_CONTINUE(             0x00000, 0x04000 )    /* the two halves are swapped */
-	ROM_LOAD( "fa04.9a",      0x0c000, 0x04000, CRC(ec25b895) SHA1(8c1d2b9a2487fd7114d37fe9dc271183c4cc1613) )
-	ROM_CONTINUE(             0x08000, 0x04000 )
+	ROM_LOAD( "fb05.11a", 0x04000, 0x04000, CRC(09802924) SHA1(d9bc5fe7f053afa15cd39400aae993866d1b0226) )
+	ROM_CONTINUE(         0x00000, 0x04000 )    /* the two halves are swapped */
+	ROM_LOAD( "fb04.9a",  0x0c000, 0x04000, CRC(ec25b895) SHA1(8c1d2b9a2487fd7114d37fe9dc271183c4cc1613) )
+	ROM_CONTINUE(         0x08000, 0x04000 )
 
 	ROM_REGION( 0x20000, "gfx2", 0 ) /* tiles */
-	ROM_LOAD( "fa07.17a",     0x00000, 0x10000, CRC(e932268b) SHA1(ee8ed29affa951e725cf19a5f56d3beac24420c9) )
-	ROM_LOAD( "fa06.15a",     0x10000, 0x10000, CRC(c4dd38c0) SHA1(267dbbdd5df6b13662cd307c5c95fdf643d64f45) )
+	ROM_LOAD( "fb07.17a", 0x00000, 0x10000, CRC(e932268b) SHA1(ee8ed29affa951e725cf19a5f56d3beac24420c9) )
+	ROM_LOAD( "fb06.15a", 0x10000, 0x10000, CRC(c4dd38c0) SHA1(267dbbdd5df6b13662cd307c5c95fdf643d64f45) )
 
 	ROM_REGION( 0x40000, "gfx3", 0 ) /* tiles */
-	ROM_LOAD( "fa09.22a",     0x00000, 0x20000, CRC(1395e9be) SHA1(60693ac6236ffe1e0933d81771cfad32e14514c3) )
-	ROM_LOAD( "fa08.21a",     0x20000, 0x20000, CRC(4d7464db) SHA1(82e2a3c3d78447985968220d52c7c1f1ff625d83) )
+	ROM_LOAD( "fb09.22a", 0x00000, 0x20000, CRC(1395e9be) SHA1(60693ac6236ffe1e0933d81771cfad32e14514c3) )
+	ROM_LOAD( "fb08.21a", 0x20000, 0x20000, CRC(4d7464db) SHA1(82e2a3c3d78447985968220d52c7c1f1ff625d83) )
 
 	ROM_REGION( 0x80000, "gfx4", 0 ) /* sprites */
-	ROM_LOAD( "fa01.4a",      0x00000, 0x20000, CRC(99b0cd92) SHA1(2729e874730391b5fa93e9a28142c02c00eb5068) )
-	ROM_LOAD( "fa03.7a",      0x20000, 0x20000, CRC(0e7ea74d) SHA1(22078a2856933af2d31750a4a506b993fe309e9a) )
-	ROM_LOAD( "fa00.2a",      0x40000, 0x20000, CRC(f7df3fd7) SHA1(ed9e4649e0b1fcca61cf4d159b3f8a35f06102ce) )
-	ROM_LOAD( "fa02.5a",      0x60000, 0x20000, CRC(84e8da9d) SHA1(41da6042f80ea3562aa350f4f466b16db29e2aca) )
+	ROM_LOAD( "fb01.4a", 0x00000, 0x20000, CRC(99b0cd92) SHA1(2729e874730391b5fa93e9a28142c02c00eb5068) )
+	ROM_LOAD( "fb03.7a", 0x20000, 0x20000, CRC(0e7ea74d) SHA1(22078a2856933af2d31750a4a506b993fe309e9a) )
+	ROM_LOAD( "fb00.2a", 0x40000, 0x20000, CRC(f7df3fd7) SHA1(ed9e4649e0b1fcca61cf4d159b3f8a35f06102ce) )
+	ROM_LOAD( "fb02.5a", 0x60000, 0x20000, CRC(84e8da9d) SHA1(41da6042f80ea3562aa350f4f466b16db29e2aca) )
 
 	ROM_REGION( 0x40000, "oki", 0 ) /* ADPCM samples */
-	ROM_LOAD( "fa11.11k",     0x00000, 0x20000, CRC(4e547bad) SHA1(655eda4d00f8846957ed40dcbf750fba3ce19f4e) )
+	ROM_LOAD( "fa11.11k", 0x00000, 0x20000, CRC(4e547bad) SHA1(655eda4d00f8846957ed40dcbf750fba3ce19f4e) )
 
 	ROM_REGION( 0x0100, "proms", 0 )
-	ROM_LOAD( "mb7114h.21k",  0x0000, 0x0100, CRC(ad26e8d4) SHA1(827337aeb8904429a1c050279240ae38aa6ce064) )    /* Priority (not used) */
+	ROM_LOAD( "mb7114h.21k", 0x0000, 0x0100, CRC(ad26e8d4) SHA1(827337aeb8904429a1c050279240ae38aa6ce064) )    /* Priority (not used) */
+
+	ROM_REGION( 0x0800, "plds", 0 )
+	ROM_LOAD( "pal16l8b-ta-1.15k", 0x0000, 0x0104, CRC(79a87527) SHA1(3c6ad20d5a7c41c020e671d462c0b1e4a5dda7f8) )
+	ROM_LOAD( "pal16r4a-ta-2.16k", 0x0200, 0x0104, CRC(eca31311) SHA1(a87b2721e13767f7448236d0bbb3355583fe88bb) )
+	ROM_LOAD( "pal16l8a-ta-3.17k", 0x0400, 0x0104, CRC(6c324919) SHA1(83bba4634d7ab7c4ad3083c063804fd1e7c9c10b) )
+	ROM_LOAD( "pal16l8a-ta-4.11m", 0x0600, 0x0104, CRC(116177fa) SHA1(f63802578b6f743e2d3a64e4805488d44361dcb2) )
+ROM_END
+
+
+ROM_START( secretagj ) /* DE-0322-2 PCB */
+	ROM_REGION( 0x60000, "maincpu", 0 ) /* 68000 code */
+	ROM_LOAD16_BYTE( "fc14-2.17l", 0x00000, 0x10000, CRC(e4cc767d) SHA1(0173a446f4af0b6853b497e67e229b2b3568f1d4) )
+	ROM_LOAD16_BYTE( "fc12-2.9l",  0x00001, 0x10000, CRC(8a589c90) SHA1(cc97f0ed7da9b936f9a59a010bacc1b187008135) )
+	ROM_LOAD16_BYTE( "fc15.19l",   0x20000, 0x10000, CRC(106bb26c) SHA1(e5d05124b6dfc54e41dcf40916633caaa9a19823) ) // == FB counterpart from World set
+	ROM_LOAD16_BYTE( "fc13.11l",   0x20001, 0x10000, CRC(90523413) SHA1(7ea65525f2d7c577255aa01260acc5f43d136b3c) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound CPU */
+	ROM_LOAD( "fc10.5h", 0x00000, 0x10000, CRC(dfd2ff25) SHA1(3dcd6d50b92b49daae4b51581abe9c95f764e848) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x10000, "gfx1", 0 ) /* chars */
+	ROM_LOAD( "fc05.11a", 0x04000, 0x04000, CRC(09802924) SHA1(d9bc5fe7f053afa15cd39400aae993866d1b0226) ) // == FB counterpart from World set
+	ROM_CONTINUE(         0x00000, 0x04000 )    /* the two halves are swapped */
+	ROM_LOAD( "fc04.9a",  0x0c000, 0x04000, CRC(ec25b895) SHA1(8c1d2b9a2487fd7114d37fe9dc271183c4cc1613) ) // == FB counterpart from World set
+	ROM_CONTINUE(         0x08000, 0x04000 )
+
+	ROM_REGION( 0x20000, "gfx2", 0 ) /* tiles */
+	ROM_LOAD( "fc07.17a", 0x00000, 0x10000, CRC(e932268b) SHA1(ee8ed29affa951e725cf19a5f56d3beac24420c9) ) // == FB counterpart from World set
+	ROM_LOAD( "fc06.15a", 0x10000, 0x10000, CRC(c4dd38c0) SHA1(267dbbdd5df6b13662cd307c5c95fdf643d64f45) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x40000, "gfx3", 0 ) /* tiles */
+	ROM_LOAD( "fc09.22a", 0x00000, 0x20000, CRC(1395e9be) SHA1(60693ac6236ffe1e0933d81771cfad32e14514c3) ) // == FB counterpart from World set
+	ROM_LOAD( "fc08.21a", 0x20000, 0x20000, CRC(4d7464db) SHA1(82e2a3c3d78447985968220d52c7c1f1ff625d83) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x80000, "gfx4", 0 ) /* sprites */
+	ROM_LOAD( "fc01.4a", 0x00000, 0x20000, CRC(99b0cd92) SHA1(2729e874730391b5fa93e9a28142c02c00eb5068) ) // == FB counterpart from World set
+	ROM_LOAD( "fc03.7a", 0x20000, 0x20000, CRC(0e7ea74d) SHA1(22078a2856933af2d31750a4a506b993fe309e9a) ) // == FB counterpart from World set
+	ROM_LOAD( "fc00.2a", 0x40000, 0x20000, CRC(f7df3fd7) SHA1(ed9e4649e0b1fcca61cf4d159b3f8a35f06102ce) ) // == FB counterpart from World set
+	ROM_LOAD( "fc02.5a", 0x60000, 0x20000, CRC(84e8da9d) SHA1(41da6042f80ea3562aa350f4f466b16db29e2aca) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* ADPCM samples */
+	ROM_LOAD( "fc11.11k", 0x00000, 0x20000, CRC(4e547bad) SHA1(655eda4d00f8846957ed40dcbf750fba3ce19f4e) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "mb7114h.21k", 0x0000, 0x0100, CRC(ad26e8d4) SHA1(827337aeb8904429a1c050279240ae38aa6ce064) )    /* Priority (not used) */
+
+	ROM_REGION( 0x0800, "plds", 0 )
+	ROM_LOAD( "pal16l8b-ta-1.15k", 0x0000, 0x0104, CRC(79a87527) SHA1(3c6ad20d5a7c41c020e671d462c0b1e4a5dda7f8) )
+	ROM_LOAD( "pal16r4a-ta-2.16k", 0x0200, 0x0104, CRC(eca31311) SHA1(a87b2721e13767f7448236d0bbb3355583fe88bb) )
+	ROM_LOAD( "pal16l8a-ta-3.17k", 0x0400, 0x0104, CRC(6c324919) SHA1(83bba4634d7ab7c4ad3083c063804fd1e7c9c10b) )
+	ROM_LOAD( "pal16l8a-ta-4.11m", 0x0600, 0x0104, CRC(116177fa) SHA1(f63802578b6f743e2d3a64e4805488d44361dcb2) )
+ROM_END
+
+ROM_START( slyspy )
+	ROM_REGION( 0x60000, "maincpu", 0 ) /* 68000 code */
+	ROM_LOAD16_BYTE( "fa14-3.17l", 0x00000, 0x10000, CRC(54353a84) SHA1(899559f17705a8222fd56e9304e9b802eac8f6db) )
+	ROM_LOAD16_BYTE( "fa12-2.9l",  0x00001, 0x10000, CRC(1b534294) SHA1(cf7badea6604c47d9f3ff8a0ef326e09de1974a0) )
+	ROM_LOAD16_BYTE( "fa15.19l",   0x20000, 0x10000, CRC(04a79266) SHA1(69d256ffb1c89721f8b1e929c581f187e047b977) )
+	ROM_LOAD16_BYTE( "fa13.11l",   0x20001, 0x10000, CRC(641cc4b3) SHA1(ce0ccd14d201f411cfc02ec988b2ad4fcb0d8f5d) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound CPU */
+	ROM_LOAD( "fa10.5h", 0x00000, 0x10000, CRC(dfd2ff25) SHA1(3dcd6d50b92b49daae4b51581abe9c95f764e848) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x10000, "gfx1", 0 ) /* chars */
+	ROM_LOAD( "fa05.11a", 0x04000, 0x04000, CRC(09802924) SHA1(d9bc5fe7f053afa15cd39400aae993866d1b0226) ) // == FB counterpart from World set
+	ROM_CONTINUE(         0x00000, 0x04000 )    /* the two halves are swapped */
+	ROM_LOAD( "fa04.9a",  0x0c000, 0x04000, CRC(ec25b895) SHA1(8c1d2b9a2487fd7114d37fe9dc271183c4cc1613) ) // == FB counterpart from World set
+	ROM_CONTINUE(         0x08000, 0x04000 )
+
+	ROM_REGION( 0x20000, "gfx2", 0 ) /* tiles */
+	ROM_LOAD( "fa07.17a", 0x00000, 0x10000, CRC(e932268b) SHA1(ee8ed29affa951e725cf19a5f56d3beac24420c9) ) // == FB counterpart from World set
+	ROM_LOAD( "fa06.15a", 0x10000, 0x10000, CRC(c4dd38c0) SHA1(267dbbdd5df6b13662cd307c5c95fdf643d64f45) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x40000, "gfx3", 0 ) /* tiles */
+	ROM_LOAD( "fa09.22a", 0x00000, 0x20000, CRC(1395e9be) SHA1(60693ac6236ffe1e0933d81771cfad32e14514c3) ) // == FB counterpart from World set
+	ROM_LOAD( "fa08.21a", 0x20000, 0x20000, CRC(4d7464db) SHA1(82e2a3c3d78447985968220d52c7c1f1ff625d83) )
+
+	ROM_REGION( 0x80000, "gfx4", 0 ) /* sprites */
+	ROM_LOAD( "fa01.4a", 0x00000, 0x20000, CRC(99b0cd92) SHA1(2729e874730391b5fa93e9a28142c02c00eb5068) ) // == FB counterpart from World set
+	ROM_LOAD( "fa03.7a", 0x20000, 0x20000, CRC(0e7ea74d) SHA1(22078a2856933af2d31750a4a506b993fe309e9a) ) // == FB counterpart from World set
+	ROM_LOAD( "fa00.2a", 0x40000, 0x20000, CRC(f7df3fd7) SHA1(ed9e4649e0b1fcca61cf4d159b3f8a35f06102ce) ) // == FB counterpart from World set
+	ROM_LOAD( "fa02.5a", 0x60000, 0x20000, CRC(84e8da9d) SHA1(41da6042f80ea3562aa350f4f466b16db29e2aca) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* ADPCM samples */
+	ROM_LOAD( "fa11.11k", 0x00000, 0x20000, CRC(4e547bad) SHA1(655eda4d00f8846957ed40dcbf750fba3ce19f4e) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "mb7114h.21k", 0x0000, 0x0100, CRC(ad26e8d4) SHA1(827337aeb8904429a1c050279240ae38aa6ce064) )    /* Priority (not used) */
+
+	ROM_REGION( 0x0800, "plds", 0 )
+	ROM_LOAD( "pal16l8b-ta-1.15k", 0x0000, 0x0104, CRC(79a87527) SHA1(3c6ad20d5a7c41c020e671d462c0b1e4a5dda7f8) )
+	ROM_LOAD( "pal16r4a-ta-2.16k", 0x0200, 0x0104, CRC(eca31311) SHA1(a87b2721e13767f7448236d0bbb3355583fe88bb) )
+	ROM_LOAD( "pal16l8a-ta-3.17k", 0x0400, 0x0104, CRC(6c324919) SHA1(83bba4634d7ab7c4ad3083c063804fd1e7c9c10b) )
+	ROM_LOAD( "pal16l8a-ta-4.11m", 0x0600, 0x0104, CRC(116177fa) SHA1(f63802578b6f743e2d3a64e4805488d44361dcb2) )
+ROM_END
+
+ROM_START( slyspy2 )
+	ROM_REGION( 0x60000, "maincpu", 0 ) /* 68000 code */
+	ROM_LOAD16_BYTE( "fa14-2.17l", 0x00000, 0x10000, CRC(0e431e39) SHA1(ab4774966ad113e4d7004d14bfd72330d4a93a43) )
+	ROM_LOAD16_BYTE( "fa12-2.9l",  0x00001, 0x10000, CRC(1b534294) SHA1(cf7badea6604c47d9f3ff8a0ef326e09de1974a0) )
+	ROM_LOAD16_BYTE( "fa15.19l",   0x20000, 0x10000, CRC(04a79266) SHA1(69d256ffb1c89721f8b1e929c581f187e047b977) )
+	ROM_LOAD16_BYTE( "fa13.11l",   0x20001, 0x10000, CRC(641cc4b3) SHA1(ce0ccd14d201f411cfc02ec988b2ad4fcb0d8f5d) )
+
+	ROM_REGION( 0x10000, "audiocpu", 0 )    /* Sound CPU */
+	ROM_LOAD( "fa10.5h", 0x00000, 0x10000, CRC(dfd2ff25) SHA1(3dcd6d50b92b49daae4b51581abe9c95f764e848) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x10000, "gfx1", 0 ) /* chars */
+	ROM_LOAD( "fa05.11a", 0x04000, 0x04000, CRC(09802924) SHA1(d9bc5fe7f053afa15cd39400aae993866d1b0226) ) // == FB counterpart from World set
+	ROM_CONTINUE(         0x00000, 0x04000 )    /* the two halves are swapped */
+	ROM_LOAD( "fa04.9a",  0x0c000, 0x04000, CRC(ec25b895) SHA1(8c1d2b9a2487fd7114d37fe9dc271183c4cc1613) ) // == FB counterpart from World set
+	ROM_CONTINUE(         0x08000, 0x04000 )
+
+	ROM_REGION( 0x20000, "gfx2", 0 ) /* tiles */
+	ROM_LOAD( "fa07.17a", 0x00000, 0x10000, CRC(e932268b) SHA1(ee8ed29affa951e725cf19a5f56d3beac24420c9) ) // == FB counterpart from World set
+	ROM_LOAD( "fa06.15a", 0x10000, 0x10000, CRC(c4dd38c0) SHA1(267dbbdd5df6b13662cd307c5c95fdf643d64f45) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x40000, "gfx3", 0 ) /* tiles */
+	ROM_LOAD( "fa09.22a", 0x00000, 0x20000, CRC(1395e9be) SHA1(60693ac6236ffe1e0933d81771cfad32e14514c3) ) // == FB counterpart from World set
+	ROM_LOAD( "fa08.21a", 0x20000, 0x20000, CRC(4d7464db) SHA1(82e2a3c3d78447985968220d52c7c1f1ff625d83) )
+
+	ROM_REGION( 0x80000, "gfx4", 0 ) /* sprites */
+	ROM_LOAD( "fa01.4a", 0x00000, 0x20000, CRC(99b0cd92) SHA1(2729e874730391b5fa93e9a28142c02c00eb5068) ) // == FB counterpart from World set
+	ROM_LOAD( "fa03.7a", 0x20000, 0x20000, CRC(0e7ea74d) SHA1(22078a2856933af2d31750a4a506b993fe309e9a) ) // == FB counterpart from World set
+	ROM_LOAD( "fa00.2a", 0x40000, 0x20000, CRC(f7df3fd7) SHA1(ed9e4649e0b1fcca61cf4d159b3f8a35f06102ce) ) // == FB counterpart from World set
+	ROM_LOAD( "fa02.5a", 0x60000, 0x20000, CRC(84e8da9d) SHA1(41da6042f80ea3562aa350f4f466b16db29e2aca) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x40000, "oki", 0 ) /* ADPCM samples */
+	ROM_LOAD( "fa11.11k", 0x00000, 0x20000, CRC(4e547bad) SHA1(655eda4d00f8846957ed40dcbf750fba3ce19f4e) ) // == FB counterpart from World set
+
+	ROM_REGION( 0x0100, "proms", 0 )
+	ROM_LOAD( "mb7114h.21k", 0x0000, 0x0100, CRC(ad26e8d4) SHA1(827337aeb8904429a1c050279240ae38aa6ce064) )    /* Priority (not used) */
+
+	ROM_REGION( 0x0800, "plds", 0 )
+	ROM_LOAD( "pal16l8b-ta-1.15k", 0x0000, 0x0104, CRC(79a87527) SHA1(3c6ad20d5a7c41c020e671d462c0b1e4a5dda7f8) )
+	ROM_LOAD( "pal16r4a-ta-2.16k", 0x0200, 0x0104, CRC(eca31311) SHA1(a87b2721e13767f7448236d0bbb3355583fe88bb) )
+	ROM_LOAD( "pal16l8a-ta-3.17k", 0x0400, 0x0104, CRC(6c324919) SHA1(83bba4634d7ab7c4ad3083c063804fd1e7c9c10b) )
+	ROM_LOAD( "pal16l8a-ta-4.11m", 0x0600, 0x0104, CRC(116177fa) SHA1(f63802578b6f743e2d3a64e4805488d44361dcb2) )
 ROM_END
 
 /*
@@ -2982,55 +3039,51 @@ READ16_MEMBER(dec0_state::ffantasybl_242024_r)
 	return 0xffff;
 }
 
-READ16_MEMBER(dec0_state::ffantasybl_vblank_r)
-{
-	return ioport("VBLANK")->read();
-}
-
 DRIVER_INIT_MEMBER(dec0_state,ffantasybl)
 {
 	m_maincpu->space(AS_PROGRAM).install_ram(0x24c880, 0x24cbff); // what is this? layer 3-related??
 
 	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00242024, 0x00242025, read16_delegate(FUNC(dec0_state::ffantasybl_242024_r),this));
-	m_maincpu->space(AS_PROGRAM).install_read_handler(0x00ff87ee, 0x00ff87ef, read16_delegate(FUNC(dec0_state::ffantasybl_vblank_r),this));
+	m_maincpu->space(AS_PROGRAM).install_read_port(0x00ff87ee, 0x00ff87ef, "VBLANK");
 }
 
 /******************************************************************************/
 
-//    YEAR, NAME,       PARENT,   MACHINE,  INPUT,    INIT,     MONITOR,COMPANY,FULLNAME,FLAGS
-GAME( 1987, hbarrel,    0,        hbarrel,  hbarrel, dec0_state,  hbarrel,  ROT270, "Data East USA",         "Heavy Barrel (US)", 0 )
-GAME( 1987, hbarrelw,   hbarrel,  hbarrel,  hbarrel, dec0_state,  hbarrel,  ROT270, "Data East Corporation", "Heavy Barrel (World)", 0 )
-GAME( 1988, baddudes,   0,        baddudes, baddudes, dec0_state, baddudes, ROT0,   "Data East USA",         "Bad Dudes vs. Dragonninja (US)", 0 )
-GAME( 1988, drgninja,   baddudes, baddudes, drgninja, dec0_state, baddudes, ROT0,   "Data East Corporation", "Dragonninja (Japan)", 0 )
-GAME( 1988, birdtry,    0,        birdtry,  birdtry, dec0_state,  birdtry,  ROT270, "Data East Corporation", "Birdie Try (Japan)", GAME_UNEMULATED_PROTECTION )
-GAME( 1988, robocop,    0,        robocop,  robocop, dec0_state,  robocop,  ROT0,   "Data East Corporation", "Robocop (World revision 4)", 0 )
-GAME( 1988, robocopw,   robocop,  robocop,  robocop, dec0_state,  robocop,  ROT0,   "Data East Corporation", "Robocop (World revision 3)", 0 )
-GAME( 1988, robocopj,   robocop,  robocop,  robocop, dec0_state,  robocop,  ROT0,   "Data East Corporation", "Robocop (Japan)", 0 )
-GAME( 1988, robocopu,   robocop,  robocop,  robocop, dec0_state,  robocop,  ROT0,   "Data East USA",         "Robocop (US revision 1)", 0 )
-GAME( 1988, robocopu0,  robocop,  robocop,  robocop, dec0_state,  robocop,  ROT0,   "Data East USA",         "Robocop (US revision 0)", 0 )
-GAME( 1989, hippodrm,   0,        hippodrm, hippodrm, dec0_state, hippodrm, ROT0,   "Data East USA",         "Hippodrome (US)", 0 )
-GAME( 1989, ffantasy,   hippodrm, hippodrm, ffantasy, dec0_state, hippodrm, ROT0,   "Data East Corporation", "Fighting Fantasy (Japan revision 2)", 0 )
-GAME( 1989, ffantasya,  hippodrm, hippodrm, ffantasy, dec0_state, hippodrm, ROT0,   "Data East Corporation", "Fighting Fantasy (Japan)", 0 )
-GAME( 1989, slyspy,     0,        slyspy,   slyspy, dec0_state,   slyspy,   ROT0,   "Data East USA",         "Sly Spy (US revision 3)", 0 )
-GAME( 1989, slyspy2,    slyspy,   slyspy,   slyspy, dec0_state,   slyspy,   ROT0,   "Data East USA",         "Sly Spy (US revision 2)", 0 )
-GAME( 1989, secretag,   slyspy,   slyspy,   slyspy, dec0_state,   slyspy,   ROT0,   "Data East Corporation", "Secret Agent (World)", 0 )
-GAME( 1989, midres,     0,        midres,   midres, driver_device,   0,        ROT0,   "Data East Corporation", "Midnight Resistance (World)", 0 )
-GAME( 1989, midresu,    midres,   midres,   midresu, driver_device,  0,        ROT0,   "Data East USA",         "Midnight Resistance (US)", 0 )
-GAME( 1989, midresj,    midres,   midres,   midresu, driver_device,  0,        ROT0,   "Data East Corporation", "Midnight Resistance (Japan)", 0 )
-GAME( 1990, bouldash,   0,        slyspy,   bouldash, dec0_state, slyspy,   ROT0,   "Data East Corporation (licensed from First Star)", "Boulder Dash / Boulder Dash Part 2 (World)", 0 )
-GAME( 1990, bouldashj,  bouldash, slyspy,   bouldash, dec0_state, slyspy,   ROT0,   "Data East Corporation (licensed from First Star)", "Boulder Dash / Boulder Dash Part 2 (Japan)", 0 )
+//    YEAR, NAME,       PARENT,   MACHINE,  INPUT,    STATE/DEVICE,   INIT, MONITOR,COMPANY,                 FULLNAME,            FLAGS
+GAME( 1987, hbarrel,    0,        hbarrel,  hbarrel,  dec0_state,  hbarrel, ROT270, "Data East USA",         "Heavy Barrel (US)", GAME_SUPPORTS_SAVE )
+GAME( 1987, hbarrelw,   hbarrel,  hbarrel,  hbarrel,  dec0_state,  hbarrel, ROT270, "Data East Corporation", "Heavy Barrel (World)", GAME_SUPPORTS_SAVE )
+GAME( 1988, baddudes,   0,        baddudes, baddudes, dec0_state, baddudes, ROT0,   "Data East USA",         "Bad Dudes vs. Dragonninja (US)", GAME_SUPPORTS_SAVE )
+GAME( 1988, drgninja,   baddudes, baddudes, drgninja, dec0_state, baddudes, ROT0,   "Data East Corporation", "Dragonninja (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1988, birdtry,    0,        birdtry,  birdtry,  dec0_state,  birdtry, ROT270, "Data East Corporation", "Birdie Try (Japan)", GAME_UNEMULATED_PROTECTION | GAME_SUPPORTS_SAVE )
+GAME( 1988, robocop,    0,        robocop,  robocop,  dec0_state,  robocop, ROT0,   "Data East Corporation", "Robocop (World revision 4)", GAME_SUPPORTS_SAVE )
+GAME( 1988, robocopw,   robocop,  robocop,  robocop,  dec0_state,  robocop, ROT0,   "Data East Corporation", "Robocop (World revision 3)", GAME_SUPPORTS_SAVE )
+GAME( 1988, robocopj,   robocop,  robocop,  robocop,  dec0_state,  robocop, ROT0,   "Data East Corporation", "Robocop (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1988, robocopu,   robocop,  robocop,  robocop,  dec0_state,  robocop, ROT0,   "Data East USA",         "Robocop (US revision 1)", GAME_SUPPORTS_SAVE )
+GAME( 1988, robocopu0,  robocop,  robocop,  robocop,  dec0_state,  robocop, ROT0,   "Data East USA",         "Robocop (US revision 0)", GAME_SUPPORTS_SAVE )
+GAME( 1989, hippodrm,   0,        hippodrm, hippodrm, dec0_state, hippodrm, ROT0,   "Data East USA",         "Hippodrome (US)", GAME_SUPPORTS_SAVE )
+GAME( 1989, ffantasy,   hippodrm, hippodrm, ffantasy, dec0_state, hippodrm, ROT0,   "Data East Corporation", "Fighting Fantasy (Japan revision 2)", GAME_SUPPORTS_SAVE )
+GAME( 1989, ffantasya,  hippodrm, hippodrm, ffantasy, dec0_state, hippodrm, ROT0,   "Data East Corporation", "Fighting Fantasy (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1989, secretag,   0,        slyspy,   slyspy,   dec0_state,   slyspy, ROT0,   "Data East Corporation", "Secret Agent (World revision 3)", GAME_SUPPORTS_SAVE )
+GAME( 1989, secretagj,  secretag, slyspy,   slyspy,   dec0_state,   slyspy, ROT0,   "Data East Corporation", "Secret Agent (Japan revision 2)", GAME_SUPPORTS_SAVE )
+GAME( 1989, slyspy,     secretag, slyspy,   slyspy,   dec0_state,   slyspy, ROT0,   "Data East USA",         "Sly Spy (US revision 3)", GAME_SUPPORTS_SAVE )
+GAME( 1989, slyspy2,    secretag, slyspy,   slyspy,   dec0_state,   slyspy, ROT0,   "Data East USA",         "Sly Spy (US revision 2)", GAME_SUPPORTS_SAVE )
+GAME( 1989, midres,     0,        midres,   midres,   driver_device,     0, ROT0,   "Data East Corporation", "Midnight Resistance (World)", GAME_SUPPORTS_SAVE )
+GAME( 1989, midresu,    midres,   midres,   midresu,  driver_device,     0, ROT0,   "Data East USA",         "Midnight Resistance (US)", GAME_SUPPORTS_SAVE )
+GAME( 1989, midresj,    midres,   midres,   midresu,  driver_device,     0, ROT0,   "Data East Corporation", "Midnight Resistance (Japan)", GAME_SUPPORTS_SAVE )
+GAME( 1990, bouldash,   0,        slyspy,   bouldash, dec0_state,   slyspy, ROT0,   "Data East Corporation (licensed from First Star)", "Boulder Dash / Boulder Dash Part 2 (World)", GAME_SUPPORTS_SAVE )
+GAME( 1990, bouldashj,  bouldash, slyspy,   bouldash, dec0_state,   slyspy, ROT0,   "Data East Corporation (licensed from First Star)", "Boulder Dash / Boulder Dash Part 2 (Japan)", GAME_SUPPORTS_SAVE )
 
 // bootlegs
 
 // more or less just an unprotected versions of the game, everything intact
-GAME( 1988, robocopb,   robocop,  robocopb, robocop, dec0_state,  robocop,  ROT0,   "bootleg", "Robocop (World bootleg)", 0)
-GAME( 1988, drgninjab,  baddudes, baddudes, drgninja, dec0_state, baddudes, ROT0,   "bootleg", "Dragonninja (bootleg)", 0 )
+GAME( 1988, robocopb,   robocop,  robocopb, robocop, dec0_state,  robocop,  ROT0,   "bootleg", "Robocop (World bootleg)", GAME_SUPPORTS_SAVE )
+GAME( 1988, drgninjab,  baddudes, baddudes, drgninja, dec0_state, baddudes, ROT0,   "bootleg", "Dragonninja (bootleg)", GAME_SUPPORTS_SAVE )
 
 // this is a common bootleg board
-GAME( 1989, midresb,    midres,   midresb,  midresb, dec0_state,  midresb,  ROT0,   "bootleg", "Midnight Resistance (bootleg with 68705)", 0 ) // need to hook up 68705?
-GAME( 1989, ffantasybl, hippodrm, ffantasybl, ffantasybl, dec0_state, ffantasybl,   ROT0,   "bootleg", "Fighting Fantasy (bootleg with 68705)", GAME_IMPERFECT_GRAPHICS ) // 68705 not dumped, might be the same as midresb
+GAME( 1989, midresb,    midres,   midresb,  midresb, dec0_state,  midresb,  ROT0,   "bootleg", "Midnight Resistance (bootleg with 68705)", GAME_SUPPORTS_SAVE ) // need to hook up 68705?
+GAME( 1989, ffantasybl, hippodrm, ffantasybl, ffantasybl, dec0_state, ffantasybl,   ROT0,   "bootleg", "Fighting Fantasy (bootleg with 68705)", GAME_IMPERFECT_GRAPHICS | GAME_SUPPORTS_SAVE ) // 68705 not dumped, might be the same as midresb
 /* A Bad Dudes bootleg with 68705 like the midres and ffantasy ones exists, but is not dumped */
 
 // these are different to the above but quite similar to each other
-GAME( 1988, automat,    robocop,  automat,  robocop, dec0_state,  robocop,  ROT0,   "bootleg", "Automat (bootleg of Robocop)", GAME_NOT_WORKING ) // sound rom / music from section z with mods for ADPCM?
-GAME( 1989, secretab,   slyspy,   secretab, slyspy, dec0_state,   slyspy,   ROT0,   "bootleg", "Secret Agent (bootleg)", GAME_NOT_WORKING )
+GAME( 1988, automat,    robocop,  automat,  robocop, dec0_state,  robocop,  ROT0,   "bootleg", "Automat (bootleg of Robocop)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE ) // sound rom / music from section z with mods for ADPCM?
+GAME( 1989, secretab,   secretag, secretab, slyspy, dec0_state,   slyspy,   ROT0,   "bootleg", "Secret Agent (bootleg)", GAME_NOT_WORKING | GAME_SUPPORTS_SAVE )

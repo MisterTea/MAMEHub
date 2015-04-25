@@ -152,6 +152,11 @@ void n64_rdp::SpanDraw1Cycle(INT32 scanline, const extent_t &extent, const rdp_p
 
 	INT32 tile1 = tilenum;
 
+#ifdef PTR64
+	assert(extent.userdata != (const void *)0xcccccccccccccccc);
+#else
+	assert(extent.userdata != (const void *)0xcccccccc);
+#endif
 	rdp_span_aux *userdata = (rdp_span_aux*)extent.userdata;
 
 	INT32 m_clamp_s_diff[8];
@@ -204,6 +209,9 @@ void n64_rdp::SpanDraw1Cycle(INT32 scanline, const extent_t &extent, const rdp_p
 		dzpix = object.MiscState.PrimitiveDZ;
 		dzinc = 0;
 	}
+
+	if (object.MiscState.FBSize < 2 || object.MiscState.FBSize > 4)
+		fatalerror("unsupported FBSize %d\n", object.MiscState.FBSize);
 
 	int blend_index = (object.OtherModes.alpha_cvg_select ? 2 : 0) | ((object.OtherModes.rgb_dither_sel < 3) ? 1 : 0);
 	int read_index = ((object.MiscState.FBSize - 2) << 1) | object.OtherModes.image_read_en;
@@ -322,6 +330,11 @@ void n64_rdp::SpanDraw2Cycle(INT32 scanline, const extent_t &extent, const rdp_p
 	INT32 news = 0;
 	INT32 newt = 0;
 
+#ifdef PTR64
+	assert(extent.userdata != (const void *)0xcccccccccccccccc);
+#else
+	assert(extent.userdata != (const void *)0xcccccccc);
+#endif
 	rdp_span_aux *userdata = (rdp_span_aux*)extent.userdata;
 
 	INT32 m_clamp_s_diff[8];
@@ -363,6 +376,9 @@ void n64_rdp::SpanDraw2Cycle(INT32 scanline, const extent_t &extent, const rdp_p
 		dzpix = object.MiscState.PrimitiveDZ;
 		dzinc = 0;
 	}
+
+	if (object.MiscState.FBSize < 2 || object.MiscState.FBSize > 4)
+		fatalerror("unsupported FBSize %d\n", object.MiscState.FBSize);
 
 	int blend_index = (object.OtherModes.alpha_cvg_select ? 2 : 0) | ((object.OtherModes.rgb_dither_sel < 3) ? 1 : 0);
 	int read_index = ((object.MiscState.FBSize - 2) << 1) | object.OtherModes.image_read_en;
@@ -572,6 +588,8 @@ void n64_rdp::SpanDrawFill(INT32 scanline, const extent_t &extent, const rdp_pol
 	{
 		if (x >= clipx1 && x < clipx2)
 		{
+			if (object.MiscState.FBSize < 2 || object.MiscState.FBSize > 4)
+				fatalerror("unsupported FBSize %d\n", object.MiscState.FBSize);
 			((this)->*(_Fill[object.MiscState.FBSize - 2]))(fb_index + x, object);
 		}
 

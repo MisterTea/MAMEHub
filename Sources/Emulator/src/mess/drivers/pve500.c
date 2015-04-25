@@ -19,7 +19,7 @@
   SELFdIAG Error___ _F3 F3_CtC3c
 
   which means it detected an error in the CTC circuitry (it means we're emulating it wrong!)
-  F3 is the coordinate of the subcpu EEPROM chip in the PCB.
+  F3 is the coordinate of the subcpu EPROM chip in the PCB.
 
     According to the service manual, this error code means: "ICF3 CTC CH-3 counter operation failure (No interruption)"
 
@@ -28,8 +28,11 @@
 
   Changelog:
 
+     2014 SEP 01 [Felipe Sanches]:
+   * hooked-up MB8421 device (dual-port SRAM)
+
      2014 JUN 24 [Felipe Sanches]:
-   * figured out the multiplexing signals for the 7seg display
+   * figured out the multiplexing signals for the 7-seg display
 
      2014 JUN 23 [Felipe Sanches]:
    * hooked-up the RS422 ports
@@ -43,9 +46,12 @@
 
 #include "emu.h"
 #include "cpu/z80/tmpz84c015.h"
+#include "cpu/mb88xx/mb88xx.h"
 #include "sound/beep.h"
 #include "bus/rs232/rs232.h" /* actually meant to be RS422 ports */
 #include "pve500.lh"
+#include "machine/mb8421.h"
+#include "machine/eepromser.h"
 
 #define IO_EXPANDER_PORTA 0
 #define IO_EXPANDER_PORTB 1
@@ -60,27 +66,26 @@ public:
 		: driver_device(mconfig, type, tag)
 		, m_maincpu(*this, "maincpu")
 		, m_subcpu(*this, "subcpu")
+		, m_eeprom(*this, "eeprom")
 		, m_buzzer(*this, "buzzer")
 	{ }
 
-	DECLARE_WRITE8_MEMBER(dualport_ram_left_w);
-	DECLARE_WRITE8_MEMBER(dualport_ram_right_w);
-	DECLARE_READ8_MEMBER(dualport_ram_left_r);
-	DECLARE_READ8_MEMBER(dualport_ram_right_r);
+	DECLARE_WRITE_LINE_MEMBER(mb8421_intl);
+	DECLARE_WRITE_LINE_MEMBER(mb8421_intr);
 	DECLARE_WRITE_LINE_MEMBER(GPI_w);
 	DECLARE_WRITE_LINE_MEMBER(external_monitor_w);
 
 	DECLARE_WRITE8_MEMBER(io_expander_w);
 	DECLARE_READ8_MEMBER(io_expander_r);
+	DECLARE_WRITE8_MEMBER(eeprom_w);
+	DECLARE_READ8_MEMBER(eeprom_r);
 	DECLARE_DRIVER_INIT(pve500);
 private:
-	UINT8 dualport_7FE_data;
-	UINT8 dualport_7FF_data;
-
 	virtual void machine_start();
 	virtual void machine_reset();
 	required_device<tmpz84c015_device> m_maincpu;
 	required_device<tmpz84c015_device> m_subcpu;
+	required_device<eeprom_serial_er5911_device> m_eeprom;
 	required_device<beep_device> m_buzzer;
 	UINT8 io_SEL, io_LD, io_LE, io_SC, io_KY;
 };
@@ -111,11 +116,9 @@ static ADDRESS_MAP_START(maincpu_io, AS_IO, 8, pve500_state)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(maincpu_prg, AS_PROGRAM, 8, pve500_state)
-	AM_RANGE (0x0000, 0xBFFF) AM_ROM // ICB7: 48kbytes EEPROM
+	AM_RANGE (0x0000, 0xBFFF) AM_ROM // ICB7: 48kbytes EPROM
 	AM_RANGE (0xC000, 0xDFFF) AM_RAM // ICD6: 8kbytes of RAM
-	AM_RANGE (0xE7FE, 0xE7FE) AM_MIRROR(0x1800) AM_READ(dualport_ram_left_r)
-	AM_RANGE (0xE7FF, 0xE7FF) AM_MIRROR(0x1800) AM_WRITE(dualport_ram_left_w)
-	AM_RANGE (0xE000, 0xE7FF) AM_MIRROR(0x1800) AM_RAM AM_SHARE("sharedram") //  ICF5: 2kbytes of RAM shared between the two CPUs
+	AM_RANGE (0xE000, 0xE7FF) AM_MIRROR(0x1800) AM_DEVREADWRITE("mb8421", mb8421_device, left_r, left_w)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(subcpu_io, AS_IO, 8, pve500_state)
@@ -123,11 +126,9 @@ static ADDRESS_MAP_START(subcpu_io, AS_IO, 8, pve500_state)
 ADDRESS_MAP_END
 
 static ADDRESS_MAP_START(subcpu_prg, AS_PROGRAM, 8, pve500_state)
-	AM_RANGE (0x0000, 0x7FFF) AM_ROM // ICG5: 32kbytes EEPROM
+	AM_RANGE (0x0000, 0x7FFF) AM_ROM // ICG5: 32kbytes EPROM
 	AM_RANGE (0x8000, 0xBFFF) AM_MIRROR(0x3FF8) AM_READWRITE(io_expander_r, io_expander_w) // ICG3: I/O Expander
-	AM_RANGE (0xC7FE, 0xC7FE) AM_MIRROR(0x1800) AM_WRITE(dualport_ram_right_w)
-	AM_RANGE (0xC7FF, 0xC7FF) AM_MIRROR(0x1800) AM_READ(dualport_ram_right_r)
-	AM_RANGE (0xC000, 0xC7FF) AM_MIRROR(0x3800) AM_RAM AM_SHARE("sharedram") //  ICF5: 2kbytes of RAM shared between the two CPUs
+	AM_RANGE (0xC000, 0xC7FF) AM_MIRROR(0x3800) AM_DEVREADWRITE("mb8421", mb8421_device, right_r, right_w)
 ADDRESS_MAP_END
 
 DRIVER_INIT_MEMBER( pve500_state, pve500 )
@@ -239,32 +240,28 @@ void pve500_state::machine_reset()
 	m_buzzer->set_frequency(3750); //CLK2 coming out of IC D4 (frequency divider circuitry)
 }
 
-READ8_MEMBER(pve500_state::dualport_ram_left_r)
+WRITE_LINE_MEMBER(pve500_state::mb8421_intl)
 {
-	//printf("dualport_ram: Left READ\n");
-	m_subcpu->trg1(1); //(INT_Right)
-	return dualport_7FE_data;
+	// shared ram interrupt request from subcpu side
+	m_maincpu->trg1(state);
 }
 
-WRITE8_MEMBER(pve500_state::dualport_ram_left_w)
+WRITE_LINE_MEMBER(pve500_state::mb8421_intr)
 {
-	//printf("dualport_ram: Left WRITE\n");
-	dualport_7FF_data = data;
-	m_subcpu->trg1(0); //(INT_Right)
+	// shared ram interrupt request from maincpu side
+	m_subcpu->trg1(state);
 }
 
-READ8_MEMBER(pve500_state::dualport_ram_right_r)
+READ8_MEMBER(pve500_state::eeprom_r)
 {
-	//printf("dualport_ram: Right READ\n");
-	m_maincpu->trg1(1); //(INT_Left)
-	return dualport_7FF_data;
+	return (m_eeprom->ready_read() << 1) | m_eeprom->do_read();
 }
 
-WRITE8_MEMBER(pve500_state::dualport_ram_right_w)
+WRITE8_MEMBER(pve500_state::eeprom_w)
 {
-	//printf("dualport_ram: Right WRITE\n");
-	dualport_7FE_data = data;
-	m_maincpu->trg1(0); //(INT_Left)
+	m_eeprom->di_write( (data & (1 << 2)) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->clk_write( (data & (1 << 3)) ? ASSERT_LINE : CLEAR_LINE);
+	m_eeprom->cs_write( (data & (1 << 4)) ? ASSERT_LINE : CLEAR_LINE);
 }
 
 READ8_MEMBER(pve500_state::io_expander_r)
@@ -377,6 +374,18 @@ static MACHINE_CONFIG_START( pve500, pve500_state )
 	MCFG_TMPZ84C015_OUT_TXDA_CB(DEVWRITELINE("switcher", rs232_port_device, write_txd))
 	MCFG_TMPZ84C015_OUT_TXDB_CB(DEVWRITELINE("serial_mixer", rs232_port_device, write_txd))
 
+	// PIO callbacks
+	MCFG_TMPZ84C015_IN_PA_CB(READ8(pve500_state, eeprom_r))
+	MCFG_TMPZ84C015_OUT_PA_CB(WRITE8(pve500_state, eeprom_w))
+
+	/* Search Dial MCUs */
+	MCFG_CPU_ADD("dial_mcu_left", MB88201, XTAL_4MHz) /* PLAYER DIAL MCU */
+	MCFG_CPU_ADD("dial_mcu_right", MB88201, XTAL_4MHz) /* RECORDER DIAL MCU */
+
+	/* Serial EEPROM (128 bytes, 8-bit data organization) */
+	/* The EEPROM stores the setup data */
+	MCFG_EEPROM_SERIAL_MSM16911_8BIT_ADD("eeprom")
+
 	/* FIX-ME: These are actually RS422 ports (except EDL IN/OUT which is indeed an RS232 port)*/
 	MCFG_RS232_PORT_ADD("recorder", default_rs232_devices, NULL)
 	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("maincpu", tmpz84c015_device, rxa_w))
@@ -396,9 +405,10 @@ static MACHINE_CONFIG_START( pve500, pve500_state )
 	MCFG_RS232_PORT_ADD("serial_mixer", default_rs232_devices, NULL)
 	MCFG_RS232_RXD_HANDLER(DEVWRITELINE("subcpu", tmpz84c015_device, rxb_w))
 
-/* TODO:
--> There are a few LEDs and a sequence of 7-seg displays with atotal of 27 digits
-*/
+	/* ICF5: 2kbytes of RAM shared between the two CPUs (dual-port RAM)*/
+	MCFG_DEVICE_ADD("mb8421", MB8421, 0)
+	MCFG_MB8421_INTL_HANDLER(WRITELINE(pve500_state, mb8421_intl))
+	MCFG_MB8421_INTR_HANDLER(WRITELINE(pve500_state, mb8421_intr))
 
 	/* video hardware */
 	MCFG_DEFAULT_LAYOUT(layout_pve500)
@@ -406,7 +416,7 @@ static MACHINE_CONFIG_START( pve500, pve500_state )
 	/* audio hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("buzzer", BEEP, 0)
-	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
+	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.05)
 
 MACHINE_CONFIG_END
 
@@ -416,6 +426,15 @@ ROM_START( pve500 )
 
 	ROM_REGION( 0x8000, "subcpu", 0 )
 	ROM_LOAD("pve500.icg5",  0x00000, 0x8000, CRC(28cca60a) SHA1(308d70062653769250327ede7a4e1a8a76fc9ab9) ) //32kbyte sub-cpu program
+
+	ROM_REGION( 0x200, "dial_mcu_left", 0 ) /* PLAYER DIAL MCU */
+	ROM_LOAD( "pve500.icd3", 0x0000, 0x0200, NO_DUMP )
+
+	ROM_REGION( 0x200, "dial_mcu_right", 0 ) /* RECORDER DIAL MCU */
+	ROM_LOAD( "pve500.icc3", 0x0000, 0x0200, NO_DUMP )
+
+	ROM_REGION( 0x80, "eeprom", 0 ) /* The EEPROM stores the setup data */
+	ROM_LOAD( "pve500.ice3", 0x0000, 0x080, NO_DUMP )
 ROM_END
 
 /*    YEAR  NAME    PARENT  COMPAT  MACHINE     INPUT   CLASS           INIT   COMPANY    FULLNAME                    FLAGS */

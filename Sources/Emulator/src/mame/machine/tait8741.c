@@ -34,7 +34,7 @@ gladiatr and Great Swordsman set.
 const device_type TAITO8741_4PACK = &device_creator<taito8741_4pack_device>;
 
 taito8741_4pack_device::taito8741_4pack_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, TAITO8741_4PACK, "Taito '4Pack' 8741 MCU Simulation", tag, owner, clock, "taito8741_4pack", __FILE__),
+	: device_t(mconfig, TAITO8741_4PACK, "I8741 MCU Simulation (Taito 4Pack)", tag, owner, clock, "taito8741_4pack", __FILE__),
 	m_port_handler_0_r(*this),
 	m_port_handler_1_r(*this),
 	m_port_handler_2_r(*this),
@@ -250,6 +250,22 @@ void taito8741_4pack_device::device_start()
 	m_port_handler_1_r.resolve_safe(0);
 	m_port_handler_2_r.resolve_safe(0);
 	m_port_handler_3_r.resolve_safe(0);
+
+	for (int i = 0; i < 4; i++)
+	{
+		save_item(NAME(m_taito8741[i].toData), i);
+		save_item(NAME(m_taito8741[i].fromData), i);
+		save_item(NAME(m_taito8741[i].fromCmd), i);
+		save_item(NAME(m_taito8741[i].status), i);
+		save_item(NAME(m_taito8741[i].phase), i);
+		save_item(NAME(m_taito8741[i].txd), i);
+		save_item(NAME(m_taito8741[i].rxd), i);
+		save_item(NAME(m_taito8741[i].parallelselect), i);
+		save_item(NAME(m_taito8741[i].txpoint), i);
+		//save_item(NAME(m_taito8741[i].pending4a), i); //currently initialized to 0, never changes
+		save_item(NAME(m_taito8741[i].serial_out), i);
+		//save_item(NAME(m_taito8741[i].coins), i); // currently initialized but otherwise unused
+	};
 }
 
 /* read status port */
@@ -330,7 +346,7 @@ joshi Vollyball set.
 const device_type JOSVOLLY8741_4PACK = &device_creator<josvolly8741_4pack_device>;
 
 josvolly8741_4pack_device::josvolly8741_4pack_device(const machine_config &mconfig, const char *tag, device_t *owner, UINT32 clock)
-	: device_t(mconfig, JOSVOLLY8741_4PACK, "Joshi Volleyball 8741 MCU Simulation", tag, owner, clock, "josvolly8741_4pack", __FILE__),
+	: device_t(mconfig, JOSVOLLY8741_4PACK, "I8741 MCU Simulation (Joshi Volleyball)", tag, owner, clock, "josvolly8741_4pack", __FILE__),
 	m_port_handler_0_r(*this),
 	m_port_handler_1_r(*this),
 	m_port_handler_2_r(*this),
@@ -344,6 +360,18 @@ void josvolly8741_4pack_device::device_start()
 	m_port_handler_1_r.resolve_safe(0);
 	m_port_handler_2_r.resolve_safe(0);
 	m_port_handler_3_r.resolve_safe(0);
+
+	for (int i = 0; i < 4; i++)
+	{
+		save_item(NAME(m_i8741[i].cmd), i);
+		save_item(NAME(m_i8741[i].sts), i);
+		save_item(NAME(m_i8741[i].txd), i);
+		//save_item(NAME(m_i8741[i].outport), i); //currently initialized to 0xff, never changed
+		save_item(NAME(m_i8741[i].rxd), i);
+		save_item(NAME(m_i8741[i].rst), i);
+	};
+
+	save_item(NAME(m_nmi_enable));
 }
 
 

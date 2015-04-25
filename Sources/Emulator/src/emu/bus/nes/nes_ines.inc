@@ -693,6 +693,7 @@ void nes_cart_slot_device::call_load_ines()
 		logerror("-- PRG 0x%x (%d x 16k chunks)\n", prg_size, prg_size / 0x4000);
 		logerror("-- VROM 0x%x (%d x 8k chunks)\n", vrom_size, vrom_size / 0x2000);
 		logerror("-- VRAM 0x%x (%d x 8k chunks)\n", vram_size, vram_size / 0x2000);
+		logerror("-- Mirroring %s\n", BIT(header[6], 0) ? "Vertical" : "Horizontal");
 		if (battery_size)
 			logerror("-- Battery found\n");
 		if (m_cart->get_trainer())
@@ -718,9 +719,9 @@ void nes_cart_slot_device::call_load_ines()
 
 	// SETUP step 5: allocate pointers for PRG/VROM
 	if (prg_size)
-		m_cart->prg_alloc(prg_size);
+		m_cart->prg_alloc(prg_size, tag());
 	if (vrom_size)
-		m_cart->vrom_alloc(vrom_size);
+		m_cart->vrom_alloc(vrom_size, tag());
 
 	// if there is a trainer, skip it for the moment
 	if (m_cart->get_trainer())

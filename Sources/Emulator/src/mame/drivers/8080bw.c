@@ -1059,7 +1059,9 @@ static MACHINE_CONFIG_DERIVED_CLASS( lrescue, mw8080bw_root, _8080bw_state )
 	/* sound hardware */
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", lrescue_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(4)
+	MCFG_SAMPLES_NAMES(lrescue_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.75)
 
 	/* extra audio channel */
@@ -1387,11 +1389,23 @@ static MACHINE_CONFIG_DERIVED_CLASS( schaser, mw8080bw_root, _8080bw_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
-	MCFG_SOUND_CONFIG(schaser_sn76477_interface)
+	MCFG_SN76477_NOISE_PARAMS(RES_K(47), RES_K(330), CAP_P(470)) // noise + filter
+	MCFG_SN76477_DECAY_RES(RES_M(2.2))                   // decay_res
+	MCFG_SN76477_ATTACK_PARAMS(CAP_U(1.0), RES_K(4.7))   // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(0)                              // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(33))                 // feedback_res
+	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.1), RES_K(39))    // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(5.0)                      // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(120))      // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(CAP_U(0.1), RES_K(220))  // oneshot caps + res
+	MCFG_SN76477_VCO_MODE(1)                             // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                   // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(1, 0)                   // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                               // enable
 	MCFG_SOUND_ROUTE_EX(0, "discrete", 1.0, 0)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(schaser)
+	MCFG_DISCRETE_INTF(schaser)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1660,14 +1674,28 @@ static MACHINE_CONFIG_DERIVED_CLASS( lupin3, mw8080bw_root, _8080bw_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
-	MCFG_SOUND_CONFIG(lupin3_sn76477_interface)
+	MCFG_SN76477_NOISE_PARAMS(0, 0, 0)                  // noise + filter: N/C
+	MCFG_SN76477_DECAY_RES(0)                           // decay_res: N/C
+	MCFG_SN76477_ATTACK_PARAMS(0, RES_K(100))           // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(56))                     // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(10))                // feedback_res
+	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.1), RES_K(8.2))  // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(5.0)                     // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(120))     // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(0, 0)                   // oneshot caps + res: N/C
+	MCFG_SN76477_VCO_MODE(1)                            // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                  // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(1, 0)                  // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                              // enable
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
-	MCFG_SAMPLES_ADD("samples", lupin3_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(4)
+	MCFG_SAMPLES_NAMES(lupin3_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(indianbt)
+	MCFG_DISCRETE_INTF(indianbt)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1690,14 +1718,28 @@ static MACHINE_CONFIG_DERIVED_CLASS( lupin3a, mw8080bw_root, _8080bw_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
-	MCFG_SOUND_CONFIG(lupin3_sn76477_interface)
+	MCFG_SN76477_NOISE_PARAMS(0, 0, 0)                  // noise + filter: N/C
+	MCFG_SN76477_DECAY_RES(0)                           // decay_res: N/C
+	MCFG_SN76477_ATTACK_PARAMS(0, RES_K(100))           // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(56))                     // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(10))                // feedback_res
+	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.1), RES_K(8.2))  // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(5.0)                     // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(120))     // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(0, 0)                   // oneshot caps + res: N/C
+	MCFG_SN76477_VCO_MODE(1)                            // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                  // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(1, 0)                  // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                              // enable
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
-	MCFG_SAMPLES_ADD("samples", lupin3_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(4)
+	MCFG_SAMPLES_NAMES(lupin3_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(indianbt)
+	MCFG_DISCRETE_INTF(indianbt)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1827,7 +1869,7 @@ static MACHINE_CONFIG_DERIVED_CLASS( polaris, mw8080bw_root, _8080bw_state )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(polaris)
+	MCFG_DISCRETE_INTF(polaris)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -1951,7 +1993,7 @@ static MACHINE_CONFIG_DERIVED_CLASS( ballbomb, mw8080bw_root, _8080bw_state )
 	MCFG_FRAGMENT_ADD(invaders_samples_audio)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(ballbomb)
+	MCFG_DISCRETE_INTF(ballbomb)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -2192,7 +2234,7 @@ static MACHINE_CONFIG_DERIVED_CLASS( indianbt, mw8080bw_root, _8080bw_state )
 	MCFG_FRAGMENT_ADD(invaders_samples_audio)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(indianbt)
+	MCFG_DISCRETE_INTF(indianbt)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -3186,14 +3228,23 @@ WRITE8_MEMBER(_8080bw_state::invmulti_eeprom_w)
 
 WRITE8_MEMBER(_8080bw_state::invmulti_bank_w)
 {
+	m_invmulti_bank = data; //needed to restore the bankswitch post load
+
 	// d0, d4, d6: bank
 	int bank = (data & 1) | (data >> 3 & 2) | (data >> 4 & 4);
 	membank("bank1")->set_base(memregion("maincpu")->base() + bank * 0x4000 + 0x0000);
 	membank("bank2")->set_base(memregion("maincpu")->base() + bank * 0x4000 + 0x2000);
 }
 
+void _8080bw_state::invmulti_bankswitch_restore()
+{
+	invmulti_bank_w(m_maincpu->space(AS_PROGRAM), 0, m_invmulti_bank);
+}
+
 MACHINE_RESET_MEMBER(_8080bw_state,invmulti)
 {
+	m_invmulti_bank = 0;
+
 	invmulti_bank_w(m_maincpu->space(AS_PROGRAM), 0, 0);
 
 	MACHINE_RESET_CALL_MEMBER(mw8080bw);
@@ -3219,6 +3270,9 @@ DRIVER_INIT_MEMBER(_8080bw_state,invmulti)
 	// decrypt rom
 	for (int i = 0; i < len; i++)
 		dest[i] = BITSWAP8(src[(i & 0x100ff) | (BITSWAP8(i >> 8 & 0xff, 7,3,4,5,0,6,1,2) << 8)],0,6,5,7,4,3,1,2);
+
+	save_item(NAME(m_invmulti_bank));
+	machine().save().register_postload(save_prepost_delegate(FUNC(_8080bw_state::invmulti_bankswitch_restore), this));
 }
 
 
@@ -3307,6 +3361,22 @@ ROM_START( spaceat2 )
 	ROM_LOAD( "spaceatt.e",   0x1800, 0x0800, CRC(7cf6f604) SHA1(469557de15178c4b2d686e5724e1006f7c20d7a4) )
 ROM_END
 
+ROM_START( galmonst )
+	ROM_REGION( 0x10000, "maincpu", 0 )
+	ROM_LOAD( "h.5m",            0x0000, 0x0400, CRC(8a0395e9) SHA1(f456aaa0301a1d0f3f9f45cbe39c5ff14909ecd3) )
+	ROM_LOAD( "g.5n",            0x0400, 0x0400, CRC(6183ed16) SHA1(8e0bc13cafa237daa5fdeda9a5d6df8f491eabc2) )
+	ROM_LOAD( "f.5p",            0x0800, 0x0400, CRC(b6047fdd) SHA1(bc324a9bf7829a2c2bb2bbf965d64272b0d07223) )
+	ROM_LOAD( "c.5t",            0x1400, 0x0400, CRC(e88e8c96) SHA1(43108ddb328914c68977c7c49b4c1f71073ca36b) )
+	ROM_LOAD( "b.5u",            0x1800, 0x0400, CRC(34678b80) SHA1(17f01facb3272c963a8bca290c4ca36411b8de31) )
+	ROM_LOAD( "a.5v",            0x1c00, 0x0400, CRC(05a6806b) SHA1(ea884110d0ea6463801cbc2f87ce9c4921b49e33) )
+ROM_END
+
+
+
+
+
+
+
 ROM_START( spacecom )
 	ROM_REGION( 0x10000, "maincpu", 0 )
 	ROM_LOAD( "1f.ic67",      0x0000, 0x0400, BAD_DUMP CRC(703f2cbe) SHA1(b183f9fbedd8658399555c0ba21ecab6370e86cb) )
@@ -3333,7 +3403,7 @@ ROM_END
 
 ROM_START( sinvemag )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "sv01(__sinvemag).36",  0x0000, 0x0400, CRC(86bb8cb6) SHA1(a75648e7f2446c756d86624b15d387d25ce47b66) ) // == SV0H
+	ROM_LOAD( "sv01.36",      0x0000, 0x0400, CRC(86bb8cb6) SHA1(a75648e7f2446c756d86624b15d387d25ce47b66) ) // sldh - == SV0H
 	ROM_LOAD( "emag_si.b",    0x0400, 0x0400, CRC(febe6d1a) SHA1(e1c3a24b4fa5862107ada1f9d7249466e8c3f06a) )
 	ROM_LOAD( "emag_si.c",    0x0800, 0x0400, CRC(aafb24f7) SHA1(6718cdfae09f77d735be5145b9d202a73d8ed9db) )
 	ROM_LOAD( "emag_si.d",    0x1400, 0x0400, CRC(68c4b9da) SHA1(8953dc0427b09b71bd763e65caa7deaca09a15da) )
@@ -3443,8 +3513,8 @@ ROM_START( spacerng )
 	ROM_REGION( 0x0800, "proms", 0 )        /* color maps player 1/player 2 */
 	/* !! not dumped yet, these were taken from sisv */
 	// NOTE: SISV (L-shaped boardset) was not supposed to HAVE color proms and hence they are removed. Maybe this is the correct set for these?
-	ROM_LOAD( "cv01(__spacerng).1",      0x0000, 0x0400, BAD_DUMP CRC(aac24f34) SHA1(ad110e776547fb48baac568bb50d61854537ca34) )
-	ROM_LOAD( "cv02(__spacerng).2",      0x0400, 0x0400, BAD_DUMP CRC(2bdf83a0) SHA1(01ffbd43964c41987e7d44816271308f9a70802b) )
+	ROM_LOAD( "cv01.1",     0x0000, 0x0400, BAD_DUMP CRC(aac24f34) SHA1(ad110e776547fb48baac568bb50d61854537ca34) ) // sldh
+	ROM_LOAD( "cv02.2",     0x0400, 0x0400, BAD_DUMP CRC(2bdf83a0) SHA1(01ffbd43964c41987e7d44816271308f9a70802b) ) // sldh
 ROM_END
 
 ROM_START( spceking )
@@ -3624,10 +3694,10 @@ ROM_END
 
 ROM_START( invrvngea ) // Space Invaders hw + sound daughterboard
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "h(__invrvngea).ic36",      0x0000, 0x0800, CRC(0914b279) SHA1(91e465f56ed0dc8c68e109e33ec9d2bda2616a21) )
-	ROM_LOAD( "g(__invrvngea).ic35",      0x0800, 0x0800, CRC(84d9497c) SHA1(fb1b5fc49365fbf89e5418789e64efd186cdeecf) )
-	ROM_LOAD( "f(__invrvngea).ic34",      0x1000, 0x0800, CRC(78d34d97) SHA1(a50c19df12e75c644b014d74a463094e249db207) )
-	ROM_LOAD( "e(__invrvngea).ic33",      0x1800, 0x0800, CRC(30c71887) SHA1(17c9e905eb327435d52b6d51842f7f42a5e6ab7d) )
+	ROM_LOAD( "h.ic36",      0x0000, 0x0800, CRC(0914b279) SHA1(91e465f56ed0dc8c68e109e33ec9d2bda2616a21) ) // sldh
+	ROM_LOAD( "g.ic35",      0x0800, 0x0800, CRC(84d9497c) SHA1(fb1b5fc49365fbf89e5418789e64efd186cdeecf) ) // sldh
+	ROM_LOAD( "f.ic34",      0x1000, 0x0800, CRC(78d34d97) SHA1(a50c19df12e75c644b014d74a463094e249db207) ) // sldh
+	ROM_LOAD( "e.ic33",      0x1800, 0x0800, CRC(30c71887) SHA1(17c9e905eb327435d52b6d51842f7f42a5e6ab7d) ) // sldh
 
 	ROM_REGION( 0x10000, "audiocpu", 0 ) // encrypted
 	ROM_LOAD( "snd.2c",      0xf000, 0x0800, CRC(135f3b16) SHA1(d472a6ca32c4a16cc1faf09f4a4876d75cd4ba24) )
@@ -3669,17 +3739,17 @@ ROM_END
 
 ROM_START( invrvngegw ) // single PCB
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "ir(__invrvngegw).5m",       0x0000, 0x0800, CRC(4fe35d1f) SHA1(469d563f88229cf163f8b21dce9e68f75d3d214e) )
-	ROM_LOAD( "ir(__invrvngegw).5n",       0x0800, 0x0800, CRC(92d0442c) SHA1(1d104fbb225ce1a3a72e47af396a641030d990c2) )
-	ROM_LOAD( "ir(__invrvngegw).5p",       0x1000, 0x0800, CRC(18d2372d) SHA1(d19b7bd315226ef0a565b296964b221fa4714413) )
-	ROM_LOAD( "ir(__invrvngegw).5r",       0x1800, 0x0800, CRC(657ddf27) SHA1(957c6bbdb2133d4697d3302b2358979d1451b6d5) )
+	ROM_LOAD( "ir.5m",       0x0000, 0x0800, CRC(4fe35d1f) SHA1(469d563f88229cf163f8b21dce9e68f75d3d214e) ) // sldh
+	ROM_LOAD( "ir.5n",       0x0800, 0x0800, CRC(92d0442c) SHA1(1d104fbb225ce1a3a72e47af396a641030d990c2) ) // sldh
+	ROM_LOAD( "ir.5p",       0x1000, 0x0800, CRC(18d2372d) SHA1(d19b7bd315226ef0a565b296964b221fa4714413) ) // sldh
+	ROM_LOAD( "ir.5r",       0x1800, 0x0800, CRC(657ddf27) SHA1(957c6bbdb2133d4697d3302b2358979d1451b6d5) ) // sldh
 
 	ROM_REGION( 0x10000, "audiocpu", 0 ) // encrypted
-	ROM_LOAD( "ir(__invrvngegw).1t",       0xf000, 0x0800, CRC(64e9e81e) SHA1(3390f8bab219cf134b33ae21c473da0873e01929) ) // bad?
+	ROM_LOAD( "ir.1t",       0xf000, 0x0800, CRC(64e9e81e) SHA1(3390f8bab219cf134b33ae21c473da0873e01929) ) // sldh - bad?
 	ROM_LOAD( "ir.1u",       0xf800, 0x0800, CRC(152fc85e) SHA1(df207d6e690287a56e4e330deaa5ee40a179f1fc) )
 
 	ROM_REGION( 0x0800, "proms", 0 )
-	ROM_LOAD( "ir(__invrvngegw).3r",       0x0000, 0x0800, CRC(6ce639bf) SHA1(73752f5886dcf8729d9853ddc258770f5c724ca3) )
+	ROM_LOAD( "ir.3r",       0x0000, 0x0800, CRC(6ce639bf) SHA1(73752f5886dcf8729d9853ddc258770f5c724ca3) ) // sldh
 ROM_END
 
 
@@ -4229,11 +4299,11 @@ ROM_END
 
 ROM_START( schasera )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "rt13(__schasera).bin",     0x0000, 0x0800, CRC(7b0bfeed) SHA1(832fe90430653d03cd0e7ea1b046524a2ca292ea) )
-	ROM_LOAD( "rt15(__schasera).bin",     0x0800, 0x0800, CRC(825fc8ac) SHA1(176ff0f4d0cd55be30efb184bd5bef62b92d0333) )
-	ROM_LOAD( "rt17(__schasera).bin",     0x1000, 0x0800, CRC(de9d3f85) SHA1(13a71fdd889023cfc65ed2c0a65236884b79b1f0) )
-	ROM_LOAD( "rt19(__schasera).bin",     0x1800, 0x0800, CRC(c0adab87) SHA1(4bb8e4ccfb5eaa052584555bfa03fecf19ab8a29) )
-	ROM_LOAD( "rt21(__schasera).bin",     0x4000, 0x0800, CRC(a3b31070) SHA1(af0108e1446a2be66cfc00d0b837fa91ab882441) )
+	ROM_LOAD( "rt13.bin",     0x0000, 0x0800, CRC(7b0bfeed) SHA1(832fe90430653d03cd0e7ea1b046524a2ca292ea) ) // sldh
+	ROM_LOAD( "rt15.bin",     0x0800, 0x0800, CRC(825fc8ac) SHA1(176ff0f4d0cd55be30efb184bd5bef62b92d0333) ) // sldh
+	ROM_LOAD( "rt17.bin",     0x1000, 0x0800, CRC(de9d3f85) SHA1(13a71fdd889023cfc65ed2c0a65236884b79b1f0) ) // sldh
+	ROM_LOAD( "rt19.bin",     0x1800, 0x0800, CRC(c0adab87) SHA1(4bb8e4ccfb5eaa052584555bfa03fecf19ab8a29) ) // sldh
+	ROM_LOAD( "rt21.bin",     0x4000, 0x0800, CRC(a3b31070) SHA1(af0108e1446a2be66cfc00d0b837fa91ab882441) ) // sldh
 
 	ROM_REGION( 0x0400, "proms", 0 )        /* background color map */
 	ROM_LOAD( "rt06.ic2",     0x0000, 0x0400, CRC(950cf973) SHA1(d22df09b325835a0057ccd0d54f827b374254ac6) )
@@ -4492,14 +4562,14 @@ ROM_END
 
 ROM_START( indianbtbr )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "1(__indianbtbr).36", 0x0000, 0x0800, CRC(5cf6316b) SHA1(9812fbb7139d6f33a832a2485f9cd6422146d1ae) )
-	ROM_LOAD( "2(__indianbtbr).35", 0x0800, 0x0800, CRC(882c7421) SHA1(b2cc15c8693bd1fc74dddfcf52bf08984423f4bf) )
-	ROM_LOAD( "3.34",               0x1000, 0x0800, CRC(5c51675d) SHA1(1313e8794ee6cd0252452b96d42cff7907eeaa21) )
-	ROM_LOAD( "4.33",               0x1800, 0x0800, CRC(70ebec95) SHA1(f6e1e7a28033d89e49b88c559ea8926b1b4ff21b) )
-	ROM_LOAD( "5(__indianbtbr).32", 0x4000, 0x0800, CRC(aa12dbae) SHA1(083425b82cfdc0f037afcf293ad03b98fc6af3e5) )
-	ROM_LOAD( "6(__indianbtbr).31", 0x4800, 0x0800, CRC(d9cb1691) SHA1(c13cd8479914ba6719427b408ed589c9892f832c) )
-	ROM_LOAD( "7.42",               0x5000, 0x0800, CRC(7060ba0b) SHA1(366ce02b7b0a3391afef23b8b41cd98a91034830) )
-	ROM_LOAD( "8(__indianbtbr).41", 0x5800, 0x0800, CRC(e96699d6) SHA1(701d370ae28608221fb4d00e12877d30122c848e) )
+	ROM_LOAD( "1.36",       0x0000, 0x0800, CRC(5cf6316b) SHA1(9812fbb7139d6f33a832a2485f9cd6422146d1ae) ) // sldh
+	ROM_LOAD( "2.35",       0x0800, 0x0800, CRC(882c7421) SHA1(b2cc15c8693bd1fc74dddfcf52bf08984423f4bf) ) // sldh
+	ROM_LOAD( "3.34",       0x1000, 0x0800, CRC(5c51675d) SHA1(1313e8794ee6cd0252452b96d42cff7907eeaa21) )
+	ROM_LOAD( "4.33",       0x1800, 0x0800, CRC(70ebec95) SHA1(f6e1e7a28033d89e49b88c559ea8926b1b4ff21b) )
+	ROM_LOAD( "5.32",       0x4000, 0x0800, CRC(aa12dbae) SHA1(083425b82cfdc0f037afcf293ad03b98fc6af3e5) ) // sldh
+	ROM_LOAD( "6.31",       0x4800, 0x0800, CRC(d9cb1691) SHA1(c13cd8479914ba6719427b408ed589c9892f832c) ) // sldh
+	ROM_LOAD( "7.42",       0x5000, 0x0800, CRC(7060ba0b) SHA1(366ce02b7b0a3391afef23b8b41cd98a91034830) )
+	ROM_LOAD( "8.41",       0x5800, 0x0800, CRC(e96699d6) SHA1(701d370ae28608221fb4d00e12877d30122c848e) )
 
 	ROM_REGION( 0x0800, "proms", 0 )        /* color maps player 1/player 2 */
 	ROM_LOAD( "mb7054.1",   0x0000, 0x0400, CRC(4acf4db3) SHA1(842a6c9f91806b424b7cc437670b4fe0bd57dff1) )
@@ -4572,7 +4642,7 @@ ROM_END
 
 ROM_START( galactic )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "1(__galactic)",   0x0000, 0x0800, CRC(b5098f1e) SHA1(9d1d045d8abeafd4716d3052fe93e52c6b347049) )
+	ROM_LOAD( "1",       0x0000, 0x0800, CRC(b5098f1e) SHA1(9d1d045d8abeafd4716d3052fe93e52c6b347049) ) // sldh
 	ROM_LOAD( "2",       0x0800, 0x0800, CRC(f97410ee) SHA1(47f1f296c905fa13f6c521edc12c10f1f0e42400) )
 	ROM_LOAD( "3",       0x1000, 0x0800, CRC(c1175feb) SHA1(83bf955ed3a52e1ce8c688d89725d8dee1bcc866) )
 	ROM_LOAD( "4",       0x1800, 0x0800, CRC(b4451d7c) SHA1(62a18e8e927ef00a7f6cb933cdc5aeae9f074dc0) )
@@ -4583,7 +4653,7 @@ ROM_END
 
 ROM_START( spacmiss )
 	ROM_REGION( 0x10000, "maincpu", 0 )
-	ROM_LOAD( "1(__spacmiss)",   0x0000, 0x0800, CRC(e212dc88) SHA1(bc56052bf43d18081f777b936b2be792e91ba842) )
+	ROM_LOAD( "1",       0x0000, 0x0800, CRC(e212dc88) SHA1(bc56052bf43d18081f777b936b2be792e91ba842) ) // sldh
 	ROM_LOAD( "2",       0x0800, 0x0800, CRC(f97410ee) SHA1(47f1f296c905fa13f6c521edc12c10f1f0e42400) )
 	ROM_LOAD( "3",       0x1000, 0x0800, CRC(c1175feb) SHA1(83bf955ed3a52e1ce8c688d89725d8dee1bcc866) )
 	ROM_LOAD( "4",       0x1800, 0x0800, CRC(b4451d7c) SHA1(62a18e8e927ef00a7f6cb933cdc5aeae9f074dc0) )
@@ -4626,6 +4696,7 @@ GAMEL(1979, cosmicm2,   invaders, cosmicmo,  cosmicmo,  driver_device, 0, ROT270
 GAMEL(1980?,sinvzen,    invaders, invaders,  sinvzen,   driver_device, 0, ROT270, "Taito / Zenitone-Microsec Ltd.", "Super Invaders (Zenitone-Microsec)", GAME_SUPPORTS_SAVE, layout_invaders ) // unclassified, licensed or bootleg?
 GAMEL(1980, ultrainv,   invaders, invaders,  sicv,      driver_device, 0, ROT270, "Taito / Konami", "Ultra Invaders", GAME_SUPPORTS_SAVE, layout_invaders ) // unclassified, licensed or bootleg?
 GAMEL(1978, spaceatt,   invaders, invaders,  sicv,      driver_device, 0, ROT270, "bootleg (Video Games GmbH)", "Space Attack (bootleg of Space Invaders)", GAME_SUPPORTS_SAVE, layout_invaders )
+GAMEL(1978, galmonst,   invaders, invaders,  sicv,      driver_device, 0, ROT270, "bootleg (Laguna S.A.)", "Galaxy Monsters (Laguna S.A. Spanish bootleg of Space Invaders)", GAME_SUPPORTS_SAVE, layout_invaders )
 GAMEL(1980, spaceat2,   invaders, invaders,  spaceat2,  driver_device, 0, ROT270, "bootleg (Video Games UK)", "Space Attack II (bootleg of Super Invaders)", GAME_SUPPORTS_SAVE, layout_invaders ) // bootleg of Zenitone-Microsec Super Invaders
 GAMEL(1979, spacecom,   invaders, spacecom,  spacecom,  _8080bw_state, spacecom, ROT270, "bootleg", "Space Combat (bootleg of Space Invaders)", GAME_IMPERFECT_SOUND | GAME_SUPPORTS_SAVE, layout_spacecom )
 GAME( 1978, spacerng,   invaders, spacerng,  sitv,      driver_device, 0, ROT90,  "bootleg (Leisure Time Electronics)", "Space Ranger (bootleg of Space Invaders)", GAME_WRONG_COLORS | GAME_SUPPORTS_SAVE | GAME_IMPERFECT_SOUND ) // many modifications

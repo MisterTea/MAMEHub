@@ -43,7 +43,8 @@ Dynasty Wars (USA, B-Board 89624B-?)                               89624B-?   TK
 Tenchi wo Kurau (Japan)                                            88622B-3   TK22B            LWIO  88622-C-2    CPS-B-02  DL-0411-10002  None
 Tenchi wo Kurau (Japan Resale Ver.)                                91634B-2   TK163B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 
-Willow (USA Old Ver.)                                        1989  89624B-3   WL24B            LWIO  88622-C-2    CPS-B-03  DL-0411-10003  None
+Willow (World)                                               1989  89624B-3   WL24B            LWIO  88622-C-4    CPS-B-03  DL-0411-10003  None
+Willow (USA Old Ver.)                                              89624B-3   WL24B            LWIO  88622-C-2    CPS-B-03  DL-0411-10003  None
 Willow (USA)                                                       89624B-3   WL24B            LWIO  88622-C-2/4  CPS-B-03  DL-0411-10003  None
 Willow (Japan)                                                     88622B-3   WL22B            LWIO  88622-C-2    CPS-B-03  DL-0411-10003  None
 
@@ -141,6 +142,8 @@ Street Fighter II': Champion Edition (Japan 920513)                91634B-2   S9
 Street Fighter II': Champion Edition (Japan 920803)                91634B-2   S9263B   BPRG1   IOB1  92631C-6     CPS-B-21  DL-0921-10014  C632    IOC1
 
 Adventure Quiz Capcom World 2* (Japan 920611)                1992  89625B-1   Q522B            LWIO  92641C-1     CPS-B-21  DL-0921-10014          IOC1
+Adventure Quiz Capcom World 2* (Japan 920611)                      91634B-2   Q563B    BPRG1   IOB1  92641C-1     CPS-B-21  DL-0921-10014          IOC1
+Adventure Quiz Capcom World 2 (Japan 920611)                       90629B-3   Q529B            IOB1  92641C-1     CPS-B-21  DL-0921-10014          IOC1
 
 Varth: Operation Thunderstorm (World 920612)                 1992  89624B-?   VA24B            IOB1  ?            CPS-B-04  DL-0411-10005
 Varth: Operation Thunderstorm (World 920714)                       89624B-3   VA24B            IOB1  88622-C-5    CPS-B-04  DL-0411-10005  None
@@ -1399,7 +1402,8 @@ static const struct CPS1config cps1_config_table[]=
 	{"dynwarj",     CPS_B_02,     mapper_TK22B },
 	{"dynwarjr",    CPS_B_21_DEF, mapper_TK22B },   // wrong, this set uses TK163B, still not dumped
 	{"willow",      CPS_B_03,     mapper_WL24B },
-	{"willowo",     CPS_B_03,     mapper_WL24B },
+	{"willowu",     CPS_B_03,     mapper_WL24B },
+	{"willowuo",    CPS_B_03,     mapper_WL24B },
 	{"willowj",     CPS_B_03,     mapper_WL24B },   // wrong, this set uses WL22B, still not dumped
 	{"ffight",      CPS_B_04,     mapper_S224B },
 	{"ffighta",     CPS_B_04,     mapper_S224B },
@@ -1442,6 +1446,8 @@ static const struct CPS1config cps1_config_table[]=
 	{"sf2ed",       CPS_B_05,     mapper_STF29,  0x36 },
 	{"sf2ee",       CPS_B_18,     mapper_STF29,  0x3c },
 	{"sf2ebbl",     CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
+	{"sf2ebbl2",    CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
+	{"sf2ebbl3",    CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
 	{"sf2stt",      CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
 	{"sf2rk",       CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
 	{"sf2ua",       CPS_B_17,     mapper_STF29,  0x36 },
@@ -1516,17 +1522,21 @@ static const struct CPS1config cps1_config_table[]=
 	{"sf2m6",       CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2m7",       CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2m8",       HACK_B_1,     mapper_S9263B, 0,    0, 0, 2 },
+	{"sf2m9",       CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2dongb",    CPS_B_21_DEF, mapper_S9263B, 0x36 },
 	{"sf2yyc",      CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2koryu",    CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2mdt",      CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2mdta",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
 	{"sf2mdtb",     CPS_B_21_DEF, mapper_S9263B, 0x36, 0, 0, 1 },
+	{"sf2b",        CPS_B_17,     mapper_STF29,  0x36, 0, 0, 1  },
 	{"varth",       CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */  // wrong, this set uses VA24B, dumped but equations still not added
 	{"varthr1",     CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */  // wrong, this set uses VA24B, dumped but equations still not added
 	{"varthu",      CPS_B_04,     mapper_VA63B },   /* CPSB test has been patched out (60=0008) register is also written to, possibly leftover from development */
 	{"varthj",      CPS_B_21_BT5, mapper_VA22B },   /* CPSB test has been patched out (72=0001) register is also written to, possibly leftover from development */
 	{"cworld2j",    CPS_B_21_BT6, mapper_Q522B,  0x36, 0, 0x34 },   /* (ports 36, 34 probably leftover input code from another game) */
+	{"cworld2ja",   CPS_B_21_DEF, mapper_Q522B }, // patched set, no battery, could be desuicided // wrong, this set uses Q529B, still not dumped
+	{"cworld2jb",   CPS_B_21_BT6, mapper_Q522B,  0x36, 0, 0x34 }, // wrong, this set uses Q563B, still not dumped
 	{"wof",         CPS_B_21_QS1, mapper_TK263B },
 	{"wofr1",       CPS_B_21_DEF, mapper_TK263B },  // patched set coming from a desuicided board?
 	{"wofa",        CPS_B_21_DEF, mapper_TK263B },  // patched set coming from a desuicided board?
@@ -1680,10 +1690,9 @@ MACHINE_RESET_MEMBER(cps_state,cps)
 }
 
 
-INLINE UINT16 *cps1_base( running_machine &machine, int offset, int boundary )
+inline UINT16 *cps_state::cps1_base( int offset, int boundary )
 {
-	cps_state *state = machine.driver_data<cps_state>();
-	int base = state->m_cps_a_regs[offset] * 256;
+	int base = m_cps_a_regs[offset] * 256;
 
 	/*
 	The scroll RAM must start on a 0x4000 boundary.
@@ -1694,7 +1703,7 @@ INLINE UINT16 *cps1_base( running_machine &machine, int offset, int boundary )
 	Mask out the irrelevant bits.
 	*/
 	base &= ~(boundary - 1);
-	return &state->m_gfxram[(base & 0x3ffff) / 2];
+	return &m_gfxram[(base & 0x3ffff) / 2];
 }
 
 
@@ -1712,7 +1721,7 @@ WRITE16_MEMBER(cps_state::cps1_cps_a_w)
 	fixes glitches in the ghouls intro, but it might happen at next vblank.
 	*/
 	if (offset == CPS1_PALETTE_BASE)
-		cps1_build_palette(cps1_base(machine(), CPS1_PALETTE_BASE, m_palette_align));
+		cps1_build_palette(cps1_base(CPS1_PALETTE_BASE, m_palette_align));
 
 	// pzloop2 write to register 24 on startup. This is probably just a bug.
 	if (offset == 0x24 / 2 && m_cps_version == 2)
@@ -1898,19 +1907,19 @@ void cps_state::cps1_get_video_base()
 	int layercontrol=0, videocontrol=0, scroll1xoff=0, scroll2xoff=0, scroll3xoff=0;
 
 	/* Re-calculate the VIDEO RAM base */
-	if (m_scroll1 != cps1_base(machine(), CPS1_SCROLL1_BASE, m_scroll_size))
+	if (m_scroll1 != cps1_base(CPS1_SCROLL1_BASE, m_scroll_size))
 	{
-		m_scroll1 = cps1_base(machine(), CPS1_SCROLL1_BASE, m_scroll_size);
+		m_scroll1 = cps1_base(CPS1_SCROLL1_BASE, m_scroll_size);
 		m_bg_tilemap[0]->mark_all_dirty();
 	}
-	if (m_scroll2 != cps1_base(machine(), CPS1_SCROLL2_BASE, m_scroll_size))
+	if (m_scroll2 != cps1_base(CPS1_SCROLL2_BASE, m_scroll_size))
 	{
-		m_scroll2 = cps1_base(machine(), CPS1_SCROLL2_BASE, m_scroll_size);
+		m_scroll2 = cps1_base(CPS1_SCROLL2_BASE, m_scroll_size);
 		m_bg_tilemap[1]->mark_all_dirty();
 	}
-	if (m_scroll3 != cps1_base(machine(), CPS1_SCROLL3_BASE, m_scroll_size))
+	if (m_scroll3 != cps1_base(CPS1_SCROLL3_BASE, m_scroll_size))
 	{
-		m_scroll3 = cps1_base(machine(), CPS1_SCROLL3_BASE, m_scroll_size);
+		m_scroll3 = cps1_base(CPS1_SCROLL3_BASE, m_scroll_size);
 		m_bg_tilemap[2]->mark_all_dirty();
 	}
 
@@ -1938,8 +1947,8 @@ void cps_state::cps1_get_video_base()
 		scroll3xoff = -0x0c;
 	}
 
-	m_obj = cps1_base(machine(), CPS1_OBJ_BASE, m_obj_size);
-	m_other = cps1_base(machine(), CPS1_OTHER_BASE, m_other_size);
+	m_obj = cps1_base(CPS1_OBJ_BASE, m_obj_size);
+	m_other = cps1_base(CPS1_OTHER_BASE, m_other_size);
 
 	/* Get scroll values */
 	m_scroll1x = m_cps_a_regs[CPS1_SCROLL1_SCROLLX] + scroll1xoff;
@@ -2593,7 +2602,7 @@ UINT16 *cps_state::cps2_objbase()
 	if (m_objram_bank & 1)
 		baseptr ^= 0x0080;
 
-//popmessage("%04x %d", cps2_port(machine, CPS2_OBJ_BASE), state->m_objram_bank & 1);
+//popmessage("%04x %d", cps2_port(machine, CPS2_OBJ_BASE), m_objram_bank & 1);
 
 	if (baseptr == 0x7000)
 		return m_objram1;

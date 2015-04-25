@@ -8,7 +8,7 @@
 
 
 # floptool executable name
-FLOPTOOL = floptool$(EXE)
+FLOPTOOL = $(BIN)floptool$(EXE)
 
 # add path to floptool headers
 INCPATH += -I$(SRC)/$(TARGET)/tools/floptool
@@ -36,4 +36,4 @@ FLOPTOOL_OBJS = \
 # TODO: Visual Studio wants $(FLAC_LIB) and $(7Z_LIB) during linking...
 $(FLOPTOOL): $(FLOPTOOL_OBJS) $(FORMATS_LIB) $(LIBEMU) $(LIBUTIL) $(EXPAT) $(ZLIB) $(LIBOCORE) $(FLAC_LIB) $(7Z_LIB)
 	@echo Linking $@...
-	$(LD) $(LDFLAGS) $^ $(LIBS) -o $@
+	$(LD) $(LDFLAGS) $^ $(BASELIBS) -o $@

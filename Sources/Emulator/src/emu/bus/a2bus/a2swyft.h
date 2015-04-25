@@ -34,10 +34,14 @@ protected:
 	virtual UINT8 read_c0nx(address_space &space, UINT8 offset);
 	virtual void write_c0nx(address_space &space, UINT8 offset, UINT8 data);
 	virtual UINT8 read_inh_rom(address_space &space, UINT16 offset);
+	virtual UINT16 inh_start() { return 0xd000; }
+	virtual UINT16 inh_end() { return 0xffff; }
+	virtual int inh_type();
 
 private:
 	UINT8 *m_rom;
 	int m_rombank;
+	int m_inh_state;
 };
 
 // device type definition

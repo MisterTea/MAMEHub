@@ -465,8 +465,7 @@ WRITE8_MEMBER( portfolio_state::ncc1_w )
 	if (BIT(data, 0))
 	{
 		// system ROM
-		UINT8 *rom = m_rom->base();
-		program.install_rom(0xc0000, 0xdffff, rom);
+		program.install_rom(0xc0000, 0xdffff, m_rom);
 	}
 	else
 	{
@@ -665,7 +664,7 @@ PALETTE_INIT_MEMBER(portfolio_state, portfolio)
 READ8_MEMBER( portfolio_state::hd61830_rd_r )
 {
 	UINT16 address = ((offset & 0xff) << 3) | ((offset >> 12) & 0x07);
-	UINT8 data = m_char_rom->base()[address];
+	UINT8 data = m_char_rom[address];
 
 	return data;
 }
@@ -707,7 +706,8 @@ GFXDECODE_END
 
 WRITE_LINE_MEMBER( portfolio_state::i8250_intrpt_w )
 {
-	trigger_interrupt(INT_EXTERNAL);
+	if (state)
+		trigger_interrupt(INT_EXTERNAL);
 }
 
 //**************************************************************************
@@ -838,7 +838,7 @@ static MACHINE_CONFIG_START( portfolio, portfolio_state )
 	MCFG_I8255_OUT_PORTB_CB(DEVWRITE8("cent_ctrl_out", output_latch_device, write))
 	MCFG_I8255_IN_PORTC_CB(DEVREAD8("cent_status_in", input_buffer_device, read))
 
-	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_printers, "printer")
+	MCFG_CENTRONICS_ADD(CENTRONICS_TAG, centronics_devices, "printer")
 	MCFG_CENTRONICS_ACK_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit5))
 	MCFG_CENTRONICS_BUSY_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit4))
 	MCFG_CENTRONICS_FAULT_HANDLER(DEVWRITELINE("cent_status_in", input_buffer_device, write_bit3))
@@ -873,10 +873,8 @@ static MACHINE_CONFIG_START( portfolio, portfolio_state )
 	MCFG_TIMER_DRIVER_ADD_PERIODIC("keyboard", portfolio_state, keyboard_tick, attotime::from_usec(2500))
 
 	/* cartridge */
-	MCFG_CARTSLOT_ADD("cart")
-	MCFG_CARTSLOT_EXTENSION_LIST("bin")
-	MCFG_CARTSLOT_INTERFACE("portfolio_cart")
-	MCFG_CARTSLOT_LOAD(portfolio_state,portfolio_cart)
+	MCFG_GENERIC_CARTSLOT_ADD("cartslot", generic_plain_slot, "portfolio_cart")
+	MCFG_GENERIC_LOAD(portfolio_state, portfolio_cart)
 
 	/* memory card */
 /*  MCFG_MEMCARD_ADD("memcard_a")

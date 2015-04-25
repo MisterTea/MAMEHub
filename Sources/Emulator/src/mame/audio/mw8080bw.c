@@ -140,19 +140,13 @@ static const char *const seawolf_sample_names[] =
 	0
 };
 
-
-static const samples_interface seawolf_samples_interface =
-{
-	5,  /* 5 channels */
-	seawolf_sample_names
-};
-
-
 MACHINE_CONFIG_FRAGMENT( seawolf_audio )
 	MCFG_SOUND_START_OVERRIDE(mw8080bw_state, samples)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SAMPLES_ADD("samples", seawolf_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(5)
+	MCFG_SAMPLES_NAMES(seawolf_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.6)
 MACHINE_CONFIG_END
 
@@ -200,22 +194,19 @@ static const char *const gunfight_sample_names[] =
 };
 
 
-static const samples_interface gunfight_samples_interface =
-{
-	1,  /* 1 channel */
-	gunfight_sample_names
-};
-
-
 MACHINE_CONFIG_FRAGMENT( gunfight_audio )
 	MCFG_SOUND_START_OVERRIDE(mw8080bw_state, samples)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SAMPLES_ADD("samples1", gunfight_samples_interface)
+	MCFG_SOUND_ADD("samples1", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(gunfight_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 0.50)
 
-	MCFG_SAMPLES_ADD("samples2", gunfight_samples_interface)
+	MCFG_SOUND_ADD("samples2", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(gunfight_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 0.50)
 MACHINE_CONFIG_END
 
@@ -315,7 +306,7 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( tornbase_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(tornbase)
+	MCFG_DISCRETE_INTF(tornbase)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1)
 MACHINE_CONFIG_END
 
@@ -561,28 +552,28 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( maze_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(maze)
+	MCFG_DISCRETE_INTF(maze)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
 
-void maze_write_discrete(discrete_device *device, UINT8 maze_tone_timing_state)
+void mw8080bw_state::maze_write_discrete(UINT8 maze_tone_timing_state)
 {
 	/* controls need to be active low */
-	int controls = ~device->machine().root_device().ioport("IN0")->read() & 0xff;
+	int controls = ~ioport("IN0")->read() & 0xff;
 
-	address_space &space = device->machine().driver_data()->generic_space();
-	device->write(space, MAZE_TONE_TIMING, maze_tone_timing_state);
-	device->write(space, MAZE_P1_DATA, controls & 0x0f);
-	device->write(space, MAZE_P2_DATA, (controls >> 4) & 0x0f);
-	device->write(space, MAZE_JOYSTICK_IN_USE, controls != 0xff);
+	address_space &space = machine().driver_data()->generic_space();
+	m_discrete->write(space, MAZE_TONE_TIMING, maze_tone_timing_state);
+	m_discrete->write(space, MAZE_P1_DATA, controls & 0x0f);
+	m_discrete->write(space, MAZE_P2_DATA, (controls >> 4) & 0x0f);
+	m_discrete->write(space, MAZE_JOYSTICK_IN_USE, controls != 0xff);
 
 	/* The coin line is connected directly to the discrete circuit. */
 	/* We can't really do that, so updating it with the tone timing is close enough. */
 	/* A better option might be to update it at vblank or set a timer to do it. */
 	/* The only noticeable difference doing it here, is that the controls don't */
 	/* immediately start making tones if pressed right after the coin is inserted. */
-	device->write(space, MAZE_COIN, (~device->machine().root_device().ioport("IN1")->read() >> 3) & 0x01);
+	m_discrete->write(space, MAZE_COIN, (~ioport("IN1")->read() >> 3) & 0x01);
 }
 
 
@@ -808,7 +799,7 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( boothill_audio )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(boothill)
+	MCFG_DISCRETE_INTF(boothill)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -1038,7 +1029,7 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( checkmat_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(checkmat)
+	MCFG_DISCRETE_INTF(checkmat)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.4)
 MACHINE_CONFIG_END
 
@@ -1249,7 +1240,7 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( desertgu_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(desertgu)
+	MCFG_DISCRETE_INTF(desertgu)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.8)
 MACHINE_CONFIG_END
 
@@ -1514,7 +1505,7 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( dplay_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(dplay)
+	MCFG_DISCRETE_INTF(dplay)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.8)
 MACHINE_CONFIG_END
 
@@ -1552,23 +1543,19 @@ static const char *const gmissile_sample_names[] =
 	0
 };
 
-
-static const samples_interface gmissile_samples_interface =
-{
-	1,  /* 1 channel */
-	gmissile_sample_names
-};
-
-
 MACHINE_CONFIG_FRAGMENT( gmissile_audio )
 	MCFG_SOUND_START_OVERRIDE(mw8080bw_state, samples)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SAMPLES_ADD("samples1", gmissile_samples_interface)
+	MCFG_SOUND_ADD("samples1", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(gmissile_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1.9)
 
-	MCFG_SAMPLES_ADD("samples2", gmissile_samples_interface)
+	MCFG_SOUND_ADD("samples2", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(gmissile_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1.9)
 MACHINE_CONFIG_END
 
@@ -1649,22 +1636,19 @@ static const char *const m4_sample_names[] =
 };
 
 
-static const samples_interface m4_samples_interface =
-{
-	2,  /* 2 channels */
-	m4_sample_names
-};
-
-
 MACHINE_CONFIG_FRAGMENT( m4_audio )
 	MCFG_SOUND_START_OVERRIDE(mw8080bw_state, samples)
 
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 
-	MCFG_SAMPLES_ADD("samples1", m4_samples_interface)
+	MCFG_SOUND_ADD("samples1", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(2)
+	MCFG_SAMPLES_NAMES(m4_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "lspeaker", 1)
 
-	MCFG_SAMPLES_ADD("samples2", m4_samples_interface)
+	MCFG_SOUND_ADD("samples2", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(2)
+	MCFG_SAMPLES_NAMES(m4_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "rspeaker", 1)
 MACHINE_CONFIG_END
 
@@ -1907,23 +1891,18 @@ static const char *const clowns_sample_names[] =
 	0
 };
 
-static const samples_interface clowns_samples_interface =
-{
-	1,  /* 1 channel */
-	clowns_sample_names
-};
-
-
 MACHINE_CONFIG_FRAGMENT( clowns_audio )
 	MCFG_SOUND_START_OVERRIDE(mw8080bw_state, samples)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
-	MCFG_SAMPLES_ADD("samples", clowns_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(1)
+	MCFG_SAMPLES_NAMES(clowns_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.70)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(clowns)
+	MCFG_DISCRETE_INTF(clowns)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -2289,7 +2268,7 @@ MACHINE_CONFIG_FRAGMENT( spacwalk_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(spacwalk)
+	MCFG_DISCRETE_INTF(spacwalk)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -2518,7 +2497,7 @@ MACHINE_CONFIG_FRAGMENT( shuffle_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(shuffle)
+	MCFG_DISCRETE_INTF(shuffle)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -2697,7 +2676,7 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( dogpatch_audio )
 	MCFG_SPEAKER_STANDARD_STEREO("lspeaker", "rspeaker")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(dogpatch)
+	MCFG_DISCRETE_INTF(dogpatch)
 	MCFG_SOUND_ROUTE(0, "lspeaker", 1.0)
 	MCFG_SOUND_ROUTE(1, "rspeaker", 1.0)
 MACHINE_CONFIG_END
@@ -2728,34 +2707,6 @@ WRITE8_MEMBER(mw8080bw_state::dogpatch_audio_w)
  *  Discrete sound emulation:
  *  Apr 2007, D.R.
  *************************************/
-
-static const sn76477_interface spcenctr_sn76477_interface =
-{
-	0,              /*  4 noise_res (N/C)        */
-	0,              /*  5 filter_res (N/C)       */
-	0,              /*  6 filter_cap (N/C)       */
-	0,              /*  7 decay_res (N/C)        */
-	0,              /*  8 attack_decay_cap (N/C) */
-	RES_K(100),     /* 10 attack_res             */
-	RES_K(56),      /* 11 amplitude_res          */
-	RES_K(10),      /* 12 feedback_res           */
-	0,              /* 16 vco_voltage (N/C)      */
-	CAP_U(0.047),   /* 17 vco_cap                */
-	RES_K(56),      /* 18 vco_res                */
-	5.0,            /* 19 pitch_voltage          */
-	RES_K(150),     /* 20 slf_res                */
-	CAP_U(1.0),     /* 21 slf_cap                */
-	0,              /* 23 oneshot_cap (N/C)      */
-	0,              /* 24 oneshot_res (N/C)      */
-	1,              /* 22 vco                    */
-	0,              /* 26 mixer A                */
-	0,              /* 25 mixer B                */
-	0,              /* 27 mixer C                */
-	1,              /* 1  envelope 1             */
-	0,              /* 28 envelope 2             */
-	1               /* 9  enable (variable)      */
-};
-
 
 /* nodes - inputs */
 #define SPCENCTR_ENEMY_SHIP_SHOT_EN       NODE_01
@@ -3231,11 +3182,23 @@ MACHINE_CONFIG_FRAGMENT( spcenctr_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
-	MCFG_SOUND_CONFIG(spcenctr_sn76477_interface)
+	MCFG_SN76477_NOISE_PARAMS(0, 0, 0)                  // noise + filter: N/C
+	MCFG_SN76477_DECAY_RES(0)                           // decay_res: N/C
+	MCFG_SN76477_ATTACK_PARAMS(0, RES_K(100))           // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(56))                     // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(10))                // feedback_res
+	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.047), RES_K(56)) // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(5.0)                     // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(150))     // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(0, 0)                   // oneshot caps + res: N/C
+	MCFG_SN76477_VCO_MODE(1)                            // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                  // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(1, 0)                  // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                              // enable
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.20)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(spcenctr)
+	MCFG_DISCRETE_INTF(spcenctr)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.45)
 MACHINE_CONFIG_END
 
@@ -3301,19 +3264,13 @@ static const char *const phantom2_sample_names[] =
 	0
 };
 
-
-static const samples_interface phantom2_samples_interface =
-{
-	2,  /* 2 channels */
-	phantom2_sample_names
-};
-
-
 MACHINE_CONFIG_FRAGMENT( phantom2_audio )
 	MCFG_SOUND_START_OVERRIDE(mw8080bw_state, samples)
 
 	MCFG_SPEAKER_STANDARD_MONO("mono")
-	MCFG_SAMPLES_ADD("samples", phantom2_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(2)
+	MCFG_SAMPLES_NAMES(phantom2_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1)
 MACHINE_CONFIG_END
 
@@ -3441,7 +3398,7 @@ MACHINE_CONFIG_FRAGMENT( bowler_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(bowler)
+	MCFG_DISCRETE_INTF(bowler)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1)
 MACHINE_CONFIG_END
 
@@ -3535,35 +3492,6 @@ WRITE8_MEMBER(mw8080bw_state::bowler_audio_6_w)
  *
  *************************************/
 
-static const sn76477_interface invaders_sn76477_interface =
-{
-	0,          /*  4 noise_res (N/C)        */
-	0,          /*  5 filter_res (N/C)       */
-	0,          /*  6 filter_cap (N/C)       */
-	0,          /*  7 decay_res (N/C)        */
-	0,          /*  8 attack_decay_cap (N/C) */
-	RES_K(100), /* 10 attack_res             */
-	RES_K(56),  /* 11 amplitude_res          */
-	RES_K(10),  /* 12 feedback_res           */
-	0,          /* 16 vco_voltage (N/C)      */
-	CAP_U(0.1), /* 17 vco_cap                */
-	RES_K(8.2), /* 18 vco_res                */
-	5.0,        /* 19 pitch_voltage          */
-	RES_K(120), /* 20 slf_res                */
-	CAP_U(1.0), /* 21 slf_cap                */
-	0,          /* 23 oneshot_cap (N/C)      */
-	0,          /* 24 oneshot_res (N/C)      */
-	1,          /* 22 vco                    */
-	0,          /* 26 mixer A                */
-	0,          /* 25 mixer B                */
-	0,          /* 27 mixer C                */
-	1,          /* 1  envelope 1             */
-	0,          /* 28 envelope 2             */
-	1           /* 9  enable (variable)      */
-};
-
-
-
 static const char *const invaders_sample_names[] =
 {
 	"*invaders",
@@ -3580,13 +3508,6 @@ static const char *const invaders_sample_names[] =
 };
 
 
-static const samples_interface invaders_samples_interface =
-{
-	6,  /* 6 channels */
-	invaders_sample_names
-};
-
-
 /* left in for all games that hack into invaders samples for audio */
 MACHINE_CONFIG_FRAGMENT( invaders_samples_audio )
 	MCFG_SOUND_START_OVERRIDE(mw8080bw_state, samples)
@@ -3594,10 +3515,24 @@ MACHINE_CONFIG_FRAGMENT( invaders_samples_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
-	MCFG_SOUND_CONFIG(invaders_sn76477_interface)
+	MCFG_SN76477_NOISE_PARAMS(0, 0, 0)                  // noise + filter: N/C
+	MCFG_SN76477_DECAY_RES(0)                           // decay_res: N/C
+	MCFG_SN76477_ATTACK_PARAMS(0, RES_K(100))           // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(56))                     // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(10))                // feedback_res
+	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.1), RES_K(8.2))  // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(5.0)                     // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(120))     // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(0, 0)                   // oneshot caps + res: N/C
+	MCFG_SN76477_VCO_MODE(1)                            // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                  // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(1, 0)                  // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                              // enable
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
-	MCFG_SAMPLES_ADD("samples", invaders_samples_interface)
+	MCFG_SOUND_ADD("samples", SAMPLES, 0)
+	MCFG_SAMPLES_CHANNELS(6)
+	MCFG_SAMPLES_NAMES(invaders_sample_names)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 1.0)
 MACHINE_CONFIG_END
 
@@ -4160,11 +4095,23 @@ MACHINE_CONFIG_FRAGMENT( invaders_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 
 	MCFG_SOUND_ADD("snsnd", SN76477, 0)
-	MCFG_SOUND_CONFIG(invaders_sn76477_interface)
+	MCFG_SN76477_NOISE_PARAMS(0, 0, 0)                  // noise + filter: N/C
+	MCFG_SN76477_DECAY_RES(0)                           // decay_res: N/C
+	MCFG_SN76477_ATTACK_PARAMS(0, RES_K(100))           // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(56))                     // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(10))                // feedback_res
+	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.1), RES_K(8.2))  // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(5.0)                     // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(120))     // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(0, 0)                   // oneshot caps + res: N/C
+	MCFG_SN76477_VCO_MODE(1)                            // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                  // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(1, 0)                  // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                              // enable
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(invaders)
+	MCFG_DISCRETE_INTF(invaders)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.5)
 MACHINE_CONFIG_END
 
@@ -4565,7 +4512,7 @@ DISCRETE_SOUND_END
 MACHINE_CONFIG_FRAGMENT( blueshrk_audio )
 	MCFG_SPEAKER_STANDARD_MONO("mono")
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(blueshrk)
+	MCFG_DISCRETE_INTF(blueshrk)
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "mono", 0.25)
 MACHINE_CONFIG_END
 
@@ -4595,62 +4542,6 @@ WRITE8_MEMBER(mw8080bw_state::blueshrk_audio_w)
  *  Space Invaders II (cocktail)
  *
  *************************************/
-
-static const sn76477_interface invad2ct_p1_sn76477_interface =
-{
-	0,          /*  4 noise_res (N/C)        */
-	0,          /*  5 filter_res (N/C)       */
-	0,          /*  6 filter_cap (N/C)       */
-	0,          /*  7 decay_res (N/C)        */
-	0,          /*  8 attack_decay_cap (N/C) */
-	RES_K(100), /* 10 attack_res             */
-	RES_K(56),  /* 11 amplitude_res          */
-	RES_K(10),  /* 12 feedback_res           */
-	0,          /* 16 vco_voltage (N/C)      */
-	CAP_U(0.1), /* 17 vco_cap                */
-	RES_K(8.2), /* 18 vco_res                */
-	5.0,        /* 19 pitch_voltage          */
-	RES_K(120), /* 20 slf_res                */
-	CAP_U(1.0), /* 21 slf_cap                */
-	0,          /* 23 oneshot_cap (N/C)      */
-	0,          /* 24 oneshot_res (N/C)      */
-	1,          /* 22 vco                    */
-	0,          /* 26 mixer A                */
-	0,          /* 25 mixer B                */
-	0,          /* 27 mixer C                */
-	1,          /* 1  envelope 1             */
-	0,          /* 28 envelope 2             */
-	1           /* 9  enable (variable)      */
-};
-
-
-static const sn76477_interface invad2ct_p2_sn76477_interface =
-{
-	0,            /*  4 noise_res (N/C)        */
-	0,            /*  5 filter_res (N/C)       */
-	0,            /*  6 filter_cap (N/C)       */
-	0,            /*  7 decay_res (N/C)        */
-	0,            /*  8 attack_decay_cap (N/C) */
-	RES_K(100),   /* 10 attack_res             */
-	RES_K(56),    /* 11 amplitude_res          */
-	RES_K(10),    /* 12 feedback_res           */
-	0,            /* 16 vco_voltage (N/C)      */
-	CAP_U(0.047), /* 17 vco_cap                */
-	RES_K(39),    /* 18 vco_res                */
-	5.0,          /* 19 pitch_voltage          */
-	RES_K(120),   /* 20 slf_res                */
-	CAP_U(1.0),   /* 21 slf_cap                */
-	0,            /* 23 oneshot_cap (N/C)      */
-	0,            /* 24 oneshot_res (N/C)      */
-	1,            /* 22 vco                    */
-	0,            /* 26 mixer A                */
-	0,            /* 25 mixer B                */
-	0,            /* 27 mixer C                */
-	1,            /* 1  envelope 1             */
-	0,            /* 28 envelope 2             */
-	1             /* 9  enable (variable)      */
-};
-
 
 static const discrete_op_amp_1sht_info invad2ct_invader_hit_1sht =
 {
@@ -4784,16 +4675,40 @@ MACHINE_CONFIG_FRAGMENT( invad2ct_audio )
 	MCFG_SPEAKER_STANDARD_STEREO("spk1", "spk2")
 
 	MCFG_SOUND_ADD("discrete", DISCRETE, 0)
-	MCFG_SOUND_CONFIG_DISCRETE(invad2ct)
+	MCFG_DISCRETE_INTF(invad2ct)
 	MCFG_SOUND_ROUTE(0, "spk1", 0.5)
 	MCFG_SOUND_ROUTE(1, "spk2", 0.5)
 
 	MCFG_SOUND_ADD("sn1", SN76477, 0)
-	MCFG_SOUND_CONFIG(invad2ct_p1_sn76477_interface)
+	MCFG_SN76477_NOISE_PARAMS(0, 0, 0)                  // noise + filter: N/C
+	MCFG_SN76477_DECAY_RES(0)                           // decay_res: N/C
+	MCFG_SN76477_ATTACK_PARAMS(0, RES_K(100))           // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(56))                     // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(10))                // feedback_res
+	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.1), RES_K(8.2))  // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(5.0)                     // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(120))     // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(0, 0)                   // oneshot caps + res: N/C
+	MCFG_SN76477_VCO_MODE(1)                            // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                  // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(1, 0)                  // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                              // enable
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "spk1", 0.3)
 
 	MCFG_SOUND_ADD("sn2", SN76477, 0)
-	MCFG_SOUND_CONFIG(invad2ct_p2_sn76477_interface)
+	MCFG_SN76477_NOISE_PARAMS(0, 0, 0)                  // noise + filter: N/C
+	MCFG_SN76477_DECAY_RES(0)                           // decay_res: N/C
+	MCFG_SN76477_ATTACK_PARAMS(0, RES_K(100))           // attack_decay_cap + attack_res
+	MCFG_SN76477_AMP_RES(RES_K(56))                     // amplitude_res
+	MCFG_SN76477_FEEDBACK_RES(RES_K(10))                // feedback_res
+	MCFG_SN76477_VCO_PARAMS(0, CAP_U(0.047),  RES_K(39))  // VCO volt + cap + res
+	MCFG_SN76477_PITCH_VOLTAGE(5.0)                     // pitch_voltage
+	MCFG_SN76477_SLF_PARAMS(CAP_U(1.0), RES_K(120))     // slf caps + res
+	MCFG_SN76477_ONESHOT_PARAMS(0, 0)                   // oneshot caps + res: N/C
+	MCFG_SN76477_VCO_MODE(1)                            // VCO mode
+	MCFG_SN76477_MIXER_PARAMS(0, 0, 0)                  // mixer A, B, C
+	MCFG_SN76477_ENVELOPE_PARAMS(1, 0)                  // envelope 1, 2
+	MCFG_SN76477_ENABLE(1)                              // enable
 	MCFG_SOUND_ROUTE(ALL_OUTPUTS, "spk2", 0.3)
 MACHINE_CONFIG_END
 

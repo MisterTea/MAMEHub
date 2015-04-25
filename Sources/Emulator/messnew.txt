@@ -1,408 +1,64 @@
-0.154
+0.160
 -------
 
 
 MAMETesters Bugs Fixed
 ----------------------
-- 05108: [Crash/Freeze] (atari400.c) a600xl: Crash with "-cart salt100"
-- 05583: [Crash/Freeze] (gba.c) GBA: Pokemon Sapphire crashes BIOS on fullpath,
-  runs fine on softlist (Fabio Priuli)
-- 05508: [Crash/Freeze] (nes.c) dendy: [debug] Assertion with -cart genchohi (Fabio Priuli)
-- 05512: [Misc.] (sg1000.c) All sg1000.c sets: AddressSanitizer: heap-use-after-free -
-   with 8K carts (Fabio Priuli)
-- 05510: [Crash/Freeze] (exelv.c) All exelv.c sets: Crash with -aviwrite or -mngwrite (Firewave)
-- 05511: [Misc.] (supracan.c) supracan: AddressSanitizer: stack-buffer-overflow (Alex Jackson)
-- 05567: [Crash/Freeze] (ct486.c) ct486: Starting XFree86 with the "svga_dm" graphics card 
-  crashes MESS (mahlemiut)
-- 05551: [Crash/Freeze] (odyssey2.c) Pete Axe Pete!, Frogger (in NTSC system), others: odyssey2 
-  SIGABRT with clang optimizations in OS X (Wilbert Pol)
-- 05547: [Crash/Freeze] (ct486.c) ct486: System locks up when attempting to boot MS-DOS 6.22
-- 05541: [Core] (coco12.c) coco2b and coco3/3h: coco2b and coco3/3h will not run correct versions of NitrOS-9 (Osso)
-- 05525: [Misc.] (at.c) at486,ct486: Mouse doesn't work in Windows 2000. (crazyc)
-- 05509: [Crash/Freeze] (tandy2k.c) All tandy2k.c sets: [debug] Assertion
+- 05298: [Crash/Freeze] (ip22.c) ip224613, ip225015: [debug] Assert after OK (Olivier Galibert)
 
 New System Drivers Supported:
 -----------------------------
--Goldstar Famicom FC-100  [Robbbert, Anna Wu]
--New driver added: Xerox Alto 2 [Juergen Buchmueller]
--FM-Towns Marty 2 [caius, Barry Rodewald]
--Yamaha FB-01  [Wilbert Pol]
--Texas Instruments Compact Computer 40 [hap, Jon Guidry]
+-Entex Electronic Baseball [hap, Sean Riddle]
+-Tomy Pac Man [hap, Kevin Horton]
+-Entex Electronic Baseball 3 [hap, Sean Riddle]
+-Bambino Superstar Football [hap, Kevin Horton] 
+-Bambino Space Laser Fight [hap, Kevin Horton]
+-Epoch Astro Command (aka Grandstand Scramble) [hap, Kevin Horton]
+-TI Little Professor (2 versions) [hap, Sean Riddle]
+-Coleco Alien Attack [hap, Kevin Horton] 
+-Entex Galaxian 2 [hap, Kevin Horton] 
+-Entex Pacman 2 [hap, Kevin Horton]
+-Entex Electronic Baseball 2 [hap, Sean Riddle]
+-Intel Intellec MDS series-II [F. Ulivi]
+-Milton Bradley Dark Tower [hap, Sean Riddle]
 
 Systems Promoted from GAME_NOT_WORKING:
 ---------------------------------------
-Master System Store Display Unit [Enik Land]
+(none)
 
 Skeleton drivers:
 -----------------
--HP 9845A/S [Curt Coder]
--HP 9835A/B [Curt Coder]
--HP 9845B/T/C [Curt Coder]
--Fanuc System P Model G (monochrome) [Guru, R. Belmont]
--Epson LX810L [Felipe Sanchez]
--Epson Action Printer 2000 [Felipe Sanchez]
--Gimix 6809 System   [Tafoid]
--Intelbras TI630 telephone  [Felipe Sanches]
--TI-74 BASICALC [hap]
--Psion Organiser I [Sandro Ronco]
--Psion Organiser II XP Psion Organiser II P200 [Sandro Ronco]
--TECNBRAS Dot Matrix Display [Felipe Sanches]
--Minicom IV (teletype device) [Felipe Sanches]
+(none)
 
 Software Lists:
-----------------
--snes.xml : some new dumps added [ReadOnly]
+--------------
+-pico.xml: A few more Japanese dumps added. [Team Europe]
 
--abc80.xml: Added Myab CP/M BIOS 3.7. [Robert Juhasz]
+-gameking.xml: Three new dumps added. [Team Europe]
 
--pet_flop.xml: Replaced bad D80 for Z-RAM. [Mike Naberezny]
-
--sc3000: Added cartridge and cassette software lists.
- [Curt Coder, Anna Wu]
-
--nes.xml: added correct nvram to dezaemon, thanks to naruko's
- research [Fabio Priuli]
-
--vectrex.xml: some fixes and additions. [hornpipe2, Fabio Priuli]
-
--osbexec: Added floppy software list. [Dave Dunfield, The Don Maslin Archive]
-
--mbc200: Added floppy software list. [Dave Dunfield, Chuck(G)]
-
--pet_rom.xml: Added InfoPro. [Paul Rickards, Mike Naberezny]
-
--gba.xml: Added newer revision of Sim City 2000 [BPzeBanshee]
-
--c64_cart.xml: Added another version of Super Snapshot 5. [Malice]
+-pet_rom.xml: Added McTerm 0.95. [Mike Naberezny]
 
 Source Changes
 --------------
--Support 115200 on Apple III [smf]
 
--Added preliminary keyboard hook-up in AAKART device, adding
- bare-bones keyboard inputs to Acorn Archimedes.  [Angelo Salese]
+-pcd keyboard and partial scsi [Carl]
 
--smssdisp: implemented game selection. [Enik Land]
+-apple2: add TMS9918 card from BYTE magazine plus 9938 and 9958
+ versions. [R. Belmont]
 
--megacd.c: Convert to device_gfx_interface, use device finders,
-cleanups [Alex Jackson]
+-gamate: added noise and envelope emulation [Peter Trauner]
 
--PVE500.c:  Work on keyboard, 7-seg display and maincpu (z80)
- daisy chaining.  Added declaration of DIP switches.  [Felipe Sanches]
+-m24: keyboard controller [Carl, Lord Nightmare, rfka01]
 
--rainbow.c : unmap unavailable RAM. Hard limits and 'floating
-bus' code removed. [Bavarese]
+-vt100.c: Add ROM for DEC VT101 and enable driver [Matt Burke]
 
--dec_lk201.c : KEYCODE_2 corrected.  RIGHT CONTROL now triggers
- DO. [Bavarese]
+-vt100.c: add older version of the vt102 roms [Matt Burke]
 
--apple3: preliminary joystick support [R. Belmont]
+-m24: keyboard [Carl, any]
 
--Oric 1: Spring cleaning [O. Galibert]
+-upd1771.c - notes update, indicate what pins are inputs,
+ outputs, or both; document the d/a power pin. document the mode pin
+ functions and the test mode [kevtris]
 
--Apple II: implemented cycle-exact Disk II floppy controller
- using the modern floppy subsystem. [O. Galibert, R. Belmont]
-
--sms: added support for Furrtek's multitap adapter (supported by
- BOoM homebrew game). [Enik Land]
-
--Apple II updates: [R. Belmont]
-  * Some minor cleanup to how post-IIe machines are handled
-  * Fixed N/M keys on Platinum IIe and IIgs
-
--Apple II: Correct setup of built-in ACIAs for IIc/IIc Plus
- [R. Belmont]
-
--emulate ie15 keyboard & use RS232 port [shattered]
-
--avigo.c & hunter2.c Allow all rs232 devices [smf]
-
--clcd.c fixed irq hookup. [smf]
-
--thomson: fix for incorrect palettes in a seldom used video mode [Antonie Mine]
-
--hp48: fix for memory cards and addition of imgtool support for it [Antonie Mine]
-
--Apple 1: Added support for expansion slot, moved cassette
- interface to a card to match reality. [R. Belmont]
-
--pet: Added user port diagnostic connector. [Curt Coder]
-
--Apple I: Support CFFA1 Compact Flash/IDE adaptor
- [R. Belmont, based on a patch by Christopher Bachmann]
-
--next: Add mouse [O. Galibert]
-
--next: Setup the time [O. Galibert]
-
--next: mouse/nmi fixes [O. Galibert]
-
--Cybiko: Make serial loopback on cybikoxt, gets past first (of
- several) hangups. [R. Belmont]
-
--next: fix the vblank disables [O. Galibert]
-
--cybiko updates: [R. Belmont]
- * Fixed major memory stomp in cybikov2
- * Fixed "insert battery" message in cybikoxt; the OS boots up now
- * Started general cleanup of I/O handling
-
--amstrad: added preliminary Amstrad/Pace RS232C interface.  The
- terminal software included with the original Amstrad interface works,
- but not much else does at this stage.  [Barry Rodewald]
-
--cybiko: more I/O re-hookup. [R. Belmont]
-
--hp9845: Added software lists for option ROMs. [Curt Coder]
-
--fanucspg: Better colors from new reference. [Guru, R. Belmont]
-
--RAINBOW.C: IRQ priorities updated. Board revisions and add-on
- cards documented; rainbow100 renamed to rainbow100a. [Bavarese]
-
--fanucspg: Mapped most of the chips on the i86 side. [Carl]
-
--nes: added support the new homebrew PCB used by 2A03 Puritans
-Album. [Fabio Priuli]
-
--nes.c: Fixed Silva Saga, which relies on SRAM not being 0x00
- filled from factory, with many thanks to naruko for investigating the
- problem. [Fabio Priuli]
-
--apfm1000 / apfimag: more accurate support for on-cart 1K RAM in
- Space Destroyer (no more need of using -ramsize 1K option at launch).
- [Fabio Priuli]
-
--Apple II: enforce read twice requirement for language card.
- [R. Belmont]
-
--a7800.c:
- * Brought initial Maria cycle counts inline from measurements taken
-    with logic analyzer/tests. [Mike Saarna/Robert Tuccitto]
- * Added interrupts to DMA cycle eating. Updates to LL, OL, and spin
-    accounting for HALT behavior. [Mike Saarna]
-
--kb3600: More sensible multi-key handling, now actually behaves
- like h/w.  [R. Belmont]
-
--apple3: Preliminary reset key handling. [R. Belmont]
-
--megapc: added alternate MegaPC Plus set which uses a WINBUS chipset
- [Chris Hardy, Barry Rodewald]
-
--msx.c:  [Wilbert Pol]
- * Reimplemented the cartridge slots as slot devices.
- * Moved the msx slot layouts to inline machine configuration.
- * Started adding support for a few more firmware types.
- * Add turbo support to Panasonic FS-A1FX/FS-A1WX/FS-A1WSX.
-
--Amiga: Implement internal IDE controller for the Amiga 4000. Fix RTC
- hookup in Amiga 3000 and 4000. Set RP5C01 RTC to actually return 24
- hour mode, which fixes RTC detection for the Amiga. [Dirk Best]
-
--amigafdc: Add writing [O. Galibert]
-
--Amiga: Kill the legacy CIA emulation and fix Agnus ID for A2000 and A500. [Dirk Best]
- CIA changes:
- * Add missing virtual keyword to actually call the right TOD clock
- * Outputs depend on the input state (fixes A1000 overlay switch)
- * Switching to serial output mode with one-shot activated causes a
-    pulse on SP (correct? needed for keyboard handshake)
- * Serial input is clocked by the CNT input, not the default clock
- * Mask offsets to 4 bits
- * Writing the Timer High register with one-shot activated immediately
-    causes the timer to be latched and the timer started, regardless
-    of timer start value
-
--at: added preliminary ATi Graphics Ultra Pro (mach32) ISA video card.
- [Barry Rodewald]
-
--fmtowns: added clone FM Towns II FreshTV [caius, Barry Rodewald]
-
--Amiga: Support PAL/NTSC switch for machines equipped with an ECS Agnus
- chip or better. [Dirk Best]
-
- Core changes:
- * Save screen pixelclock.
- * Call reset_partial_updates() in finish_screen_updates() instead of
-    creating an extra timer for it. This prevents calling
-    reset_partial_updates() after finishing the screen, causes issues
-    when screens change their size to a size lower than the current
-    screen.
- * Optimization: Support calling vblank_begin() directly at the start
-   of a frame instead of using a timer.
-
--Amiga: Add version 6.1 bootroms for the A590/A2091 and RAM controller PAL [Guru]
-
--sun3: Work in progress on Sun 3/80.  It now POSTs.  [R. Belmont]
-
--c8050: Added ROM signatures for 901483-04.
- [Paul Rickards, Mike Naberezny]
-
--x68k: compose the gfx and sprite/bg layers individually before drawing
- to the screen [Carl]
-
--exelv.c [Gilles Fétis] 
-  Improved emulation in driver to the
-  point where exl100 will successfully load and execute cartridges. 
-  Still lacking any input at the moment.
-
--nes.c: fixed WRAM banking for MMC5, so that Bandit Kings of
- Ancient China (and Suikoden - Tenmei no Chikai) can be considered as
- working. Also fixed wrong battery size for Aoki Ookami to Shiroki
- Mejika - Genchou Hishi in xml, which was causing a "Memory Over" error
- message ingame. [Fabio Priuli]
-
--msx.c: Added support for mapper used by Holy Quran.
- [hap, Wilbert Pol]
-
--ql: Added slot interfaces for the expansion and ROM cartridge
- ports. Modernized the Sandy Super Disk, Sandy SuperQBoard, and Miracle
- Trump Card floppy interfaces. Added a device for the QIMI (not working
- yet). Created skeletons for several expansion cards. [Curt Coder]
-
--rainbow.c: New floppy code - uses more reliable 'wd_fdc'. [Bavarese]
-
--ql: Added preliminary CST Q+4 emulation. [Curt Coder]
-
--gb.c: Added GameBoy Pocket Boot ROM. [BennVenn]
-
--vtech1: Add "VZ-200 Enhanced BASIC V1.01" [Chicken Man]
-
--Apollo updates [Hans Ostermeyer]
- * Fixed ISA bus endianness, it's the same as other 680x0 systems with
-    ISA
- * Improved logging in several places
- * "20 years ago" option updated to now-necessary "25 years ago"
- * Fixed ISA high IRQ routing
- * Fixed 3c505 to have a 16 bit ISA interface
- * Fixed omti8621 and sc499 to have correct-endian ISA interfaces
-
--hprot1:  [Felipe Sanches]
- * new derivative "CARD I PCB rev.08A"
- * new derivative "CARD II PCB rev.6"
- * fixed LCD rendering (now both lines are displayed properly)
- * inverted logic of the inputs so that now we can navigate the menu
-
--mac: fix 0.153 regression that prevented several Macs from
-booting. [R. Belmont]
-
--apple2: Support some oddball sized disk images and DOS 3.3
- disks that were ripped in ProDOS sector order. [R. Belmont]
-
--sms.c: Several timing fixes:  [Enik Land]
- * Fix flicker on Choplifter title screen by drawing the borders
-    through timers.
- * Instead trigger NMI at end of the display, do it at end of top
-    border (line 261 after start of active screen area).
- * Add a delay to NMI, to be later than HINT, as stated by Flubba's
-    VDPTest readme.
- * Also based on VDPTest readme, change VINT and Sprite Overflow flags
-    to be later than VCount change.
- * Delay a little the display callback, to fix the title scrolling of
-    Road Rash (SMS game).
- * Fixed documentation of the scanline sections and change some
-    timings to match.
- * Calculate initial VCount values, instead use of hardcoded values.
-
--wswan.c: Added noise emulation  [trap15, Wilbert Pol]
-
--mac: add PMU ROMs for later use [R. Belmont]
-
--gameboy: Added support for Li Cheng pirate mapper.
- [taizou, Fabio Priuli]
-
--osdcore: Allow "default" for -midiin and -midiout. [R. Belmont]
-
--Apple II: Support for the Mountain Computer Music System.
- [R. Belmont]
-
--apple II: support Decillionix DX-1 sampler card. [R. Belmont]
-
--c64: Precalculate PLA outputs for approximately 5% speedup.
- [Curt Coder]
-
--glcolor: added LCD emulation and inputs. [Sandro Ronco]
-
--vz300 floppy: Initial modern implementation [O. Galibert]
-
--Apple II: Add volume control register to DX-1 card. [R. Belmont]
-
--vtvideo.c): finally fix smooth scrolling (ED084 =1). See DIAG DISK -> 
- VIDEO TEST -> screen 3 (Rainbow driver - SKIP 0). [Bavarese]
-
--atari400.c - Slightly revised Atari XL cartridge loading so
- that it doesn't crash when loading 8K carts. Confirmed to fix
- MT#05108.  [alegend45]
-
--dmv: various updates to allow CP/M to boot. [Sandro Ronco]
-
--apple3: now using the cycle-accurate floppy emulation.
- [R. Belmont]
-
--corvushd: Fixed prep mode verify drive command. [Mike Naberezny] 
- The verify drive command (0x07) is used by the "format
- check" options of both the Corvus diagnostics program and the SSE
- HardBox configure program.  Previously, format check would halt with
- an error because we did not return a valid response for the verify
- drive command.  Format check now completes successfully and reports no
- bad sectors.
-
--corvushd: Fixed get drive parameters command. [Mike Naberezny]
- The "read controller code version" option in the Corvus diagnostics
- program now shows the correct version and drive capacity.
-
--c64: some optimizations [Alex Jackson]
- * read_pla() leaves the PLA outputs packed, instead of using eight
-    output parameters to return them
- * flatten nested switch statements in read_memory() and
-    write_memory()
- * mos6566: inline bus_r() and various READ_LINE_MEMBERs
-
--corvushd: Prep mode now supports multiple drives. [Mike Naberezny] 
- This allows the Corvus diagnostics program to format
- any drive.  Previously, the drive id sent in the command to enter prep
- mode was ignored and drive 1 would always be formatted instead.
-
- -c64 improvement & fix [Alex Jackson]
- * Cache pointers to basic and kernal ROMs at startup (they can be in
-    separate ROM regions or a single ROM depending on model) rather
-    than branching on every read
- * Moved "ProLogic-DOS Classic" BIOS from c64 to c64c, since it's
-    clearly meant for, and only successfully boots on, the latter
-    machine
-
--Colecovision PAL BIOS  [TSM Carmine]
-
--Fixed Quickload (c64) to allow files packed with Kompressmaster v4.1-3
- from Peter Arndt.  [M.A.S.H.]
-
--amstrad: added the ability for expansion devices to contain ROMs (as
- some do). added ROMs for DK'Tronics Speech Synthesiser, and both RS232
- interfaces (plus one alternate for the Amstrad interface). split
- Amstrad and Pace serial interfaces into separate devices as they have
- different sized ROM areas. [Barry Rodewald]
-
--wicat: added additional boot ROMs [Al Kossow, Barry Rodewald]
-
--abc806: Added video PROMs. [Anders Sandahl]
-
--Minor Apollo cleanups & removal of no-longer-supported options,
- plus data format fix for systems using a serial terminal.
- [Hans Ostermeyer]
-
--abc806: Added video PALs. [Anders Sandahl]
-
--cat.c: fix canon cat breakage from r30715 [Lord Nightmare]
-
--VTVIDEO: Added new interlaced mode.  Also handle cases where
- undocumented delays / skip lines are poked (SQUINT; VIDEO.PAS). 
- [Bavarese]
-
-- Super80 : added floppy disk controller [Robbbert]
-
-- Super80 : major cleanup [Robbbert]
-
-- LFT1510 : connected to terminal, working [Robbbert]
-
-- Applix : adjusted default dipswitches so that it will boot [Robbbert]
+-sms.c: added a new BIOS revision (v2.0) for the SMS 1 PAL and
+ documented the actual chip markings for v1.3 [SMSPower, l_oliveira]

@@ -22,6 +22,7 @@
 
 #include "webengine.h"
 
+class osd_interface;
 
 //**************************************************************************
 //    CONSTANTS
@@ -89,7 +90,7 @@ public:
 	static machine_manager *instance();
 	~machine_manager();
 
-	osd_interface &osd() const { return m_osd; }
+	osd_interface &osd() const;
 	emu_options &options() const { return m_options; }
 	web_engine *web() { return &m_web; }
 	lua_engine *lua() { return &m_lua; }
@@ -121,7 +122,7 @@ private:
 //**************************************************************************
 
 extern const char build_version[];
-
+extern const char bare_build_version[];
 
 
 /***************************************************************************

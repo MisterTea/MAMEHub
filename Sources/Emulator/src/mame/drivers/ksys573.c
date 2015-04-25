@@ -342,7 +342,6 @@ G: gun mania only, drives air soft gun (this game uses real BB bullet)
 
   */
 
-#include "cdrom.h"
 #include "cpu/psx/psx.h"
 #include "machine/adc083x.h"
 #include "machine/ataintf.h"
@@ -361,6 +360,7 @@ G: gun mania only, drives air soft gun (this game uses real BB bullet)
 #include "sound/spu.h"
 #include "sound/cdda.h"
 #include "video/psx.h"
+#include "cdrom.h"
 
 #define VERBOSE_LEVEL ( 0 )
 
@@ -486,7 +486,7 @@ private:
 	UINT32 m_control;
 	UINT16 m_n_security_control;
 
-	required_memory_region m_h8_response;
+	required_region_ptr<UINT8> m_h8_response;
 	int m_h8_index;
 	int m_h8_clk;
 
@@ -793,7 +793,7 @@ WRITE_LINE_MEMBER( ksys573_state::h8_clk_w )
 	{
 		if( state )
 		{
-			if( m_h8_index < m_h8_response->bytes() - 1 )
+			if( m_h8_index < m_h8_response.length() - 1 )
 			{
 				m_h8_index++;
 			}
@@ -805,22 +805,22 @@ WRITE_LINE_MEMBER( ksys573_state::h8_clk_w )
 
 READ_LINE_MEMBER( ksys573_state::h8_d0_r )
 {
-	return ( m_h8_response->base()[ m_h8_index ] >> 0 ) & 1;
+	return ( m_h8_response[ m_h8_index ] >> 0 ) & 1;
 }
 
 READ_LINE_MEMBER( ksys573_state::h8_d1_r )
 {
-	return ( m_h8_response->base()[ m_h8_index ] >> 1 ) & 1;
+	return ( m_h8_response[ m_h8_index ] >> 1 ) & 1;
 }
 
 READ_LINE_MEMBER( ksys573_state::h8_d2_r )
 {
-	return ( m_h8_response->base()[ m_h8_index ] >> 2 ) & 1;
+	return ( m_h8_response[ m_h8_index ] >> 2 ) & 1;
 }
 
 READ_LINE_MEMBER( ksys573_state::h8_d3_r )
 {
-	return ( m_h8_response->base()[ m_h8_index ] >> 3 ) & 1;
+	return ( m_h8_response[ m_h8_index ] >> 3 ) & 1;
 }
 
 
@@ -2038,9 +2038,8 @@ static MACHINE_CONFIG_START( konami573, ksys573_state )
 	MCFG_SLOT_OPTION_MACHINE_CONFIG( "cr589", cr589_config )
 	MCFG_SLOT_DEFAULT_OPTION( "cr589" )
 
-	MCFG_DEVICE_ADD( "maincpu:sio1:cassette", KONAMI573_CASSETTE_SLOT_SERIAL, 0 )
-
 	MCFG_DEVICE_ADD( "cassette", KONAMI573_CASSETTE_SLOT, 0 )
+	MCFG_KONAMI573_CASSETTE_DSR_HANDLER(DEVWRITELINE( "maincpu:sio1", psxsio1_device, write_dsr ) )
 
 	// onboard flash
 	MCFG_FUJITSU_29F016A_ADD( "29f016a.31m" )

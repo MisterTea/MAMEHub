@@ -57,7 +57,7 @@ extern offs_t ppc_dasm_one(char *buffer, UINT32 pc, UINT32 op);
 ***************************************************************************/
 
 #define R32(reg)                m_regmap[reg]
-#define R32Z(reg)               (((reg) == 0) ? parameter(0) : m_regmap[reg])
+#define R32Z(reg)               (((reg) == 0) ? uml::parameter(0) : m_regmap[reg])
 #define F64(reg)                m_fdregmap[reg]
 #define CR32(reg)               mem(&m_core->cr[reg])
 #define FPSCR32                 mem(&m_core->fpscr)
@@ -368,7 +368,7 @@ void ppc_device::code_compile_block(UINT8 mode, offs_t pc)
 
 	/* get a description of this sequence */
 	desclist = m_drcfe->describe_code(pc);
-	if (LOG_UML || LOG_NATIVE)
+	if (m_drcuml->logging() || m_drcuml->logging_native())
 		log_opcode_desc(m_drcuml, desclist, 0);
 
 	bool succeeded = false;
@@ -386,7 +386,7 @@ void ppc_device::code_compile_block(UINT8 mode, offs_t pc)
 				UINT32 nextpc;
 
 				/* add a code log entry */
-				if (LOG_UML)
+				if (m_drcuml->logging())
 					block->append_comment("-------------------------");                         // comment
 
 				/* determine the last instruction in this sequence */
@@ -1297,6 +1297,7 @@ void ppc_device::static_generate_memory_accessor(int mode, int size, int iswrite
 				UML_MOV(block, mem(&m_core->tempaddr), I0);                      // mov     [tempaddr],i0
 				UML_DMOV(block, mem(&m_core->tempdata.d), I1);                   // dmov    [tempdata],i1
 				UML_DSHR(block, I1, I1, 32);                                            // dshr    i1,i1,32
+				UML_AND(block, I0, I0, ~7);                                             // and     i0,i0,~7
 				UML_DMOV(block, I2, U64(0x00000000ffffffff));                           // dmov    i2,0x00000000ffffffff
 				UML_CALLH(block, *masked);                                              // callh   masked
 				UML_ADD(block, I0, mem(&m_core->tempaddr), 4);                   // add     i0,[tempaddr],4
@@ -1308,6 +1309,7 @@ void ppc_device::static_generate_memory_accessor(int mode, int size, int iswrite
 			{
 				UML_MOV(block, mem(&m_core->tempaddr), I0);                      // mov     [tempaddr],i0
 				UML_DMOV(block, I2, U64(0x00000000ffffffff));                           // mov     i2,0x00000000ffffffff
+				UML_AND(block, I0, I0, ~7);                                             // and     i0,i0,~7
 				UML_CALLH(block, *masked);                                              // callh   masked
 				UML_DSHL(block, mem(&m_core->tempdata.d), I0, 32);               // dshl    [tempdata],i0,32
 				UML_ADD(block, I0, mem(&m_core->tempaddr), 4);                   // add     i0,[tempaddr],4
@@ -1547,7 +1549,7 @@ void ppc_device::generate_update_mode(drcuml_block *block)
     an exception if out
 -------------------------------------------------*/
 
-void ppc_device::generate_update_cycles(drcuml_block *block, compiler_state *compiler, parameter param, int allow_exception)
+void ppc_device::generate_update_cycles(drcuml_block *block, compiler_state *compiler, uml::parameter param, int allow_exception)
 {
 	/* check full interrupts if pending */
 	if (compiler->checkints)
@@ -1585,7 +1587,7 @@ void ppc_device::generate_update_cycles(drcuml_block *block, compiler_state *com
 void ppc_device::generate_checksum_block(drcuml_block *block, compiler_state *compiler, const opcode_desc *seqhead, const opcode_desc *seqlast)
 {
 	const opcode_desc *curdesc;
-	if (LOG_UML)
+	if (m_drcuml->logging())
 		block->append_comment("[Validation for %08X]", seqhead->pc);                        // comment
 
 	/* loose verify or single instruction: just compare and fail */
@@ -1642,7 +1644,7 @@ void ppc_device::generate_sequence_instruction(drcuml_block *block, compiler_sta
 	int hotnum;
 
 	/* add an entry for the log */
-	if (LOG_UML && !(desc->flags & OPFLAG_VIRTUAL_NOOP))
+	if (m_drcuml->logging() && !(desc->flags & OPFLAG_VIRTUAL_NOOP))
 		log_add_disasm_comment(block, desc->pc, desc->opptr.l[0]);
 
 	/* set the PC map variable */
@@ -3157,7 +3159,7 @@ int ppc_device::generate_instruction_1f(drcuml_block *block, compiler_state *com
 			UML_CMP(block, I0, I0);                                             // cmp     i0,i0
 			UML_GETFLGS(block, I0, FLAG_Z | FLAG_C | FLAG_S);                           // getflgs i0,zcs
 			UML_LOAD(block, I0, m_cmp_cr_table, I0, SIZE_BYTE, SCALE_x1);// load    i0,cmp_cr_table,i0,byte
-			UML_OR(block, CR32(G_CRFD(op)), I0, XERSO32);                               // or      [crn],i0,[xerso]
+			UML_OR(block, CR32(0), I0, XERSO32);                               // or      [cr0],i0,[xerso]
 
 			generate_compute_flags(block, desc, TRUE, 0, FALSE);                       // <update flags>
 			return TRUE;
@@ -3710,7 +3712,7 @@ int ppc_device::generate_instruction_3f(drcuml_block *block, compiler_state *com
 void ppc_device::log_add_disasm_comment(drcuml_block *block, UINT32 pc, UINT32 op)
 {
 	char buffer[100];
-	if (LOG_UML)
+	if (m_drcuml->logging())
 	{
 		ppc_dasm_one(buffer, pc, op);
 		block->append_comment("%08X: %s", pc, buffer);                                  // comment
@@ -3893,7 +3895,7 @@ void ppc_device::log_opcode_desc(drcuml_state *drcuml, const opcode_desc *descli
 		char buffer[100];
 
 		/* disassemle the current instruction and output it to the log */
-		if (LOG_UML || LOG_NATIVE)
+		if (drcuml->logging() || drcuml->logging_native())
 		{
 			if (desclist->flags & OPFLAG_VIRTUAL_NOOP)
 				strcpy(buffer, "<virtual nop>");

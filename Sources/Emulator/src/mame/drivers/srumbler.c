@@ -17,7 +17,7 @@
 #include "includes/srumbler.h"
 
 
-WRITE8_MEMBER(srumbler_state::srumbler_bankswitch_w)
+WRITE8_MEMBER(srumbler_state::bankswitch_w)
 {
 	/*
 	  banking is controlled by two PROMs. 0000-4fff is mapped to the same
@@ -27,30 +27,34 @@ WRITE8_MEMBER(srumbler_state::srumbler_bankswitch_w)
 	  Note that 5000-8fff can be either ROM or RAM, so we should handle
 	  that as well to be 100% accurate.
 	 */
-	int i;
-	UINT8 *ROM = memregion("user1")->base();
 	UINT8 *prom1 = memregion("proms")->base() + (data & 0xf0);
 	UINT8 *prom2 = memregion("proms")->base() + 0x100 + ((data & 0x0f) << 4);
 
-	for (i = 0x05;i < 0x10;i++)
+	for (int i = 0x05;i < 0x10;i++)
 	{
-		int bank = ((prom1[i] & 0x03) << 4) | (prom2[i] & 0x0f);
-		char bankname[10];
 		/* bit 2 of prom1 selects ROM or RAM - not supported */
+		int bank = ((prom1[i] & 0x03) << 4) | (prom2[i] & 0x0f);
 
+		char bankname[10];
 		sprintf(bankname, "%04x", i*0x1000);
-		membank(bankname)->set_base(&ROM[bank*0x1000]);
+		membank(bankname)->set_entry(bank);
 	}
 }
 
 void srumbler_state::machine_start()
 {
-	address_space &space = m_maincpu->space(AS_PROGRAM);
+	for (int i = 0x05; i < 0x10; i++)
+	{
+		char bankname[10];
+		sprintf(bankname, "%04x", i*0x1000);
+		membank(bankname)->configure_entries(0, 64, memregion("user1")->base(), 0x1000);
+	}
+
 	/* initialize banked ROM pointers */
-	srumbler_bankswitch_w(space,0,0);
+	bankswitch_w(m_maincpu->space(AS_PROGRAM), 0, 0);
 }
 
-TIMER_DEVICE_CALLBACK_MEMBER(srumbler_state::srumbler_interrupt)
+TIMER_DEVICE_CALLBACK_MEMBER(srumbler_state::interrupt)
 {
 	int scanline = param;
 
@@ -74,17 +78,17 @@ Ignore the warnings about writing to unmapped memory.
 static ADDRESS_MAP_START( srumbler_map, AS_PROGRAM, 8, srumbler_state )
 	AM_RANGE(0x0000, 0x1dff) AM_RAM  /* RAM (of 1 sort or another) */
 	AM_RANGE(0x1e00, 0x1fff) AM_RAM AM_SHARE("spriteram")
-	AM_RANGE(0x2000, 0x3fff) AM_RAM_WRITE(srumbler_background_w) AM_SHARE("backgroundram")
-	AM_RANGE(0x4008, 0x4008) AM_READ_PORT("SYSTEM") AM_WRITE(srumbler_bankswitch_w)
-	AM_RANGE(0x4009, 0x4009) AM_READ_PORT("P1") AM_WRITE(srumbler_4009_w)
+	AM_RANGE(0x2000, 0x3fff) AM_RAM_WRITE(background_w) AM_SHARE("backgroundram")
+	AM_RANGE(0x4008, 0x4008) AM_READ_PORT("SYSTEM") AM_WRITE(bankswitch_w)
+	AM_RANGE(0x4009, 0x4009) AM_READ_PORT("P1") AM_WRITE(_4009_w)
 	AM_RANGE(0x400a, 0x400a) AM_READ_PORT("P2")
 	AM_RANGE(0x400b, 0x400b) AM_READ_PORT("DSW1")
 	AM_RANGE(0x400c, 0x400c) AM_READ_PORT("DSW2")
-	AM_RANGE(0x400a, 0x400d) AM_WRITE(srumbler_scroll_w)
+	AM_RANGE(0x400a, 0x400d) AM_WRITE(scroll_w)
 	AM_RANGE(0x400e, 0x400e) AM_WRITE(soundlatch_byte_w)
-	AM_RANGE(0x5000, 0x5fff) AM_ROMBANK("5000") AM_WRITE(srumbler_foreground_w) AM_SHARE("foregroundram") /* Banked ROM */
+	AM_RANGE(0x5000, 0x5fff) AM_ROMBANK("5000") AM_WRITE(foreground_w) AM_SHARE("foregroundram") /* Banked ROM */
 	AM_RANGE(0x6000, 0x6fff) AM_ROMBANK("6000") /* Banked ROM */
-	AM_RANGE(0x6000, 0x6fff) AM_WRITENOP    /* Video RAM 2 ??? (not used) */
+	AM_RANGE(0x6000, 0x6fff) AM_WRITENOP        /* Video RAM 2 ??? (not used) */
 	AM_RANGE(0x7000, 0x7fff) AM_ROMBANK("7000") /* Banked ROM */
 	AM_RANGE(0x7000, 0x73ff) AM_DEVWRITE("palette", palette_device, write) AM_SHARE("palette")
 	AM_RANGE(0x8000, 0x8fff) AM_ROMBANK("8000") /* Banked ROM */
@@ -238,7 +242,7 @@ static MACHINE_CONFIG_START( srumbler, srumbler_state )
 	/* basic machine hardware */
 	MCFG_CPU_ADD("maincpu", M6809, 1500000)        /* 1.5 MHz (?) */
 	MCFG_CPU_PROGRAM_MAP(srumbler_map)
-	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", srumbler_state, srumbler_interrupt, "screen", 0, 1)
+	MCFG_TIMER_DRIVER_ADD_SCANLINE("scantimer", srumbler_state, interrupt, "screen", 0, 1)
 
 	MCFG_CPU_ADD("audiocpu", Z80, 3000000)        /* 3 MHz ??? */
 	MCFG_CPU_PROGRAM_MAP(srumbler_sound_map)
@@ -253,7 +257,7 @@ static MACHINE_CONFIG_START( srumbler, srumbler_state )
 	MCFG_SCREEN_VBLANK_TIME(ATTOSECONDS_IN_USEC(0))
 	MCFG_SCREEN_SIZE(64*8, 32*8)
 	MCFG_SCREEN_VISIBLE_AREA(10*8, (64-10)*8-1, 1*8, 31*8-1 )
-	MCFG_SCREEN_UPDATE_DRIVER(srumbler_state, screen_update_srumbler)
+	MCFG_SCREEN_UPDATE_DRIVER(srumbler_state, screen_update)
 	MCFG_SCREEN_VBLANK_DEVICE("spriteram", buffered_spriteram8_device, vblank_copy_rising)
 	MCFG_SCREEN_PALETTE("palette")
 
@@ -289,16 +293,16 @@ MACHINE_CONFIG_END
 ROM_START( srumbler )
 	ROM_REGION( 0x40000, "user1", 0 ) /* Paged ROMs */
 	ROM_LOAD( "rc04.14e",   0x00000, 0x08000, CRC(a68ce89c) SHA1(cb5dd8c47c24f9d8ac9a6135c0b7942d16002d25) )
-	ROM_LOAD( "rc03(__srumbler).13e",   0x08000, 0x08000, CRC(87bda812) SHA1(f46dcce21d78c8525a2578b73e05b7cd8a2d8745) )
-	ROM_LOAD( "rc02(__srumbler).12e",   0x10000, 0x08000, CRC(d8609cca) SHA1(893f1f1ac0aef5d31e75228252c14c4b522bff16) )
-	ROM_LOAD( "rc01(__srumbler).11e",   0x18000, 0x08000, CRC(27ec4776) SHA1(09a53fd6472888664c21f49ab78b2c5d77d2caa1) )
-	ROM_LOAD( "rc09(__srumbler).14f",   0x20000, 0x08000, CRC(2146101d) SHA1(cacd7a13d67f43a0fc624d1c5e29d9816bd6b1c7) )
-	ROM_LOAD( "rc08(__srumbler).13f",   0x28000, 0x08000, CRC(838369a6) SHA1(6fdcbe2db488d4d99453b5537cf05ed18112368e) )
+	ROM_LOAD( "rc03.13e",   0x08000, 0x08000, CRC(87bda812) SHA1(f46dcce21d78c8525a2578b73e05b7cd8a2d8745) ) // sldh
+	ROM_LOAD( "rc02.12e",   0x10000, 0x08000, CRC(d8609cca) SHA1(893f1f1ac0aef5d31e75228252c14c4b522bff16) ) // sldh
+	ROM_LOAD( "rc01.11e",   0x18000, 0x08000, CRC(27ec4776) SHA1(09a53fd6472888664c21f49ab78b2c5d77d2caa1) ) // sldh
+	ROM_LOAD( "rc09.14f",   0x20000, 0x08000, CRC(2146101d) SHA1(cacd7a13d67f43a0fc624d1c5e29d9816bd6b1c7) ) // sldh
+	ROM_LOAD( "rc08.13f",   0x28000, 0x08000, CRC(838369a6) SHA1(6fdcbe2db488d4d99453b5537cf05ed18112368e) ) // sldh
 	ROM_LOAD( "rc07.12f",   0x30000, 0x08000, CRC(de785076) SHA1(bdb104c6c875f5362c0d1ba9a8c5dd450c9c014b) )
 	ROM_LOAD( "rc06.11f",   0x38000, 0x08000, CRC(a70f4fd4) SHA1(21be3865b9f7fa265f265a565bab896357d7464f) )
 
 	ROM_REGION( 0x10000, "audiocpu", 0 )
-	ROM_LOAD( "rc05(__srumbler).2f",    0x00000, 0x08000, CRC(0177cebe) SHA1(0fa94d2057f509a6fe1de210bf513efc82f1ffe7) )
+	ROM_LOAD( "rc05.2f",    0x00000, 0x08000, CRC(0177cebe) SHA1(0fa94d2057f509a6fe1de210bf513efc82f1ffe7) ) // sldh
 
 	ROM_REGION( 0x04000, "gfx1", 0 )
 	ROM_LOAD( "rc10.6g",    0x00000, 0x04000, CRC(adabe271) SHA1(256d6823dcda404375825103272213e1442c3320) ) /* characters */
@@ -332,11 +336,11 @@ ROM_END
 ROM_START( srumbler2 )
 	ROM_REGION( 0x40000, "user1", 0 ) /* Paged ROMs */
 	ROM_LOAD( "rc04.14e",   0x00000, 0x08000, CRC(a68ce89c) SHA1(cb5dd8c47c24f9d8ac9a6135c0b7942d16002d25) )
-	ROM_LOAD( "rc03(__srumbler2).13e",   0x08000, 0x08000, CRC(e82f78d4) SHA1(39cb5d9c18e7635d48aa29221ae99e6a500e2841) )
+	ROM_LOAD( "rc03.13e",   0x08000, 0x08000, CRC(e82f78d4) SHA1(39cb5d9c18e7635d48aa29221ae99e6a500e2841) ) // sldh
 	ROM_LOAD( "rc02.12e",   0x10000, 0x08000, CRC(009a62d8) SHA1(72b52b34186304d70214f56acdb0f3af5bed9503) )
 	ROM_LOAD( "rc01.11e",   0x18000, 0x08000, CRC(2ac48d1d) SHA1(9e41cddb8f8f96e55f915ae5c244c123cc4f8c9a) )
 	ROM_LOAD( "rc09.14f",   0x20000, 0x08000, CRC(64f23e72) SHA1(2de892f8753df0ac85389328342089bd5cc57f38) )
-	ROM_LOAD( "rc08(__srumbler2).13f",   0x28000, 0x08000, CRC(74c71007) SHA1(9b7f159dc1e3add85a3aaeb697aa800a37d09f52) )
+	ROM_LOAD( "rc08.13f",   0x28000, 0x08000, CRC(74c71007) SHA1(9b7f159dc1e3add85a3aaeb697aa800a37d09f52) ) // sldh
 	ROM_LOAD( "rc07.12f",   0x30000, 0x08000, CRC(de785076) SHA1(bdb104c6c875f5362c0d1ba9a8c5dd450c9c014b) )
 	ROM_LOAD( "rc06.11f",   0x38000, 0x08000, CRC(a70f4fd4) SHA1(21be3865b9f7fa265f265a565bab896357d7464f) )
 
@@ -375,11 +379,11 @@ ROM_END
 ROM_START( srumbler3 )
 	ROM_REGION( 0x40000, "user1", 0 ) /* Paged ROMs */
 	ROM_LOAD( "rc04.14e",   0x00000, 0x08000, CRC(a68ce89c) SHA1(cb5dd8c47c24f9d8ac9a6135c0b7942d16002d25) )
-	ROM_LOAD( "rc03(__srumbler3).13e",   0x08000, 0x08000, CRC(0a21992b) SHA1(6096313210ae729b1c2a27a581473b06c60f5611) )
+	ROM_LOAD( "rc03.13e",   0x08000, 0x08000, CRC(0a21992b) SHA1(6096313210ae729b1c2a27a581473b06c60f5611) ) // sldh
 	ROM_LOAD( "rc02.12e",   0x10000, 0x08000, CRC(009a62d8) SHA1(72b52b34186304d70214f56acdb0f3af5bed9503) )
 	ROM_LOAD( "rc01.11e",   0x18000, 0x08000, CRC(2ac48d1d) SHA1(9e41cddb8f8f96e55f915ae5c244c123cc4f8c9a) )
 	ROM_LOAD( "rc09.14f",   0x20000, 0x08000, CRC(64f23e72) SHA1(2de892f8753df0ac85389328342089bd5cc57f38) )
-	ROM_LOAD( "rc08(__srumbler3).13f",   0x28000, 0x08000, CRC(e361b55c) SHA1(5f3ee4e8e6e855a4334d3599e0ef12bc7bd8c3a4) )
+	ROM_LOAD( "rc08.13f",   0x28000, 0x08000, CRC(e361b55c) SHA1(5f3ee4e8e6e855a4334d3599e0ef12bc7bd8c3a4) ) // sldh
 	ROM_LOAD( "rc07.12f",   0x30000, 0x08000, CRC(de785076) SHA1(bdb104c6c875f5362c0d1ba9a8c5dd450c9c014b) )
 	ROM_LOAD( "rc06.11f",   0x38000, 0x08000, CRC(a70f4fd4) SHA1(21be3865b9f7fa265f265a565bab896357d7464f) )
 
@@ -430,7 +434,7 @@ ROM_START( rushcrsh )
 	ROM_LOAD( "rc05.2f",    0x00000, 0x08000, CRC(ea04fa07) SHA1(e29bfc3ed9e6606206ee41c90aaaeddffa26c1b4) )
 
 	ROM_REGION( 0x04000, "gfx1", 0 )
-	ROM_LOAD( "rc10(__rushcrsh).6g",    0x00000, 0x04000, CRC(0a3c0b0d) SHA1(63f4daaea852c077f0ddd04d4bb4cd6333a8de7c) ) /* characters */
+	ROM_LOAD( "rc10.6g",    0x00000, 0x04000, CRC(0a3c0b0d) SHA1(63f4daaea852c077f0ddd04d4bb4cd6333a8de7c) ) /* characters */ // sldh
 
 	ROM_REGION( 0x40000, "gfx2", 0 )
 	ROM_LOAD( "rc11.11a",   0x00000, 0x08000, CRC(5fa042ba) SHA1(9e03eaf22286330826501619a7b74181dc42a5fa) ) /* tiles */
@@ -460,7 +464,7 @@ ROM_END
 
 
 
-GAME( 1986, srumbler,  0,        srumbler, srumbler, driver_device, 0, ROT270, "Capcom", "The Speed Rumbler (set 1)", 0 )
-GAME( 1986, srumbler2, srumbler, srumbler, srumbler, driver_device, 0, ROT270, "Capcom", "The Speed Rumbler (set 2)", 0 )
-GAME( 1986, srumbler3, srumbler, srumbler, srumbler, driver_device, 0, ROT270, "Capcom (Tecfri license)", "The Speed Rumbler (set 3)", 0 )
-GAME( 1986, rushcrsh,  srumbler, srumbler, srumbler, driver_device, 0, ROT270, "Capcom", "Rush & Crash (Japan)", 0 )
+GAME( 1986, srumbler,  0,        srumbler, srumbler, driver_device, 0, ROT270, "Capcom", "The Speed Rumbler (set 1)", GAME_SUPPORTS_SAVE )
+GAME( 1986, srumbler2, srumbler, srumbler, srumbler, driver_device, 0, ROT270, "Capcom", "The Speed Rumbler (set 2)", GAME_SUPPORTS_SAVE )
+GAME( 1986, srumbler3, srumbler, srumbler, srumbler, driver_device, 0, ROT270, "Capcom (Tecfri license)", "The Speed Rumbler (set 3)", GAME_SUPPORTS_SAVE )
+GAME( 1986, rushcrsh,  srumbler, srumbler, srumbler, driver_device, 0, ROT270, "Capcom", "Rush & Crash (Japan)", GAME_SUPPORTS_SAVE )

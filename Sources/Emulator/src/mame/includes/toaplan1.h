@@ -27,7 +27,7 @@ public:
 
 	optional_shared_ptr<UINT8> m_sharedram;
 
-	int m_coin_count; /* coin count increments on startup ? , so dont count it */
+	int m_coin_count; /* coin count increments on startup ? , so don't count it */
 	int m_intenable;
 
 	/* Demon world */
@@ -150,7 +150,6 @@ public:
 	void toaplan1_driver_savestate();
 	void demonwld_driver_savestate();
 	void vimana_driver_savestate();
-	DECLARE_WRITE_LINE_MEMBER(irqhandler);
 	DECLARE_WRITE_LINE_MEMBER(toaplan1_reset_callback);
 	required_device<m68000_device> m_maincpu;
 	required_device<cpu_device> m_audiocpu;
@@ -177,11 +176,3 @@ public:
 
 	required_device<toaplan_scu_device> m_spritegen;
 };
-
-
-
-
-/*----------- defined in machine/toaplan1.c -----------*/
-void toaplan1_driver_savestate(running_machine &machine);
-void demonwld_driver_savestate(running_machine &machine);
-void vimana_driver_savestate(running_machine &machine);

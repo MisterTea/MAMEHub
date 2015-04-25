@@ -29,12 +29,12 @@
 void segas18_state::video_start()
 {
 	m_temp_bitmap.allocate(m_screen->width(), m_screen->height());
-	m_grayscale_enable = false;
-	m_vdp_enable = false;
+	m_grayscale_enable = 0;
+	m_vdp_enable = 0;
 	m_vdp_mixing = 0;
 
 	// initialize the tile/text layers
-	m_segaic16vid->segaic16_tilemap_init(machine(), 0, SEGAIC16_TILEMAP_16B, 0x000, 0, 8);
+	m_segaic16vid->tilemap_init( 0, SEGAIC16_TILEMAP_16B, 0x000, 0, 8);
 
 	save_item(NAME(m_grayscale_enable));
 	save_item(NAME(m_vdp_enable));
@@ -50,23 +50,23 @@ void segas18_state::video_start()
  *
  *************************************/
 
-void segas18_state::set_grayscale(bool enable)
+WRITE_LINE_MEMBER(segas18_state::set_grayscale)
 {
-	if (enable != m_grayscale_enable)
+	if (state != m_grayscale_enable)
 	{
 		m_screen->update_partial(m_screen->vpos());
-		m_grayscale_enable = enable;
+		m_grayscale_enable = state;
 //      osd_printf_debug("Grayscale = %02X\n", enable);
 	}
 }
 
 
-void segas18_state::set_vdp_enable(bool enable)
+WRITE_LINE_MEMBER(segas18_state::set_vdp_enable)
 {
-	if (enable != m_vdp_enable)
+	if (state != m_vdp_enable)
 	{
 		m_screen->update_partial(m_screen->vpos());
-		m_vdp_enable = enable;
+		m_vdp_enable = state;
 #if DEBUG_VDP
 		osd_printf_debug("VDP enable = %02X\n", enable);
 #endif
@@ -187,7 +187,7 @@ UINT32 segas18_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap,
 #endif
 
 	// if no drawing is happening, fill with black and get out
-	if (!m_segaic16vid->segaic16_display_enable)
+	if (!m_segaic16vid->m_display_enable)
 	{
 		bitmap.fill(m_palette->black_pen(), cliprect);
 		return 0;
@@ -200,28 +200,29 @@ UINT32 segas18_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap,
 	screen.priority().fill(0, cliprect);
 
 	// draw background opaquely first, not setting any priorities
-	m_segaic16vid->segaic16_tilemap_draw(screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_BACKGROUND, 0 | TILEMAP_DRAW_OPAQUE, 0x00);
-	m_segaic16vid->segaic16_tilemap_draw(screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_BACKGROUND, 1 | TILEMAP_DRAW_OPAQUE, 0x00);
+	m_segaic16vid->tilemap_draw( screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_BACKGROUND, 0 | TILEMAP_DRAW_OPAQUE, 0x00);
+	m_segaic16vid->tilemap_draw( screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_BACKGROUND, 1 | TILEMAP_DRAW_OPAQUE, 0x00);
 	if (m_vdp_enable && vdplayer == 0) draw_vdp(screen, bitmap, cliprect, vdppri);
 
 	// draw background again to draw non-transparent pixels over the VDP and set the priority
-	m_segaic16vid->segaic16_tilemap_draw(screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_BACKGROUND, 0, 0x01);
-	m_segaic16vid->segaic16_tilemap_draw(screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_BACKGROUND, 1, 0x02);
+	m_segaic16vid->tilemap_draw( screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_BACKGROUND, 0, 0x01);
+	m_segaic16vid->tilemap_draw( screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_BACKGROUND, 1, 0x02);
 	if (m_vdp_enable && vdplayer == 1) draw_vdp(screen, bitmap, cliprect, vdppri);
 
 	// draw foreground
-	m_segaic16vid->segaic16_tilemap_draw(screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_FOREGROUND, 0, 0x02);
-	m_segaic16vid->segaic16_tilemap_draw(screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_FOREGROUND, 1, 0x04);
+	m_segaic16vid->tilemap_draw( screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_FOREGROUND, 0, 0x02);
+	m_segaic16vid->tilemap_draw( screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_FOREGROUND, 1, 0x04);
 	if (m_vdp_enable && vdplayer == 2) draw_vdp(screen, bitmap, cliprect, vdppri);
 
 	// text layer
-	m_segaic16vid->segaic16_tilemap_draw(screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_TEXT, 0, 0x04);
-	m_segaic16vid->segaic16_tilemap_draw(screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_TEXT, 1, 0x08);
+	m_segaic16vid->tilemap_draw( screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_TEXT, 0, 0x04);
+	m_segaic16vid->tilemap_draw( screen, bitmap, cliprect, 0, SEGAIC16_TILEMAP_TEXT, 1, 0x08);
 	if (m_vdp_enable && vdplayer == 3) draw_vdp(screen, bitmap, cliprect, vdppri);
 
 	// mix in sprites
 	bitmap_ind16 &sprites = m_sprites->bitmap();
 	for (const sparse_dirty_rect *rect = m_sprites->first_dirty_rect(cliprect); rect != NULL; rect = rect->next())
+	{
 		for (int y = rect->min_y; y <= rect->max_y; y++)
 		{
 			UINT16 *dest = &bitmap.pix(y);
@@ -248,6 +249,7 @@ UINT32 segas18_state::screen_update(screen_device &screen, bitmap_ind16 &bitmap,
 				}
 			}
 		}
+	}
 
 #if DEBUG_VDP
 	if (m_vdp_enable && machine().input().code_pressed(KEYCODE_V))

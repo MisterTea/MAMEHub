@@ -211,6 +211,30 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
+	<!-- doesn't boot, loads first sector, and jumps into the text at the beginning of it -->
+	<software name="dsenraku" supported="no">
+		<description>Dsenryaku</description>
+		<year>19??</year>
+		<publisher>&lt;Unknown&gt;</publisher>
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="dsenryaku.d77" size="348848" crc="35f02f75" sha1="f590c7f2d3d1b602274bef5e1992babf4acfebc3" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="fireball">
+		<description>Fireball</description>
+		<year>1987</year>
+		<publisher>ハミングバードソフト (Humming Bird Soft)</publisher>
+		<info name="serial" value="12130"/>
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="fireball.d77" size="348848" crc="40562d43" sha1="1bf32a4ec4600ce9ba9ebdc8233311ed08dc8f52" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="hotdog">
 		<description>Hotdog</description>
 		<year>1986</year>
@@ -559,7 +583,7 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
-	<software name="probbfan">
+	<software name="proyakfn">
 <!-- Keys listed in readme:
 キー操作/ 1P/ テンキー:方向 "_"キー:Aボタン ":"キー:Bボタン
      2P/ Rキー:↑ Vキー:↓ Gキー:→ Dキー:←
@@ -668,6 +692,23 @@ Titles, serial #s, publishers and release dates taken from:
 		</part>
 	</software>
 
+	<software name="ruin">
+		<description>Ruin</description>
+		<year>1987</year>
+		<publisher>ウインキーソフト (Winky Soft)</publisher>
+		<info name="serial" value="KO-1028(FUWS19001)"/>
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="ruin_a.d77" size="348848" crc="67ce97b8" sha1="0034e0a4999b92f548abc52607cd1b75bcc4f6c9" offset="000000" />
+			</dataarea>
+		</part>
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="ruin_b.d77" size="348848" crc="45bdccc2" sha1="86baec6e7febc31d99ce1b71193a1b6dae21b0c8" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
 	<software name="seles">
 		<description>Seles</description>
 		<year>1990</year>
@@ -761,6 +802,29 @@ Titles, serial #s, publishers and release dates taken from:
 		<part name="flop2" interface="floppy_5_25">
 			<dataarea name="flop" size="348848">    <!-- Data CRC16: 48335 -->
 				<rom name="silpheed (disk 2).d77" size="348848" crc="1fdaa3d7" sha1="456548ab6ae7a1acd1a6c59d8912345c2c6d0e63" offset="000000" />
+			</dataarea>
+		</part>
+	</software>
+
+	<software name="skapon">
+		<description>Skapon Tanken-tai</description>
+		<year>1988?</year>
+		<publisher>パソコンショップ高知 (PSK)</publisher>
+		<info name="alt_title" value="SKAPON探険隊"/>
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="disk1.d77" size="348848" crc="c85aa607" sha1="40fbb2a0521068a05bb7202d2217056dcf5a9c13" offset="0" />
+			</dataarea>
+		</part>
+		<!-- Disk 2 is the same as the FM7 version? -->
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="skapon7 disk2.d77" size="348848" crc="14482165" sha1="513ab8965e2fe02264089cdbefc2da74c122dbd4" offset="0" />
+			</dataarea>
+		</part>
+		<part name="flop3" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="disk3.d77" size="348848" crc="d7f8e84f" sha1="e068551cba5da6eb9677d35a10296d320d8ac6ea" offset="0" />
 			</dataarea>
 		</part>
 	</software>
@@ -1118,6 +1182,23 @@ Titles, serial #s, publishers and release dates taken from:
 		<part name="flop1" interface="floppy_5_25">
 			<dataarea name="flop" size="348848">
 				<rom name="fm sound editor v1.0 (1985)(fujitsu)(jp).d77" size="348848" crc="4d5603c1" sha1="3d8a6c1d98891e7a5b87e06077ad9979f5e9f5a0" offset="0"/>
+			</dataarea>
+		</part>
+	</software>
+
+	<!-- boots into F-BASIC ok, but trying to access the disk gives Device I/O Error -->
+	<software name="fukuall" supported="partial">
+		<description>Team AB Music Disk</description>
+		<year>2002</year>
+		<publisher>&lt;Unknown&gt;</publisher>
+		<part name="flop1" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="fukuall1.d77" size="348848" crc="aa46fccc" sha1="3b202f79548f2df1920bc5619f5e6d04ee5be944" offset="0"/>
+			</dataarea>
+		</part>
+		<part name="flop2" interface="floppy_5_25">
+			<dataarea name="flop" size="348848">
+				<rom name="fukuall2.d77" size="348848" crc="1f6eb1dd" sha1="c4dfee579089438fd0e11b0c62e1b7b74778d0c3" offset="0"/>
 			</dataarea>
 		</part>
 	</software>

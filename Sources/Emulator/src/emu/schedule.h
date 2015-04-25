@@ -126,6 +126,7 @@ public:
 	// getters
 	running_machine &machine() const { return m_machine; }
 	attotime time() const;
+  attotime first_device_time() const;
 	emu_timer *first_timer() const { return m_timer_list; }
 	device_execute_interface *currently_executing() const { return m_executing_device; }
 	bool can_save() const;

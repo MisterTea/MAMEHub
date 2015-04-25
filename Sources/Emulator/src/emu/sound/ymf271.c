@@ -1314,7 +1314,7 @@ UINT8 ymf271_device::ymf271_read_memory(UINT32 offset)
 
 		/* 8MB chip limit (shouldn't happen) */
 		else if (offset > 0x7fffff)
-			return m_mem_base[offset & 0x7fffff];
+			return ymf271_read_memory(offset & 0x7fffff);
 
 		else
 			return 0;
@@ -1710,7 +1710,7 @@ void ymf271_device::device_start()
 	m_timA = timer_alloc(0);
 	m_timB = timer_alloc(1);
 
-	m_mem_base = *region();
+	m_mem_base = region()->base();
 	m_mem_size = region()->bytes();
 	m_irq_handler.resolve();
 

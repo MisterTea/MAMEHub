@@ -13,7 +13,6 @@
 #ifndef __CORETMPL_H__
 #define __CORETMPL_H__
 
-#include <assert.h>
 #include "osdcore.h"
 #include "corealloc.h"
 
@@ -99,6 +98,14 @@ public:
 	void resize_and_clear(int count, UINT8 data = 0) { resize(count); clear(data); }
 	void resize_keep_and_clear_new(int count, UINT8 data = 0) { int oldcount = m_count; resize_keep(count); if (oldcount < m_count) clear_internal(oldcount, m_count - oldcount, data); }
 
+	// batch operations
+	void copyfrom(const dynamic_array<_ElementType> &source)
+	{
+		resize(source.count());
+		for (int i=0; i < source.count(); i++)
+			m_array[i] = source[i];
+	}
+
 private:
 	// internal helpers
 	void expand_internal(int count)
@@ -119,9 +126,8 @@ private:
 		global_free_array(oldarray);
 	}
 
-//#ifdef __GNUC__
-#if 0  // Clang defines __GNUC__ but doesn't support this operation.
-	void clear_internal(UINT32 start, UINT32 count, UINT8 data) { assert(__is_pod(_ElementType)); memset(&m_array[start], data, count * sizeof(*m_array)); }
+#if defined(__GNUC__) && !defined(SDLMAME_MACOSX)
+	void clear_internal(UINT32 start, UINT32 count, UINT8 data) { assert(__is_pod(_ElementType)); memset((void *)&m_array[start], data, count * sizeof(*m_array)); }
 #else
 	void clear_internal(UINT32 start, UINT32 count, UINT8 data) { memset(&m_array[start], data, count * sizeof(*m_array)); }
 #endif

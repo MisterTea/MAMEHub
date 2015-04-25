@@ -55,7 +55,7 @@
 
             - calls config_load_settings() [config.c] to load the configuration file
             - calls nvram_load [machine/generic.c] to load NVRAM
-            - calls ui_display_startup_screens() [ui.c] to display the the startup screens
+            - calls ui_display_startup_screens() [ui.c] to display the startup screens
             - begins resource tracking (level 2)
             - calls soft_reset() [mame.c] to reset all systems
 
@@ -95,6 +95,12 @@
 //**************************************************************************
 
 machine_manager* machine_manager::m_manager = NULL;
+
+osd_interface &machine_manager::osd() const
+{
+	return m_osd;
+}
+
 
 machine_manager* machine_manager::instance(emu_options &options,osd_interface &osd)
 {
@@ -243,10 +249,17 @@ int machine_manager::execute()
 		if (m_new_driver_pending)
 		{
 			astring old_system_name(m_options.system_name());
-			m_options.set_system_name(m_new_driver_pending->name);
-			astring error_string;
-			if (old_system_name != m_options.system_name()) {
+			bool new_system = (old_system_name != m_new_driver_pending->name);
+			// first: if we scheduled a new system, remove device options of the old system
+			// notice that, if we relaunch the same system, there is no effect on the emulation
+			if (new_system)
 				m_options.remove_device_options();
+			// second: set up new system name (and the related device options)
+			m_options.set_system_name(m_new_driver_pending->name);
+			// third: if we scheduled a new system, take also care of ramsize options
+			if (new_system)
+			{
+				astring error_string;
 				m_options.set_value(OPTION_RAMSIZE, "", OPTION_PRIORITY_CMDLINE, error_string);
 			}
 			firstrun = true;
@@ -296,6 +309,16 @@ void CLIB_DECL popmessage(const char *format, ...)
 
 		// pop it in the UI
 		machine_manager::instance()->machine()->ui().popup_time(temp.len() / 40 + 2, "%s", temp.cstr());
+
+		/*
+		// also write to error.log
+		logerror("popmessage: %s\n", temp.cstr());
+
+#ifdef MAME_DEBUG
+		// and to command-line in a DEBUG build
+		osd_printf_info("popmessage: %s\n", temp.cstr());
+#endif
+		*/
 	}
 }
 
