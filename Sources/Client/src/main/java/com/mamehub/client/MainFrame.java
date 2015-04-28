@@ -1164,7 +1164,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 		MainFrame.this.requestFocus();
 		MainFrame.this.repaint();
 		
-		setTitle("MAMEHub 3.1 (Based on UME 0.154)");
+		setTitle("MAMEHub 3.2 (Based on UME 0.160)");
 	}
 
 	protected void updateGameList() {

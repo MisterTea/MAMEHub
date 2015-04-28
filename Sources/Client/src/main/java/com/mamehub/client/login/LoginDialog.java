@@ -116,7 +116,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 		getContentPane().add(contentPanel);
 		contentPanel.setLayout(new BoxLayout(contentPanel, BoxLayout.Y_AXIS));
 		{
-			lblWelcomeToMamehub = new JLabel("<html>Welcome to <a href=\"www.mamehub.info\">MAMEHub 3.1</a>!</html>");
+			lblWelcomeToMamehub = new JLabel("<html>Welcome to <a href=\"www.mamehub.info\">MAMEHub 3.2</a>!</html>");
 			lblWelcomeToMamehub.setHorizontalAlignment(SwingConstants.CENTER);
 			lblWelcomeToMamehub.setAlignmentX(Component.CENTER_ALIGNMENT);
 			contentPanel.add(lblWelcomeToMamehub);

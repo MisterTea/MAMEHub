@@ -10,6 +10,9 @@ target
 # Mac system file
 .DS_Store
 
+# Python binary
+.pyc
+
 # Package Files #
 *.war
 *.ear

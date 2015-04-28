@@ -20,6 +20,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.io.FileUtils;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.standard.StandardAnalyzer;
+import org.apache.lucene.analysis.util.CharArraySet;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
 import org.apache.lucene.document.StringField;
@@ -43,7 +44,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.mamehub.client.Utils;
-import com.mamehub.thrift.FileInfo;
 import com.mamehub.thrift.RomHashEntryValue;
 import com.mamehub.thrift.RomInfo;
 
@@ -70,7 +70,7 @@ public class GameAuditor implements Runnable {
 	ConcurrentMap<String, RomInfo> messRoms = getMessRomInfoMap();
 	private File indexDir;
 
-	Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_40); // The standard
+	Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET); // The standard
 																	// analyzer
 																	// does
 																	// stemming,
@@ -212,7 +212,7 @@ public class GameAuditor implements Runnable {
 					systems = systems.substring(systems.indexOf(',') + 1);
 			}
 			threadPool.shutdown();
-			if (!threadPool.awaitTermination(1, TimeUnit.HOURS)) {
+			if (!threadPool.awaitTermination(5, TimeUnit.HOURS)) {
 				throw new IOException("Took too long to audit carts.");
 			}
 			Utils.getAuditDatabaseEngine().commit();
@@ -296,7 +296,7 @@ public class GameAuditor implements Runnable {
 				.toLowerCase().replace("'", ""), Field.Store.YES));
 		doc.add(new StringField("gameName", shortName, Field.Store.YES));
 
-		writer.updateDocument(new Term("gameName", shortName), doc);
+		writer.updateDocument(new Term("uniqueGame", system + "/" + shortName), doc);
 	}
 
 	public String getSystemForRom(String romId) {
