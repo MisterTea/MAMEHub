@@ -332,7 +332,7 @@ int Common::getLargestPing(int currentSecond)
     if (numPingSamples==0) {
       predictedPingMean = lastPing;
     } else {
-      const int PRIOR_SAMPLE_ESTIMATE = 600;
+      const int PRIOR_SAMPLE_ESTIMATE = 60;
       double oldMean = predictedPingMean;
       predictedPingMean = ((predictedPingMean * (PRIOR_SAMPLE_ESTIMATE - 1)) + lastPing) / PRIOR_SAMPLE_ESTIMATE;
       predictedPingVariance = (predictedPingVariance*(PRIOR_SAMPLE_ESTIMATE-1) + ((lastPing - oldMean)*(lastPing - predictedPingMean))) / PRIOR_SAMPLE_ESTIMATE;
