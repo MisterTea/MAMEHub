@@ -411,7 +411,7 @@ string Common::getStatisticsString()
       (int)rss->valueOverLastSecond[RakNet::ACTUAL_BYTES_SENT],
       (int)rss->valueOverLastSecond[RakNet::ACTUAL_BYTES_RECEIVED],
       rss->packetlossLastSecond,
-      int((predictedPingMean + sqrt(predictedPingVariance)*3)/2)
+      int((predictedPingMean + sqrt(predictedPingVariance)*2)/2)
       );
     retval += string(message) + string("\n");
   }
