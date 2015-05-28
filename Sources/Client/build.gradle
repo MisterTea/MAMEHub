@@ -45,7 +45,7 @@ sourceSets {
 }
 
 repositories {
-        
+
      maven { url "http://teleal.org/m2" }
      maven { url ("file://" + file("./repo").getAbsolutePath()) }
      maven { url "http://repo.maven.apache.org/maven2" }
@@ -87,7 +87,10 @@ jar {
     }
 }
 
-task solid(type:Jar) { 
+task solid(type:Jar) {
+  manifest {
+    attributes 'Main-Class': 'com.mamehub.client.Main'
+  }
   // Build jar with dependencies
   from(configurations.compile.collect { it.isDirectory() ? it : zipTree(it) }) {
     //exclude "META-INF/*.SF"
