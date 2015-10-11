@@ -10,16 +10,13 @@ import org.apache.commons.io.FileUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import chrriis.common.UIUtils;
-import chrriis.dj.nativeswing.swtimpl.NativeInterface;
-
 import com.mamehub.client.login.LoginDialog;
 import com.mamehub.client.server.ClientHttpServer;
+import com.mamehub.client.server.GuiHttpServer;
 import com.mamehub.client.upnp.PortOpener;
 import com.mamehub.client.utility.CommandLineFlags;
-import com.mamehub.client.utility.SwtLoader;
 
-public class Main {
+public class MAMEHub {
 	public static class ProcessKiller implements Runnable {
 		final Logger logger = LoggerFactory.getLogger(ProcessKiller.class);
 
@@ -52,15 +49,6 @@ public class Main {
 		}
 	}
 	
-	public static class DJKiller implements Runnable {
-
-		@Override
-		public void run() {
-			NativeInterface.close();
-		}
-		
-	}
-
 	/**
 	 * Launch the application.
 	 * 
@@ -76,7 +64,7 @@ public class Main {
 			SecurityException, IllegalAccessException,
 			InvocationTargetException, NoSuchMethodException,
 			ClassNotFoundException, IOException {
-		final InputStream inputStream = Main.class
+		final InputStream inputStream = MAMEHub.class
 				.getResourceAsStream("/log.properties");
 		try {
 			LogManager.getLogManager().readConfiguration(inputStream);
@@ -90,17 +78,10 @@ public class Main {
 		Utils.getApplicationDatabaseEngine();
 		Utils.getAuditDatabaseEngine();
 
-		new SwtLoader();
 		new CommandLineFlags(args);
 		new SoundEngine();
 
 		// new Thread(new MemoryReporter()).start();
-
-		Class<?> c = Class.forName("org.eclipse.swt.widgets.Display");
-		c.getMethod("setAppName", String.class).invoke(null, "MAMEHub");
-
-		UIUtils.setPreferredLookAndFeel();
-		NativeInterface.open();
 
 		// make ume.ini if it doesn't exist
 		if (!new File("ume.ini").exists()) {
@@ -117,15 +98,11 @@ public class Main {
 			portOpenerThread = new Thread(new PortOpener(Utils.getApplicationSettings().basePort, Utils.getApplicationSettings().secondaryPort));
 			portOpenerThread.start();
 			ClientHttpServer clientHttpServer = new ClientHttpServer(Utils.getApplicationSettings().basePort);
-			LoginDialog dialog = new LoginDialog(clientHttpServer);
+			GuiHttpServer guiHttpServer = new GuiHttpServer(8914);
+			LoginDialog dialog = new LoginDialog(clientHttpServer, guiHttpServer);
 			dialog.setVisible(true);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		
-		Runtime.getRuntime().addShutdownHook(
-				new Thread(new DJKiller()));
-
-		NativeInterface.runEventPump();
 	}
 }

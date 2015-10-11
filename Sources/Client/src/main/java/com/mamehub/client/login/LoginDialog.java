@@ -8,8 +8,9 @@ import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.awt.image.BufferedImage;
+import java.io.File;
 import java.io.IOException;
-import java.net.URL;
+import java.io.InputStream;
 
 import javax.imageio.ImageIO;
 import javax.swing.BoxLayout;
@@ -21,13 +22,14 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JPasswordField;
 import javax.swing.JTextField;
+import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mamehub.client.Main;
+import com.mamehub.client.MAMEHub;
 import com.mamehub.client.MainFrame;
 import com.mamehub.client.UpdateSettingsDialog;
 import com.mamehub.client.Utils;
@@ -35,10 +37,10 @@ import com.mamehub.client.login.FacebookLogin.FacebookLoginCallback;
 import com.mamehub.client.login.GoogleLogin.GoogleLoginCallback;
 import com.mamehub.client.net.RpcEngine;
 import com.mamehub.client.server.ClientHttpServer;
+import com.mamehub.client.server.GuiHttpServer;
 import com.mamehub.client.server.UDPReflectionServer;
 import com.mamehub.thrift.ApplicationSettings;
 import com.mamehub.thrift.Player;
-import javax.swing.SwingConstants;
 
 public class LoginDialog extends JFrame implements FacebookLoginCallback, GoogleLoginCallback {
 	private static final long serialVersionUID = 1L;
@@ -68,6 +70,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 	private JButton googleLoginButton;
 	private UDPReflectionServer udpReflectionServer;
 	private ClientHttpServer clientHttpServer;
+	private GuiHttpServer guiHttpServer;
 	private JPanel panel_1;
 	private JLabel lblNewLabel_1;
 	private JButton forgotPasswordButton;
@@ -77,14 +80,17 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 	
 	/**
 	 * Create the dialog.
+	 * @param guiHttpServer 
 	 * @throws IOException 
 	 */
-	@SuppressWarnings("restriction")
-	public LoginDialog(ClientHttpServer clientHttpServer) throws IOException {
+	public LoginDialog(ClientHttpServer clientHttpServer, GuiHttpServer guiHttpServer) throws IOException {
 		super();
-		URL u = Utils.getResource(LoginDialog.class, "/MAMEHub.png");
-		BufferedImage bi = ImageIO.read(u);
+		InputStream is = Utils.getResourceInputStream("/MAMEHub.png");
+		BufferedImage bi = ImageIO.read(is);
 		this.setIconImage(bi);
+		
+		this.clientHttpServer = clientHttpServer;
+		this.guiHttpServer = guiHttpServer;
 		
 		udpReflectionServer = new UDPReflectionServer(Utils.getApplicationSettings().basePort);
 		
@@ -148,7 +154,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 							return;
 						loggingIn = true;
 						try {
-							Main.portOpenerThread.join();
+							MAMEHub.portOpenerThread.join();
 						} catch (InterruptedException e1) {
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
@@ -164,7 +170,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 					}
 				});
 				facebookLoginButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-				facebookLoginButton.setIcon(new ImageIcon(Utils.getResource(LoginDialog.class, "/images/f_logo_icon.png")));
+				facebookLoginButton.setIcon(new ImageIcon(Utils.getResourceUrl("/images/f_logo_icon.png")));
 			}
 			{
 				googleLoginButton = new JButton("Login");
@@ -184,7 +190,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 							return;
 						loggingIn = true;
 						try {
-							Main.portOpenerThread.join();
+							MAMEHub.portOpenerThread.join();
 						} catch (InterruptedException e1) {
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
@@ -200,7 +206,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 					}
 				});
 				googleLoginButton.setAlignmentX(Component.CENTER_ALIGNMENT);
-				googleLoginButton.setIcon(new ImageIcon(Utils.getResource(LoginDialog.class, "/images/g_logo_icon.png")));
+				googleLoginButton.setIcon(new ImageIcon(Utils.getResourceUrl("/images/g_logo_icon.png")));
 				panel.add(googleLoginButton);
 			}
 			{
@@ -243,7 +249,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 						return;
 					}
 					try {
-						Main.portOpenerThread.join();
+						MAMEHub.portOpenerThread.join();
 					} catch (InterruptedException e1) {
 						// TODO Auto-generated catch block
 						e1.printStackTrace();
@@ -301,7 +307,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 							return;
 						}
 						try {
-							Main.portOpenerThread.join();
+							MAMEHub.portOpenerThread.join();
 						} catch (InterruptedException e1) {
 							// TODO Auto-generated catch block
 							e1.printStackTrace();
@@ -396,7 +402,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 			rpcEngine.setPorts();
 
 			udpReflectionServer.shutdown();
-			MainFrame mainFrame = new MainFrame(rpcEngine, clientHttpServer);
+			MainFrame mainFrame = new MainFrame(rpcEngine, clientHttpServer, guiHttpServer);
 			
 			mainFrame.setVisible(true);
 			this.dispose();
@@ -404,6 +410,10 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback, Google
 			Player myself = rpcEngine.getMyself();
 			if(!myself.portsOpen) {
 				JOptionPane.showMessageDialog(mainFrame, "MAMEHub has detected that you don't have port "+myself.basePort+" open (both TCP & UDP are required).\nAs a result, you cannot play networked games or transfer data with other players.\nSee http://portforward.com/ for details.");
+			}
+			
+			if (!(new File("csume").exists() || new File("csume64").exists() || new File("csume64.sym").exists()  || new File("csume.sym").exists())) {
+              JOptionPane.showMessageDialog(mainFrame, "Before playing a game, you must update your emulator.  Go to \"File\" -> \"Update Emulator\" to update. Check the log tab for details.");
 			}
 			
 			return;

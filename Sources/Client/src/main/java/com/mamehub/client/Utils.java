@@ -7,14 +7,21 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -137,7 +144,8 @@ public class Utils {
       try {
         boolean inMemory = false;
         Utils.applicationDatabaseEngine = new ClientDatabaseEngine(dbDirectory,
-            "MAMEHubAppDB" + APPLICATION_DATABASE_VERSION, false, inMemory, false);
+            "MAMEHubAppDB" + APPLICATION_DATABASE_VERSION, false, inMemory,
+            false);
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -254,15 +262,51 @@ public class Utils {
     }
   }
 
-  public static synchronized URL getResource(Class<?> classIn, String suffix) {
-    URL u = classIn.getResource(suffix);
-    if (u == null) {
-      u = classIn.getResource("/data" + suffix);
-    }
+  public static synchronized URL getResourceUrl(String suffix) {
+    URL u = Utils.class.getResource(suffix);
     if (u == null) {
       throw new RuntimeException("Could not find resource: " + suffix);
     }
     return u;
+  }
+
+  public static synchronized InputStream getResourceInputStream(String suffix) {
+    return Utils.class.getResourceAsStream(suffix);
+  }
+
+  public static synchronized BufferedReader getResourceReader(String location) {
+    BufferedReader reader = new BufferedReader(new InputStreamReader(
+        Utils.getResourceInputStream(location)));
+    return reader;
+  }
+
+  public static synchronized List<String> getResourcesWithPrefix(String prefix) {
+    // Remove the leading slash on the prefix
+    if (!prefix.startsWith("/")) {
+      throw new RuntimeException("Prefix needs to start with /");
+    }
+    prefix = prefix.substring(1);
+    
+    try {
+      URL url = Utils.class.getResource("Utils.class");
+      String scheme = url.getProtocol();
+      if (!"jar".equals(scheme))
+        throw new IllegalArgumentException("Unsupported scheme: " + scheme);
+      JarURLConnection con = (JarURLConnection) url.openConnection();
+      JarFile archive = con.getJarFile();
+      /* Search for the entries you care about. */
+      Enumeration<JarEntry> entries = archive.entries();
+      List<String> results = new ArrayList<>();
+      while (entries.hasMoreElements()) {
+        JarEntry entry = entries.nextElement();
+        if (entry.getName().startsWith(prefix)) {
+          results.add("/" + entry.getName());
+        }
+      }
+      return results;
+    } catch (IOException ioe) {
+      throw new RuntimeException(ioe);
+    }
   }
 
   public static <K, V> void stagedClear(Map<K, V> map,

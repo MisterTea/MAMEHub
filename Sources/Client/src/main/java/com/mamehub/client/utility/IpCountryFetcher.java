@@ -1,9 +1,9 @@
 package com.mamehub.client.utility;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -12,9 +12,7 @@ import com.mamehub.thrift.IpRangeData;
 public class IpCountryFetcher {
 	private List<IpRangeData> ranges = new ArrayList<IpRangeData>();
 	
-	public IpCountryFetcher(URL url) throws IOException {
-		BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
-		
+	public IpCountryFetcher(BufferedReader reader) throws IOException {
 		ranges.clear();
 		String line;
 		while(true) {

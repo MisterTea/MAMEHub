@@ -53,7 +53,6 @@ service MameHubRpc
     string getMOTD(),
 }
 
-
 service MameHubClientRpc
 {
   core.DownloadableRomState getDownloadableRoms(1:i64 lastCheckTime),
@@ -67,4 +66,9 @@ service MameHubClientRpc
     core.FileResponse getFileChunk(1:core.FileRequest request),
 
     bool ping(),
+}
+
+service MameHubGuiRpc
+{
+    map<string,i32> getPings(),
 }

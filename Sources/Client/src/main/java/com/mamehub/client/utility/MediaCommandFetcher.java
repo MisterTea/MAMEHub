@@ -1,6 +1,8 @@
 package com.mamehub.client.utility;
 
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URL;
@@ -22,10 +24,9 @@ public class MediaCommandFetcher {
 
 	ConcurrentMap<String, TreeMap<String, ArrayList<String>>> media;
 	
-	public MediaCommandFetcher(URL url) throws IOException {
+	public MediaCommandFetcher(BufferedReader reader) throws IOException {
 		media = Utils.getApplicationDatabaseEngine().getOrCreatePrimitiveMap("MediaCommands");
 		media.clear();
-		BufferedReader reader = new BufferedReader(new InputStreamReader(url.openStream()));
 		
 		reader.readLine();
 		reader.readLine();
@@ -64,6 +65,8 @@ public class MediaCommandFetcher {
 				media.get(currentSystem).put(mediaName, extensions);
 			}
 		}
+		
+		reader.close();
 	}
 	
 	public String getMediaName(String system, String cartFileName) {

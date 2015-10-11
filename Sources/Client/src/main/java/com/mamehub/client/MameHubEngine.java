@@ -68,7 +68,7 @@ public class MameHubEngine implements Runnable {
 	public MameHubEngine(GameAuditor.AuditHandler ah, EmulatorHandler eh) throws IOException {
 		this.handler = eh;
 		
-		mediaCommandFetcher = new MediaCommandFetcher(Utils.getResource(MameHubEngine.class, "/media.txt"));
+		mediaCommandFetcher = new MediaCommandFetcher(Utils.getResourceReader("/media.txt"));
 		
 		gameAuditor = new GameAuditor(ah);
 
