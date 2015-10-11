@@ -28,7 +28,7 @@ public class MAMEHub {
 
 		@Override
 		public void run() {
-			logger.info("Kiling subprocess");
+			logger.info("Killing subprocess");
 			process.destroy();
 		}
 
