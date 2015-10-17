@@ -15,6 +15,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.List;
@@ -22,7 +23,14 @@ import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import java.util.zip.Deflater;
+import java.util.zip.Inflater;
 
+import org.apache.commons.codec.binary.Base64;
+import org.apache.commons.configuration.CompositeConfiguration;
+import org.apache.commons.configuration.Configuration;
+import org.apache.commons.configuration.ConfigurationException;
+import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
 import org.apache.log4j.FileAppender;
@@ -32,7 +40,6 @@ import org.slf4j.LoggerFactory;
 
 import com.mamehub.client.net.RpcEngine;
 import com.mamehub.client.utility.ClientDatabaseEngine;
-import com.mamehub.thrift.ApplicationSettings;
 import com.mamehub.thrift.OperatingSystem;
 import com.mamehub.thrift.PlayerProfile;
 import com.petebevin.markdown.MarkdownProcessor;
@@ -45,9 +52,9 @@ public class Utils {
   private static ClientDatabaseEngine applicationDatabaseEngine;
 
   public static final int AUDIT_DATABASE_VERSION = 23;
-  public static final int APPLICATION_DATABASE_VERSION = 9;
 
   private static PlayerProfile playerProfile = null;
+  private static Configuration configuration = null;
 
   public static PlayerProfile getPlayerProfile(RpcEngine rpcEngine) {
     if (playerProfile == null) {
@@ -138,21 +145,6 @@ public class Utils {
     return Utils.auditDatabaseEngine;
   }
 
-  public static synchronized ClientDatabaseEngine getApplicationDatabaseEngine() {
-    String dbDirectory = "./";// System.getProperty( "user.home" );
-    if (Utils.applicationDatabaseEngine == null) {
-      try {
-        boolean inMemory = false;
-        Utils.applicationDatabaseEngine = new ClientDatabaseEngine(dbDirectory,
-            "MAMEHubAppDB" + APPLICATION_DATABASE_VERSION, false, inMemory,
-            false);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
-    }
-    return Utils.applicationDatabaseEngine;
-  }
-
   public static void shutdownDatabaseEngine() {
     if (Utils.auditDatabaseEngine != null) {
       Utils.auditDatabaseEngine.close();
@@ -230,25 +222,6 @@ public class Utils {
     }
   }
 
-  public static ApplicationSettings getApplicationSettings() {
-    ApplicationSettings as = Utils.getApplicationDatabaseEngine()
-        .getOrCreateMap(ApplicationSettings.class, "1").get("1");
-    if (as == null) {
-      as = new ApplicationSettings();
-    }
-    if (as.basePort == 0) {
-      as.basePort = 6805;
-      as.secondaryPort = 6806;
-    }
-    return as;
-  }
-
-  public static void putApplicationSettings(ApplicationSettings as) {
-    Utils.getApplicationDatabaseEngine()
-        .getOrCreateMap(ApplicationSettings.class, "1").put("1", as);
-    Utils.getApplicationDatabaseEngine().commit();
-  }
-
   public static String osToShortOS(OperatingSystem operatingSystem) {
     switch (operatingSystem) {
     case WINDOWS:
@@ -286,7 +259,7 @@ public class Utils {
       throw new RuntimeException("Prefix needs to start with /");
     }
     prefix = prefix.substring(1);
-    
+
     try {
       URL url = Utils.class.getResource("Utils.class");
       String scheme = url.getProtocol();
@@ -379,4 +352,73 @@ public class Utils {
       return new File("../../Binaries/hash");
     }
   }
+
+  public static Configuration getConfiguration() {
+    if (configuration == null) {
+      try {
+        CompositeConfiguration compositeConfig = new CompositeConfiguration();
+        new File("mamehub.properties").createNewFile();
+        PropertiesConfiguration userConfig = new PropertiesConfiguration(
+            "mamehub.properties");
+        userConfig.setAutoSave(true);
+        compositeConfig.addConfiguration(userConfig, true);
+        PropertiesConfiguration defaultConfig = new PropertiesConfiguration(
+            Utils.getResourceUrl("/mamehubdefault.properties"));
+        compositeConfig.addConfiguration(defaultConfig);
+        configuration = compositeConfig;
+      } catch (Exception e) {
+        throw new RuntimeException(e);
+      }
+    }
+    return configuration;
+  }
+
+  public static String encodePassword(String password) {
+    try {
+      byte[] input = password.getBytes("UTF-8");
+
+      // Compress the bytes
+      byte[] output = new byte[65536];
+      Deflater compresser = new Deflater();
+      compresser.setInput(input);
+      compresser.finish();
+      int compressedDataLength = compresser.deflate(output, 0, output.length,
+          Deflater.FULL_FLUSH);
+      if (compressedDataLength == 65536) {
+        throw new IOException("Encoded password is too long");
+      }
+      byte[] compressedPassword = Arrays.copyOf(output, compressedDataLength);
+      return Base64.encodeBase64String(compressedPassword);
+    } catch (Exception e) {
+      e.printStackTrace();
+      return "";
+    }
+  }
+
+  public static String decodePassword(String encodedPassword) {
+    if (encodedPassword.isEmpty()) {
+      return "";
+    }
+
+    try {
+      byte[] deflatedBytes = Base64.decodeBase64(encodedPassword);
+
+      // Decompress the bytes
+      Inflater decompresser = new Inflater();
+      decompresser.setInput(deflatedBytes);
+      byte[] result = new byte[65536];
+      int resultLength = decompresser.inflate(result);
+      if (resultLength == 0) {
+        throw new IOException("Could not decompress");
+      }
+      decompresser.end();
+
+      // Decode the bytes into a String
+      return new String(result, 0, resultLength, "UTF-8");
+    } catch (Exception e) {
+      e.printStackTrace();
+      return "";
+    }
+  }
+
 }

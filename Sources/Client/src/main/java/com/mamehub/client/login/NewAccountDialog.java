@@ -18,11 +18,11 @@ import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
+import org.apache.commons.configuration.Configuration;
 import org.apache.commons.validator.routines.EmailValidator;
 
 import com.mamehub.client.Utils;
 import com.mamehub.client.net.RpcEngine;
-import com.mamehub.thrift.ApplicationSettings;
 
 public class NewAccountDialog extends JDialog {
 	private static final long serialVersionUID = 1L;
@@ -146,9 +146,8 @@ public class NewAccountDialog extends JDialog {
 							JOptionPane.showMessageDialog(NewAccountDialog.this, "Account created!");
 							LoginDialog id = (LoginDialog)NewAccountDialog.this.getParent();
 							NewAccountDialog.this.dispose();
-							ApplicationSettings as = Utils.getApplicationSettings();
-							as.lastInternalLoginId = usernameTextField.getText();
-							Utils.putApplicationSettings(as);
+							Configuration conf = Utils.getConfiguration();
+                            conf.setProperty("loginId", usernameTextField.getText());
 							id.loginComplete();
 						} else {
 							JOptionPane.showMessageDialog(NewAccountDialog.this, "Account creation failed: " + errorMessage);

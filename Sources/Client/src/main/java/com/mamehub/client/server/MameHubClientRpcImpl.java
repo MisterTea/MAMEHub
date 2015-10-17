@@ -159,7 +159,7 @@ public class MameHubClientRpcImpl implements MameHubClientRpc.Iface {
   }
 
   private boolean canUpload() {
-    if (Utils.getApplicationSettings().allowUploading == false) {
+    if (Utils.getConfiguration().getBoolean("allowUploading") == false) {
       // logger.info("Allow uploading turned off");
       return false;
     }

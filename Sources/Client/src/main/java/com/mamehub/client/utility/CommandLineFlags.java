@@ -8,6 +8,7 @@ import org.apache.commons.cli.PosixParser;
 
 import com.mamehub.client.net.RpcEngine;
 
+//TODO: Make this choose a different properties file
 public class CommandLineFlags {
 	public static CommandLine cmd;
 	public CommandLineFlags(String[] args) {
@@ -26,7 +27,7 @@ public class CommandLineFlags {
 		
 		// Deal with some globally-affecting command line flags here
 		if(cmd.hasOption("hostname")) {
-			RpcEngine.HOSTNAME = cmd.getOptionValue("hostname");
+			//RpcEngine.HOSTNAME = cmd.getOptionValue("hostname");
 		}
 	}
 }

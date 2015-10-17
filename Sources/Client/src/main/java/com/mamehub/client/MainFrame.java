@@ -108,7 +108,6 @@ import com.mamehub.client.utility.ButtonColumn;
 import com.mamehub.client.utility.IpCountryFetcher;
 import com.mamehub.client.utility.OSValidator;
 import com.mamehub.rpc.NotAuthorizedException;
-import com.mamehub.thrift.ApplicationSettings;
 import com.mamehub.thrift.ChatStatus;
 import com.mamehub.thrift.CommitData;
 import com.mamehub.thrift.Game;
@@ -890,15 +889,13 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
         ChatStatus newChatStatus = (ChatStatus) chatStatusComboBox
             .getSelectedItem();
         System.out.println("CHAT STATUS CHANGED: " + newChatStatus);
-        ApplicationSettings as = Utils.getApplicationSettings();
-        as.chatStatus = newChatStatus;
-        Utils.putApplicationSettings(as);
+        Utils.getConfiguration().setProperty("chatStatus", newChatStatus.toString());;
         updatePlayerStatus();
       }
     });
     chatStatusComboBox.setModel(new DefaultComboBoxModel(ChatStatus.values()));
     chatStatusComboBox
-        .setSelectedItem(Utils.getApplicationSettings().chatStatus);
+        .setSelectedItem(ChatStatus.valueOf(Utils.getConfiguration().getString("chatStatus")));
     panel_2.add(chatStatusComboBox, BorderLayout.EAST);
 
     JPanel panel_5 = new JPanel();
@@ -1692,7 +1689,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
         }
 
         if (outputFile != null && outputFile.exists()
-            && Utils.getApplicationSettings().showEmulatorLog) {
+            && Utils.getConfiguration().getBoolean("showEmulatorLog")) {
           try {
             if (Utils.isWindows()) {
               Runtime runtime = Runtime.getRuntime();

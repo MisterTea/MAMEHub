@@ -75,7 +75,7 @@ public class MAMEHub {
 		}
 		
 		// Ensure that databases are made in the main thread.
-		Utils.getApplicationDatabaseEngine();
+		Utils.getConfiguration();
 		Utils.getAuditDatabaseEngine();
 
 		new CommandLineFlags(args);
@@ -95,9 +95,9 @@ public class MAMEHub {
 		}
 
 		try {
-			portOpenerThread = new Thread(new PortOpener(Utils.getApplicationSettings().basePort, Utils.getApplicationSettings().secondaryPort));
+			portOpenerThread = new Thread(new PortOpener(Utils.getConfiguration().getInt("basePort"), Utils.getConfiguration().getInt("secondaryPort")));
 			portOpenerThread.start();
-			ClientHttpServer clientHttpServer = new ClientHttpServer(Utils.getApplicationSettings().basePort);
+			ClientHttpServer clientHttpServer = new ClientHttpServer(Utils.getConfiguration().getInt("basePort"));
 			GuiHttpServer guiHttpServer = new GuiHttpServer(8914);
 			LoginDialog dialog = new LoginDialog(clientHttpServer, guiHttpServer);
 			dialog.setVisible(true);

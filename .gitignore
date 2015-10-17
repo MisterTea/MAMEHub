@@ -1,3 +1,6 @@
+# configuration
+Sources/Client/mamehub.properties
+
 # Scripts & Config
 Client/deployServer.sh
 Client/genThrift.sh

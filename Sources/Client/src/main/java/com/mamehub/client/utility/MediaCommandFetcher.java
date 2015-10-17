@@ -1,13 +1,10 @@
 package com.mamehub.client.utility;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentMap;
@@ -17,15 +14,13 @@ import java.util.zip.ZipFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.mamehub.client.Utils;
-
 public class MediaCommandFetcher {
 	final Logger logger = LoggerFactory.getLogger(MediaCommandFetcher.class);
 
-	ConcurrentMap<String, TreeMap<String, ArrayList<String>>> media;
+	Map<String, TreeMap<String, ArrayList<String>>> media;
 	
 	public MediaCommandFetcher(BufferedReader reader) throws IOException {
-		media = Utils.getApplicationDatabaseEngine().getOrCreatePrimitiveMap("MediaCommands");
+		media = new HashMap<>();
 		media.clear();
 		
 		reader.readLine();

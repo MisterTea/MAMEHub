@@ -99,24 +99,6 @@ struct PlayerProfile
   2:map<string, PlayerRomProfile> romProfiles = {};
 }
 
-struct ApplicationSettings
-{
-  1:string _id = "1",
-
-  // Chat Settings
-  2:bool chatAudio = true,
-  3:ChatStatus chatStatus = ChatStatus.ONLINE,
-
-  // Login Settings
-  4:string lastInternalLoginId = "",
-  
-  5:bool allowUploading = true,
-  6:bool showEmulatorLog = false,
-  
-  7:i32 basePort = 6805,
-  8:i32 secondaryPort = 6806,
-}
-
 struct PlayerInternalPassword
 {
   1:string _id,

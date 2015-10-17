@@ -13,12 +13,12 @@ import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
-import com.mamehub.thrift.ApplicationSettings;
-import javax.swing.JTextField;
+import org.apache.commons.configuration.Configuration;
 
 public class UpdateSettingsDialog extends JDialog {
 	private static final long serialVersionUID = 1L;
@@ -125,7 +125,7 @@ public class UpdateSettingsDialog extends JDialog {
 				okButton.addActionListener(new ActionListener() {
 					@Override
 					public void actionPerformed(ActionEvent e) {
-						Utils.putApplicationSettings(getNewApplicationSettings());
+						updateNewApplicationSettings();
 						UpdateSettingsDialog.this.dispose();
 					}
 				});
@@ -152,22 +152,21 @@ public class UpdateSettingsDialog extends JDialog {
 	}
 
 	private void loadFromApplicationSettings() {
-		ApplicationSettings as = Utils.getApplicationSettings();
-		chckbxAudioNotifications.setSelected(as.chatAudio);
-		checkBoxAllowUploading.setSelected(as.allowUploading);
-		checkBoxShowEmulatorLog.setSelected(as.showEmulatorLog);
-		basePort.setText(""+as.basePort);
-		secondaryPort.setText(""+as.secondaryPort);
+		Configuration conf = Utils.getConfiguration();
+		chckbxAudioNotifications.setSelected(conf.getBoolean("chatAudio"));
+		checkBoxAllowUploading.setSelected(conf.getBoolean("allowUploading"));
+		checkBoxShowEmulatorLog.setSelected(conf.getBoolean("showEmulatorLog"));
+		basePort.setText(""+conf.getInt("basePort"));
+		secondaryPort.setText(""+conf.getInt("secondaryPort"));
 	}
 
-	protected ApplicationSettings getNewApplicationSettings() {
-		ApplicationSettings as = Utils.getApplicationSettings();
-		as.chatAudio = chckbxAudioNotifications.isSelected();
-		as.allowUploading = checkBoxAllowUploading.isSelected();
-		as.showEmulatorLog = checkBoxShowEmulatorLog.isSelected();
-		as.basePort = Integer.parseInt(basePort.getText());
-		as.secondaryPort = Integer.parseInt(secondaryPort.getText());
-		return as;
+	protected void updateNewApplicationSettings() {
+		Configuration conf = Utils.getConfiguration();
+        conf.setProperty("chatAudio", chckbxAudioNotifications.isSelected());
+        conf.setProperty("allowUploading", checkBoxAllowUploading.isSelected());
+        conf.setProperty("showEmulatorLog", checkBoxShowEmulatorLog.isSelected());
+        conf.setProperty("basePort", Integer.parseInt(basePort.getText()));
+        conf.setProperty("secondaryPort", Integer.parseInt(secondaryPort.getText()));
 	}
 
 }

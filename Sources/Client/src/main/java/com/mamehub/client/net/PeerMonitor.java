@@ -382,12 +382,10 @@ public class PeerMonitor implements Runnable {
             + romState.stale);
         if (romState.stale == false) {
           gotNewRoms = true;
-          peerState.downloadableRoms = Utils.getApplicationDatabaseEngine()
-              .getOrCreatePrimitiveMap("DownloadableRoms" + player._id);
+          peerState.downloadableRoms = new HashMap<>();
           peerState.downloadableRoms.clear();
           peerState.downloadableRoms.putAll(romState.roms);
           peerState.lastCheckTime = System.currentTimeMillis();
-          Utils.getApplicationDatabaseEngine().commit();
         }
       } else {
         logger.error("Could not ping " + player + "!!!");

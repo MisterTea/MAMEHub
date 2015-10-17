@@ -55,11 +55,14 @@ dependencies {
     compile group: 'log4j', name: 'log4j', version:'1.2.16'
     compile group: 'org.apache.thrift', name: 'libthrift', version:'0.9.1'
     compile group: 'org.mapdb', name: 'mapdb', version:'1.0.5'
+    
     compile group: 'commons-validator', name: 'commons-validator', version:'1.4.0'
     compile group: 'commons-io', name: 'commons-io', version:'2.4'
     compile group: 'commons-cli', name: 'commons-cli', version:'1.2'
     compile group: 'org.apache.commons', name: 'commons-compress', version:'1.6'
     compile group: 'commons-lang', name: 'commons-lang', version:'2.6'
+    compile 'commons-configuration:commons-configuration:1.10'
+    
     compile group: 'com.jgoodies', name: 'forms', version:'1.2.1'
     compile group: 'org.fourthline.cling', name: 'cling-core', version:'2.0-SNAPSHOT'
     compile group: 'org.fourthline.cling', name: 'cling-support', version:'2.0-SNAPSHOT'
