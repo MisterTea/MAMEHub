@@ -17,14 +17,16 @@ import com.mamehub.rpc.MameHubClientRpc;
  */
 @WebServlet("/mamehubclient")
 public class MameHubClientServlet extends TServlet {
-	private static final long serialVersionUID = 1L;
-	
-    public MameHubClientServlet() {
-        super(new MameHubClientRpc.Processor<MameHubClientRpcImpl>(new MameHubClientRpcImpl()), new TJSONProtocol.Factory());
-    }
-    
-    @Override
-	protected void doPost(HttpServletRequest request, HttpServletResponse response) throws ServletException, IOException {
-    	super.doPost(request, response);
-	}
+  private static final long serialVersionUID = 1L;
+
+  public MameHubClientServlet() {
+    super(new MameHubClientRpc.Processor<MameHubClientRpcImpl>(
+        new MameHubClientRpcImpl()), new TJSONProtocol.Factory());
+  }
+
+  @Override
+  protected void doPost(HttpServletRequest request, HttpServletResponse response)
+      throws ServletException, IOException {
+    super.doPost(request, response);
+  }
 }

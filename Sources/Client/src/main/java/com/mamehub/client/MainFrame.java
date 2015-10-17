@@ -58,6 +58,7 @@ import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTabbedPane;
 import javax.swing.JTable;
+import javax.swing.JTextArea;
 import javax.swing.JTextField;
 import javax.swing.JTree;
 import javax.swing.ListSelectionModel;
@@ -121,7 +122,6 @@ import com.mamehub.thrift.PlayerRomProfile;
 import com.mamehub.thrift.PlayerStatus;
 import com.mamehub.thrift.RomInfo;
 import com.mamehub.thrift.ServerState;
-import javax.swing.JTextArea;
 
 public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
     EmulatorHandler, PeerMonitorListener {
@@ -651,6 +651,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
     machineComboBox = new JComboBox<String>();
     machineComboBox.addItem("All");
     machineComboBox.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent e) {
         updateGameList();
       }
@@ -682,6 +683,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     btnArrangeAGame = new JButton("Arrange a Game");
     btnArrangeAGame.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent arg0) {
         try {
           Desktop
@@ -718,14 +720,14 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     downloadsPanel = new JScrollPane(downloadsTable);
     mainTabbedPane.addTab("Downloads", null, downloadsPanel, null);
-    
+
     JPanel logTabPanel = new JPanel();
     mainTabbedPane.addTab("Log", null, logTabPanel, null);
     logTabPanel.setLayout(new BorderLayout(0, 0));
-    
+
     logScrollPane = new JScrollPane();
     logTabPanel.add(logScrollPane, BorderLayout.CENTER);
-    
+
     logTextArea = new JTextArea();
     logTextArea.setLineWrap(true);
     logTextArea.setWrapStyleWord(true);
@@ -764,6 +766,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
         } else if (type == HyperlinkEvent.EventType.ACTIVATED) {
           System.out.println("Activated");
           SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
               Utils.openWebpage(url);
             }
@@ -889,13 +892,15 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
         ChatStatus newChatStatus = (ChatStatus) chatStatusComboBox
             .getSelectedItem();
         System.out.println("CHAT STATUS CHANGED: " + newChatStatus);
-        Utils.getConfiguration().setProperty("chatStatus", newChatStatus.toString());;
+        Utils.getConfiguration().setProperty("chatStatus",
+            newChatStatus.toString());
+        ;
         updatePlayerStatus();
       }
     });
     chatStatusComboBox.setModel(new DefaultComboBoxModel(ChatStatus.values()));
-    chatStatusComboBox
-        .setSelectedItem(ChatStatus.valueOf(Utils.getConfiguration().getString("chatStatus")));
+    chatStatusComboBox.setSelectedItem(ChatStatus.valueOf(Utils
+        .getConfiguration().getString("chatStatus")));
     panel_2.add(chatStatusComboBox, BorderLayout.EAST);
 
     JPanel panel_5 = new JPanel();
@@ -931,6 +936,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
     if (Utils.isWindows()) {
       JMenuItem mntmLaunchMumble = new JMenuItem("Launch Mumble");
       mntmLaunchMumble.addActionListener(new ActionListener() {
+        @Override
         public void actionPerformed(ActionEvent e) {
           try {
             Process mumbleProcess;
@@ -959,12 +965,14 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     JMenuItem mntmUpdateEmulator = new JMenuItem("Update Emulator");
     mntmUpdateEmulator.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent e) {
         try {
           if (emulatorUpdaterThread != null) {
             emulatorUpdaterThread.join();
           }
-          Runnable r = new EmulatorUpdater(new TextAreaWriter(logTextArea, logScrollPane));
+          Runnable r = new EmulatorUpdater(new TextAreaWriter(logTextArea,
+              logScrollPane));
           emulatorUpdaterThread = new Thread(r);
           emulatorUpdaterThread.start();
         } catch (InterruptedException e1) {
@@ -1059,6 +1067,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     JMenuItem mntnGettingStarted = new JMenuItem("Getting Started");
     mntnGettingStarted.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent e) {
         try {
           Utils.openWebpage(new URI(
@@ -1073,6 +1082,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     JMenuItem mntmFileABug = new JMenuItem("File a Bug");
     mntmFileABug.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent e) {
         try {
           Utils.openWebpage(new URI(
@@ -1087,6 +1097,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     JMenuItem mntmFileAFeature = new JMenuItem("File a Feature Request");
     mntmFileAFeature.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent e) {
         try {
           Utils.openWebpage(new URI(
@@ -1101,6 +1112,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     JMenuItem mntmForum = new JMenuItem("Forum");
     mntmForum.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent e) {
         try {
           Utils.openWebpage(new URI("http://forum.mamehub.info"));
@@ -1114,6 +1126,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     JMenuItem mntmGetRoms = new JMenuItem("Get Roms and Software");
     mntmGetRoms.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent e) {
         try {
           Utils.openWebpage(new URI("http://www.pleasuredome.org.uk/"));
@@ -1130,6 +1143,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
     JMenuItem mntmDonate = new JMenuItem("Donate");
     mntmDonate.addActionListener(new ActionListener() {
+      @Override
       public void actionPerformed(ActionEvent e) {
         try {
           Utils

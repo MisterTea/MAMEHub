@@ -126,10 +126,10 @@ public class Updater {
         // Ignore these exceptions
       }
 
-//      System.out.println("Fetching frontend...");
-//      app.wget(new URL(
-//          "http://10ghost.net/MAMEHubDownloads/Frontend/MAMEHubClient.jar"),
-//          "MAMEHubRepo/Binaries/dist");
+      // System.out.println("Fetching frontend...");
+      // app.wget(new URL(
+      // "http://10ghost.net/MAMEHubDownloads/Frontend/MAMEHubClient.jar"),
+      // "MAMEHubRepo/Binaries/dist");
 
       addMainFirewallExceptions();
     } catch (Exception e) {

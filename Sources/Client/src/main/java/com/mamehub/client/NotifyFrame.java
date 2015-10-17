@@ -44,118 +44,117 @@ import javax.swing.JLabel;
 import javax.swing.SwingUtilities;
 
 public class NotifyFrame extends JFrame implements Runnable {
-	private static final long serialVersionUID = 1L;
-	private static Set<NotifyFrame> renderingFrames = new HashSet<NotifyFrame>();
+  private static final long serialVersionUID = 1L;
+  private static Set<NotifyFrame> renderingFrames = new HashSet<NotifyFrame>();
 
-	public NotifyFrame(String messageHeader, String messageBody) {
-		super("TranslucentWindow");
-		setUndecorated(true);
-		setLayout(new BorderLayout());
+  public NotifyFrame(String messageHeader, String messageBody) {
+    super("TranslucentWindow");
+    setUndecorated(true);
+    setLayout(new BorderLayout());
 
-		setSize(500, 50);
-		setLocation(50, 50);
-		setOpacityIfPossible(0.0f);
-		setAlwaysOnTop(true);
-		setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
-		setFocusableWindowState(false);
-		SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
-				setFocusableWindowState(false);
-			}
-		});
+    setSize(500, 50);
+    setLocation(50, 50);
+    setOpacityIfPossible(0.0f);
+    setAlwaysOnTop(true);
+    setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+    setFocusableWindowState(false);
+    SwingUtilities.invokeLater(new Runnable() {
+      @Override
+      public void run() {
+        setFocusableWindowState(false);
+      }
+    });
 
-		// Add a sample button.
-		JLabel header = new JLabel(messageHeader);
-		add(header, BorderLayout.NORTH);
-		add(new JLabel(messageBody), BorderLayout.CENTER);
-		setVisible(true);
+    // Add a sample button.
+    JLabel header = new JLabel(messageHeader);
+    add(header, BorderLayout.NORTH);
+    add(new JLabel(messageBody), BorderLayout.CENTER);
+    setVisible(true);
 
-		new Thread(this).start();
-	}
+    new Thread(this).start();
+  }
 
-	@Override
-	public void run() {
-		try {
-			while (true) {
-				synchronized (renderingFrames) {
-					if (renderingFrames.isEmpty()) {
-						renderingFrames.add(this);
-						break;
-					}
-				}
-				Thread.sleep(10);
-			}
-			long curtime = System.currentTimeMillis();
-			long endtime = curtime + 5000;
-			while (endtime > System.currentTimeMillis()) {
-				long deltatime = System.currentTimeMillis() - curtime;
-				final float opacity = (float) Math.min(
-						1.0,
-						Math.abs(2.0 * Math.sin(Math.PI * ((double) deltatime)
-								/ ((endtime - curtime)))));
-				SwingUtilities.invokeLater(new Runnable() {
+  @Override
+  public void run() {
+    try {
+      while (true) {
+        synchronized (renderingFrames) {
+          if (renderingFrames.isEmpty()) {
+            renderingFrames.add(this);
+            break;
+          }
+        }
+        Thread.sleep(10);
+      }
+      long curtime = System.currentTimeMillis();
+      long endtime = curtime + 5000;
+      while (endtime > System.currentTimeMillis()) {
+        long deltatime = System.currentTimeMillis() - curtime;
+        final float opacity = (float) Math.min(
+            1.0,
+            Math.abs(2.0 * Math.sin(Math.PI * (deltatime)
+                / ((endtime - curtime)))));
+        SwingUtilities.invokeLater(new Runnable() {
 
-					@Override
-					public void run() {
-						setOpacityIfPossible(opacity);
-						setFocusableWindowState(false);
-					}
-				});
-				Thread.sleep(10);
-			}
-		} catch (InterruptedException e) {
-			e.printStackTrace();
-		} finally {
-			SwingUtilities.invokeLater(new Runnable() {
-				@Override
-				public void run() {
-					synchronized (renderingFrames) {
-						renderingFrames.remove(NotifyFrame.this);
-					}
-					NotifyFrame.this.dispose();
-				}
-			});
-		}
-	}
-	
-	private void setOpacityIfPossible(float opacity) {
-		// Determine if the GraphicsDevice supports translucency.
-		GraphicsEnvironment ge = GraphicsEnvironment
-				.getLocalGraphicsEnvironment();
-		GraphicsDevice gd = ge.getDefaultScreenDevice();
+          @Override
+          public void run() {
+            setOpacityIfPossible(opacity);
+            setFocusableWindowState(false);
+          }
+        });
+        Thread.sleep(10);
+      }
+    } catch (InterruptedException e) {
+      e.printStackTrace();
+    } finally {
+      SwingUtilities.invokeLater(new Runnable() {
+        @Override
+        public void run() {
+          synchronized (renderingFrames) {
+            renderingFrames.remove(NotifyFrame.this);
+          }
+          NotifyFrame.this.dispose();
+        }
+      });
+    }
+  }
 
-		if (gd.isWindowTranslucencySupported(TRANSLUCENT)) {
-			setOpacity(opacity);
-		}
-	}
+  private void setOpacityIfPossible(float opacity) {
+    // Determine if the GraphicsDevice supports translucency.
+    GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+    GraphicsDevice gd = ge.getDefaultScreenDevice();
 
-	public static void main(String[] args) {
-		// Determine if the GraphicsDevice supports translucency.
-		GraphicsEnvironment ge = GraphicsEnvironment
-				.getLocalGraphicsEnvironment();
-		GraphicsDevice gd = ge.getDefaultScreenDevice();
+    if (gd.isWindowTranslucencySupported(TRANSLUCENT)) {
+      setOpacity(opacity);
+    }
+  }
 
-		// If translucent windows aren't supported, exit.
-		if (!gd.isWindowTranslucencySupported(TRANSLUCENT)) {
-			System.err.println("Translucency is not supported");
-			System.exit(0);
-		}
+  public static void main(String[] args) {
+    // Determine if the GraphicsDevice supports translucency.
+    GraphicsEnvironment ge = GraphicsEnvironment.getLocalGraphicsEnvironment();
+    GraphicsDevice gd = ge.getDefaultScreenDevice();
 
-		// Create the GUI on the event-dispatching thread
-		SwingUtilities.invokeLater(new Runnable() {
-			@Override
-			public void run() {
-				for (int a = 0; a < 10; a++) {
-					NotifyFrame tw = new NotifyFrame(
-							"MAMEHub Chat",
-							String.format(
-									"<html><body><font size='4' color='red'>%s</font><font size='4'>: %s</font></body></html>",
-									"Digitalghost",
-									"Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!"
-											.substring(0, 50) + "..."));
-				}
-			}
-		});
-	}
+    // If translucent windows aren't supported, exit.
+    if (!gd.isWindowTranslucencySupported(TRANSLUCENT)) {
+      System.err.println("Translucency is not supported");
+      System.exit(0);
+    }
+
+    // Create the GUI on the event-dispatching thread
+    SwingUtilities.invokeLater(new Runnable() {
+      @Override
+      public void run() {
+        for (int a = 0; a < 10; a++) {
+          NotifyFrame tw = new NotifyFrame(
+              "MAMEHub Chat",
+              String
+                  .format(
+                      "<html><body><font size='4' color='red'>%s</font><font size='4'>: %s</font></body></html>",
+                      "Digitalghost",
+                      "Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!Hey Guys!"
+                          .substring(0, 50) + "..."));
+        }
+      }
+    });
+  }
 }

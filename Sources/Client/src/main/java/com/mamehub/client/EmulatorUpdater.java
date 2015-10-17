@@ -33,6 +33,7 @@ public class EmulatorUpdater implements Runnable {
     this.writer = writer;
   }
 
+  @Override
   public void run() {
     try {
       writer.write("STARTING EMULATOR UPDATER\n");

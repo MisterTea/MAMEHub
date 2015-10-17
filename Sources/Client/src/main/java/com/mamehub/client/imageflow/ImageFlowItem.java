@@ -14,91 +14,84 @@ package com.mamehub.client.imageflow;
  */
 
 import java.awt.Image;
-import java.awt.image.*;
-import java.io.*;
-import javax.imageio.*;
-import java.util.*;
+import java.awt.image.BufferedImage;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 
-public class ImageFlowItem
-{
-    private BufferedImage image = null;
-    private String label;
+import javax.imageio.ImageIO;
 
-    private File file;
+public class ImageFlowItem {
+  private BufferedImage image = null;
+  private String label;
 
-    public ImageFlowItem(String fileName, String label)
-    {
-        this(new File(fileName), label);
+  private File file;
+
+  public ImageFlowItem(String fileName, String label) {
+    this(new File(fileName), label);
+  }
+
+  public ImageFlowItem(File file, String label) {
+    this.file = file;
+    this.label = label;
+  }
+
+  public ImageFlowItem(InputStream is, String label) throws IOException {
+    this.label = label;
+    loadImage(is);
+  }
+
+  public static List<ImageFlowItem> loadFromDirectory(File directory) {
+    List<ImageFlowItem> list = new ArrayList<ImageFlowItem>();
+
+    if (!directory.isDirectory()) {
+      return list;
     }
 
-    public ImageFlowItem(File file, String label)
-    {
-        this.file = file;
-        this.label = label;
+    File[] files = directory.listFiles();
+
+    for (int index = 0; index < files.length; index++) {
+      if (files[index].isFile()) {
+        ImageFlowItem item = new ImageFlowItem(files[index],
+            files[index].getName());
+        list.add(item);
+      }
     }
 
-    public ImageFlowItem(InputStream is, String label) throws IOException
-    {
-        this.label = label;
-        loadImage(is);
+    return list;
+  }
+
+  private void loadImage() throws FileNotFoundException, IOException {
+    FileInputStream fis = new FileInputStream(file);
+    loadImage(fis);
+  }
+
+  private void loadImage(InputStream is) throws FileNotFoundException,
+      IOException {
+    image = ImageIO.read(is);
+
+    CrystalCaseFactory fx = CrystalCaseFactory.getInstance();
+    image = fx.createReflectedPicture(fx.createCrystalCase(image));
+  }
+
+  public Image getImage() {
+    if (image == null) {
+      try {
+        loadImage();
+      } catch (Exception e) {
+        e.printStackTrace();
+      }
     }
 
-    public static List<ImageFlowItem> loadFromDirectory(File directory)
-    {
-        List<ImageFlowItem> list = new ArrayList<ImageFlowItem>();
+    return image;
+  }
 
-        if (!directory.isDirectory())
-        {
-            return list;
-        }
-
-        File[] files = directory.listFiles();
-
-        for (int index = 0; index < files.length; index++)
-        {
-        	if(files[index].isFile()) {
-	            ImageFlowItem item = new ImageFlowItem(files[index], files[index].getName());
-	            list.add(item);
-        	}
-        }
-
-        return list;
-    }
-
-    private void loadImage()  throws FileNotFoundException, IOException
-    {
-        FileInputStream fis = new FileInputStream(file);
-        loadImage(fis);
-    }
-
-    private void loadImage(InputStream is) throws FileNotFoundException, IOException
-    {
-        image = ImageIO.read(is);
-
-        CrystalCaseFactory fx = CrystalCaseFactory.getInstance();
-        image = fx.createReflectedPicture(fx.createCrystalCase(image));
-    }
-
-    public Image getImage()
-    {
-        if (image == null)
-        {
-            try
-            {
-                loadImage();
-            }
-            catch (Exception e)
-            {
-                e.printStackTrace();
-            }
-        }
-
-        return image;
-    }
-
-    public String getLabel()
-    {
-        return label;
-    }
+  public String getLabel() {
+    return label;
+  }
 
 }

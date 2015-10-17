@@ -29,7 +29,6 @@ import java.util.zip.Inflater;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.configuration.CompositeConfiguration;
 import org.apache.commons.configuration.Configuration;
-import org.apache.commons.configuration.ConfigurationException;
 import org.apache.commons.configuration.PropertiesConfiguration;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang.StringUtils;
@@ -303,7 +302,7 @@ public class Utils {
         + " / "
         + (Runtime.getRuntime().maxMemory() / 1024 / 1024)
         + "     ("
-        + (((float) Runtime.getRuntime().freeMemory()) * 100.0 / Runtime
+        + ((Runtime.getRuntime().freeMemory()) * 100.0 / Runtime
             .getRuntime().maxMemory()) + ")");
   }
 

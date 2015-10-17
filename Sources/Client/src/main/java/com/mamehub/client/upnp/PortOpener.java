@@ -11,7 +11,6 @@ import java.util.List;
 import org.fourthline.cling.DefaultUpnpServiceConfiguration;
 import org.fourthline.cling.UpnpService;
 import org.fourthline.cling.UpnpServiceImpl;
-import org.fourthline.cling.model.message.header.STAllHeader;
 import org.fourthline.cling.model.meta.LocalDevice;
 import org.fourthline.cling.model.meta.RemoteDevice;
 import org.fourthline.cling.registry.Registry;
@@ -32,168 +31,157 @@ import org.slf4j.LoggerFactory;
  * Runs a simple UPnP discovery procedure.
  */
 public class PortOpener implements Runnable {
-	public class ExitClingShutdownHook implements Runnable {
+  public class ExitClingShutdownHook implements Runnable {
 
-		@Override
-		public void run() {
-			logger.info("Stopping Cling...");
-			// Release all resources and advertise BYEBYE to other UPnP devices
-			upnpService.shutdown();
-		}
+    @Override
+    public void run() {
+      logger.info("Stopping Cling...");
+      // Release all resources and advertise BYEBYE to other UPnP devices
+      upnpService.shutdown();
+    }
 
-	}
+  }
 
-	final Logger logger = LoggerFactory.getLogger(PortOpener.class);
-	UpnpService upnpService;
-	private int input_port_1;
-	private int input_port_2;
+  final Logger logger = LoggerFactory.getLogger(PortOpener.class);
+  UpnpService upnpService;
+  private int input_port_1;
+  private int input_port_2;
 
-	public class MyUpnpServiceConfiguration extends
-			DefaultUpnpServiceConfiguration {
+  public class MyUpnpServiceConfiguration extends
+      DefaultUpnpServiceConfiguration {
 
-		@Override
-		public StreamClient<StreamClientConfigurationImpl> createStreamClient() {
-			return new StreamClientImpl(new StreamClientConfigurationImpl(
-					getSyncProtocolExecutorService()));
-		}
+    @Override
+    public StreamClient<StreamClientConfigurationImpl> createStreamClient() {
+      return new StreamClientImpl(new StreamClientConfigurationImpl(
+          getSyncProtocolExecutorService()));
+    }
 
-		@Override
-		public StreamServer<StreamServerConfigurationImpl> createStreamServer(
-				NetworkAddressFactory networkAddressFactory) {
-			return new StreamServerImpl(new StreamServerConfigurationImpl(
-					networkAddressFactory.getStreamListenPort()));
-		}
+    @Override
+    public StreamServer<StreamServerConfigurationImpl> createStreamServer(
+        NetworkAddressFactory networkAddressFactory) {
+      return new StreamServerImpl(new StreamServerConfigurationImpl(
+          networkAddressFactory.getStreamListenPort()));
+    }
 
-	}
+  }
 
-	public PortOpener(int input_port_1, int input_port_2) {
-		this.input_port_1 = input_port_1;
-		this.input_port_2 = input_port_2;
-	}
+  public PortOpener(int input_port_1, int input_port_2) {
+    this.input_port_1 = input_port_1;
+    this.input_port_2 = input_port_2;
+  }
 
-	@Override
-	public void run() {
-		// UPnP discovery is asynchronous, we need a callback
-		RegistryListener registryListener = new RegistryListener() {
+  @Override
+  public void run() {
+    // UPnP discovery is asynchronous, we need a callback
+    RegistryListener registryListener = new RegistryListener() {
 
-			@Override
-			public void remoteDeviceDiscoveryStarted(Registry registry,
-					RemoteDevice device) {
-				logger.debug("Discovery started: " + device.getDisplayString());
-			}
+      @Override
+      public void remoteDeviceDiscoveryStarted(Registry registry,
+          RemoteDevice device) {
+        logger.debug("Discovery started: " + device.getDisplayString());
+      }
 
-			@Override
-			public void remoteDeviceDiscoveryFailed(Registry registry,
-					RemoteDevice device, Exception ex) {
-				logger.debug("Discovery failed: " + device.getDisplayString()
-						+ " => " + ex);
-			}
+      @Override
+      public void remoteDeviceDiscoveryFailed(Registry registry,
+          RemoteDevice device, Exception ex) {
+        logger.debug("Discovery failed: " + device.getDisplayString() + " => "
+            + ex);
+      }
 
-			@Override
-			public void remoteDeviceAdded(Registry registry, RemoteDevice device) {
-				logger.info("Remote device available: "
-						+ device.getDisplayString());
+      @Override
+      public void remoteDeviceAdded(Registry registry, RemoteDevice device) {
+        logger.info("Remote device available: " + device.getDisplayString());
 
-			}
+      }
 
-			@Override
-			public void remoteDeviceUpdated(Registry registry,
-					RemoteDevice device) {
-				logger.debug("Remote device updated: "
-						+ device.getDisplayString());
-			}
+      @Override
+      public void remoteDeviceUpdated(Registry registry, RemoteDevice device) {
+        logger.debug("Remote device updated: " + device.getDisplayString());
+      }
 
-			@Override
-			public void remoteDeviceRemoved(Registry registry,
-					RemoteDevice device) {
-				logger.info("Remote device removed: "
-						+ device.getDisplayString());
-			}
+      @Override
+      public void remoteDeviceRemoved(Registry registry, RemoteDevice device) {
+        logger.info("Remote device removed: " + device.getDisplayString());
+      }
 
-			@Override
-			public void localDeviceAdded(Registry registry, LocalDevice device) {
-				logger.info("Local device added: " + device.getDisplayString());
-			}
+      @Override
+      public void localDeviceAdded(Registry registry, LocalDevice device) {
+        logger.info("Local device added: " + device.getDisplayString());
+      }
 
-			@Override
-			public void localDeviceRemoved(Registry registry, LocalDevice device) {
-				logger.info("Local device removed: "
-						+ device.getDisplayString());
-			}
+      @Override
+      public void localDeviceRemoved(Registry registry, LocalDevice device) {
+        logger.info("Local device removed: " + device.getDisplayString());
+      }
 
-			@Override
-			public void beforeShutdown(Registry registry) {
-				logger.info("Before shutdown, the registry has devices: "
-						+ registry.getDevices().size());
-			}
+      @Override
+      public void beforeShutdown(Registry registry) {
+        logger.info("Before shutdown, the registry has devices: "
+            + registry.getDevices().size());
+      }
 
-			@Override
-			public void afterShutdown() {
-				logger.info("Shutdown of registry complete!");
+      @Override
+      public void afterShutdown() {
+        logger.info("Shutdown of registry complete!");
 
-			}
-		};
+      }
+    };
 
     List<PortMapping> mappings = new ArrayList<>();
 
     try {
-			Enumeration<NetworkInterface> interfaces = NetworkInterface
-					.getNetworkInterfaces();
-			while (interfaces.hasMoreElements()) {
-		    // Get IP addresses
-		    String ipAddress = null;
-		    
-				NetworkInterface current = interfaces.nextElement();
-				if (!current.isUp() || current.isLoopback()
-						|| current.isVirtual())
-					continue;
-				Enumeration<InetAddress> addresses = current.getInetAddresses();
-				while (addresses.hasMoreElements()) {
-					InetAddress current_addr = addresses.nextElement();
-					if (!(current_addr instanceof Inet4Address)) {
-						// Sorry, no ipv6 support (yet)
-						continue;
-					}
-					if (current_addr.isLoopbackAddress())
-						continue;
-					ipAddress = current_addr.getHostAddress();
+      Enumeration<NetworkInterface> interfaces = NetworkInterface
+          .getNetworkInterfaces();
+      while (interfaces.hasMoreElements()) {
+        // Get IP addresses
+        String ipAddress = null;
 
-		      logger.info("ONE HOST IP ADDRESS IS " + ipAddress);
+        NetworkInterface current = interfaces.nextElement();
+        if (!current.isUp() || current.isLoopback() || current.isVirtual())
+          continue;
+        Enumeration<InetAddress> addresses = current.getInetAddresses();
+        while (addresses.hasMoreElements()) {
+          InetAddress current_addr = addresses.nextElement();
+          if (!(current_addr instanceof Inet4Address)) {
+            // Sorry, no ipv6 support (yet)
+            continue;
+          }
+          if (current_addr.isLoopbackAddress())
+            continue;
+          ipAddress = current_addr.getHostAddress();
 
-		      int port1 = input_port_1;
-		      int port2 = input_port_2;
-		      logger.info("FORWARDING PORTS: " + input_port_1 + " AND "
-		          + input_port_2);
-		      mappings.add(
-		          new PortMapping(port1, ipAddress, PortMapping.Protocol.TCP,
-		              "MAMEHub TCP Port Mapping 1"));
-		      mappings.add(
-		          new PortMapping(port2, ipAddress, PortMapping.Protocol.TCP,
-		              "MAMEHub TCP Port Mapping 2"));
-		              mappings.add(
-		          new PortMapping(port1, ipAddress, PortMapping.Protocol.UDP,
-		              "MAMEHub UDP Port Mapping 1"));
-		              mappings.add(
-		          new PortMapping(port2, ipAddress, PortMapping.Protocol.UDP,
-		              "MAMEHub UDP Port Mapping 2"));
-				}
-			}
-		} catch (SocketException se) {
-			throw new RuntimeException(se);
-		}
+          logger.info("ONE HOST IP ADDRESS IS " + ipAddress);
 
-		// This will create necessary network resources for UPnP right away
-		logger.info("Starting Cling...");
-		upnpService = new UpnpServiceImpl(registryListener,
-				new PortMappingListener(mappings.toArray(new PortMapping[0])));
+          int port1 = input_port_1;
+          int port2 = input_port_2;
+          logger.info("FORWARDING PORTS: " + input_port_1 + " AND "
+              + input_port_2);
+          mappings.add(new PortMapping(port1, ipAddress,
+              PortMapping.Protocol.TCP, "MAMEHub TCP Port Mapping 1"));
+          mappings.add(new PortMapping(port2, ipAddress,
+              PortMapping.Protocol.TCP, "MAMEHub TCP Port Mapping 2"));
+          mappings.add(new PortMapping(port1, ipAddress,
+              PortMapping.Protocol.UDP, "MAMEHub UDP Port Mapping 1"));
+          mappings.add(new PortMapping(port2, ipAddress,
+              PortMapping.Protocol.UDP, "MAMEHub UDP Port Mapping 2"));
+        }
+      }
+    } catch (SocketException se) {
+      throw new RuntimeException(se);
+    }
 
-		// Send a search message to all devices and services, they should
-		// respond soon
-		upnpService.getControlPoint().search();
+    // This will create necessary network resources for UPnP right away
+    logger.info("Starting Cling...");
+    upnpService = new UpnpServiceImpl(registryListener,
+        new PortMappingListener(mappings.toArray(new PortMapping[0])));
 
-		// Exit cling when closing the app
-		Runtime.getRuntime().addShutdownHook(
-				new Thread(new ExitClingShutdownHook()));
-	}
+    // Send a search message to all devices and services, they should
+    // respond soon
+    upnpService.getControlPoint().search();
+
+    // Exit cling when closing the app
+    Runtime.getRuntime().addShutdownHook(
+        new Thread(new ExitClingShutdownHook()));
+  }
 
 }

@@ -35,7 +35,8 @@ public class SoundEngine implements LineListener {
       }
       try {
         String name = soundFile;
-        name = name.substring("/sounds/".length(), name.length() - 4).toLowerCase();
+        name = name.substring("/sounds/".length(), name.length() - 4)
+            .toLowerCase();
         System.out.println("SOUND FILE: " + soundFile);
         soundFileMap.put(name,
             IOUtils.toByteArray(Utils.getResourceInputStream(soundFile)));

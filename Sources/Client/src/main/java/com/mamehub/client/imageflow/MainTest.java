@@ -25,69 +25,67 @@ package com.mamehub.client.imageflow;
  * - Added support for ListSelectionListener
  */
 
+import java.awt.BorderLayout;
 import java.awt.HeadlessException;
-
-import javax.swing.*;
 import java.io.File;
-import java.awt.*;
 
-public class MainTest extends JFrame
-{
-    private JLabel currentItem;
-    private ImageFlow imageFlow = null;
+import javax.swing.JFrame;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
+import javax.swing.SwingUtilities;
 
-    public MainTest() throws HeadlessException {
-        super("Image Flow");
+public class MainTest extends JFrame {
+  private JLabel currentItem;
+  private ImageFlow imageFlow = null;
 
-        buildContentPane();
+  public MainTest() throws HeadlessException {
+    super("Image Flow");
 
-        setSize(640, 360);
-        setResizable(true);
-        setLocationRelativeTo(null);
+    buildContentPane();
 
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-    }
+    setSize(640, 360);
+    setResizable(true);
+    setLocationRelativeTo(null);
 
-    private void buildContentPane() {
+    setDefaultCloseOperation(EXIT_ON_CLOSE);
+  }
 
+  private void buildContentPane() {
 
-        JPanel imageFlowPanel = new JPanel(new StackLayout());
-        imageFlowPanel.add(new GradientPanel(), StackLayout.BOTTOM);
+    JPanel imageFlowPanel = new JPanel(new StackLayout());
+    imageFlowPanel.add(new GradientPanel(), StackLayout.BOTTOM);
 
-        /*
-        ArrayList<ImageFlowItem> items = new ArrayList<ImageFlowItem>();
-        try
-        {
-            items.add(new ImageFlowItem(new File("c:/projects/components/images/Colosseum.jpg"), "Colosseum"));
-            items.add(new ImageFlowItem(new File("c:/projects/components/images/horse.jpg"), "Horse"));
-            items.add(new ImageFlowItem(new File("c:/projects/components/images/london.jpg"), "London"));
-            items.add(new ImageFlowItem(new File("c:/projects/components/images/tent.jpg"), "Tent"));
-            items.add(new ImageFlowItem(new File("c:/projects/components/images/Tomatoes.jpg"), "Tomatoes"));
-            items.add(new ImageFlowItem(new File("c:/projects/components/images/Vegetables.jpg"), "Vegetables"));
-        }
-        catch (Exception e)
-        {
-            logger.info(e.getMessage());
-        }
-        */
+    /*
+     * ArrayList<ImageFlowItem> items = new ArrayList<ImageFlowItem>(); try {
+     * items.add(new ImageFlowItem(new
+     * File("c:/projects/components/images/Colosseum.jpg"), "Colosseum"));
+     * items.add(new ImageFlowItem(new
+     * File("c:/projects/components/images/horse.jpg"), "Horse")); items.add(new
+     * ImageFlowItem(new File("c:/projects/components/images/london.jpg"),
+     * "London")); items.add(new ImageFlowItem(new
+     * File("c:/projects/components/images/tent.jpg"), "Tent")); items.add(new
+     * ImageFlowItem(new File("c:/projects/components/images/Tomatoes.jpg"),
+     * "Tomatoes")); items.add(new ImageFlowItem(new
+     * File("c:/projects/components/images/Vegetables.jpg"), "Vegetables")); }
+     * catch (Exception e) { logger.info(e.getMessage()); }
+     */
 
-        //ArrayList<ImageFlowItem> items = new ArrayList<ImageFlowItem>();
-        imageFlow = new ImageFlow(new File("../images/"));
-        imageFlowPanel.add(imageFlow,  StackLayout.TOP);
+    // ArrayList<ImageFlowItem> items = new ArrayList<ImageFlowItem>();
+    imageFlow = new ImageFlow(new File("../images/"));
+    imageFlowPanel.add(imageFlow, StackLayout.TOP);
 
-        getContentPane().setLayout(new BorderLayout());
+    getContentPane().setLayout(new BorderLayout());
 
-        getContentPane().add(imageFlowPanel, BorderLayout.CENTER);
-    }
+    getContentPane().add(imageFlowPanel, BorderLayout.CENTER);
+  }
 
-
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(new Runnable() {
-            @Override
-			public void run() {
-                MainTest tester = new MainTest();
-                tester.setVisible(true);
-            }
-        });
-    }
+  public static void main(String[] args) {
+    SwingUtilities.invokeLater(new Runnable() {
+      @Override
+      public void run() {
+        MainTest tester = new MainTest();
+        tester.setVisible(true);
+      }
+    });
+  }
 }

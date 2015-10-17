@@ -11,14 +11,12 @@ import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.Arrays;
-import java.util.zip.Deflater;
-import java.util.zip.Inflater;
 
 import javax.imageio.ImageIO;
 import javax.swing.BoxLayout;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
+import javax.swing.JCheckBox;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
 import javax.swing.JOptionPane;
@@ -29,7 +27,6 @@ import javax.swing.SwingConstants;
 import javax.swing.WindowConstants;
 import javax.swing.border.EmptyBorder;
 
-import org.apache.commons.codec.binary.Base64;
 import org.apache.commons.configuration.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,7 +42,6 @@ import com.mamehub.client.server.ClientHttpServer;
 import com.mamehub.client.server.GuiHttpServer;
 import com.mamehub.client.server.UDPReflectionServer;
 import com.mamehub.thrift.Player;
-import javax.swing.JCheckBox;
 
 public class LoginDialog extends JFrame implements FacebookLoginCallback,
     GoogleLoginCallback {
@@ -374,6 +370,7 @@ public class LoginDialog extends JFrame implements FacebookLoginCallback,
       {
         btnUpdateSettings = new JButton("Update Settings");
         btnUpdateSettings.addActionListener(new ActionListener() {
+          @Override
           public void actionPerformed(ActionEvent e) {
             new UpdateSettingsDialog(LoginDialog.this);
           }

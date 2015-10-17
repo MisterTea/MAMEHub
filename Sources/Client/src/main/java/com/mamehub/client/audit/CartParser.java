@@ -1,8 +1,6 @@
 package com.mamehub.client.audit;
 
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -10,9 +8,6 @@ import java.util.concurrent.ConcurrentMap;
 
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.parsers.ParserConfigurationException;
-import javax.xml.parsers.SAXParser;
-import javax.xml.parsers.SAXParserFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,12 +15,8 @@ import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
-import org.xml.sax.Attributes;
-import org.xml.sax.SAXException;
 import org.xml.sax.helpers.DefaultHandler;
 
-import com.mamehub.client.Utils;
-import com.mamehub.client.utility.ClientDatabaseEngine;
 import com.mamehub.thrift.MR;
 import com.mamehub.thrift.RomHashEntryValue;
 import com.mamehub.thrift.RomInfo;
@@ -82,7 +73,8 @@ public class CartParser extends DefaultHandler implements Runnable {
         Node node = nList.item(temp);
 
         RomInfo romInfo = new RomInfo();
-        romInfo._id = node.getAttributes().getNamedItem("name").getTextContent();
+        romInfo._id = node.getAttributes().getNamedItem("name")
+            .getTextContent();
         romInfo.description = ((Element) node)
             .getElementsByTagName("description").item(0).getTextContent();
         romInfo.system = systemName;

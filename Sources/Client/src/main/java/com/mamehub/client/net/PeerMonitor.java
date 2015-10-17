@@ -20,7 +20,6 @@ import java.util.zip.CRC32;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import org.apache.commons.io.FilenameUtils;
 import org.apache.http.impl.client.ContentEncodingHttpClient;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.apache.http.params.BasicHttpParams;
@@ -34,7 +33,6 @@ import org.slf4j.LoggerFactory;
 
 import com.mamehub.client.MainFrame;
 import com.mamehub.client.MameHubEngine;
-import com.mamehub.client.Utils;
 import com.mamehub.client.utility.HexStringInputStream;
 import com.mamehub.rpc.MameHubClientRpc;
 import com.mamehub.thrift.DownloadableRomState;
@@ -45,7 +43,6 @@ import com.mamehub.thrift.PeerFileInfo;
 import com.mamehub.thrift.PeerState;
 import com.mamehub.thrift.Player;
 import com.mamehub.thrift.RomInfo;
-import com.mamehub.thrift.SystemRomPair;
 
 public class PeerMonitor implements Runnable {
   final Logger logger = LoggerFactory.getLogger(PeerMonitor.class);
@@ -89,7 +86,7 @@ public class PeerMonitor implements Runnable {
 
           boolean transferFailed = false;
           int numFiles = gameClient.getFileCount(romInfo.system, romInfo._id);
-          if (numFiles==0) {
+          if (numFiles == 0) {
             continue;
           }
           for (int a = 0; a < numFiles; a++) {
@@ -119,7 +116,8 @@ public class PeerMonitor implements Runnable {
               if (fileInfo.filename.toLowerCase().endsWith(".chd")) {
                 String chdName = romInfo._id;
                 new File("../roms/" + romInfo.system + "/" + chdName).mkdirs();
-                file = new File("../roms/" + romInfo.system + "/" + chdName + "/" + fileInfo.filename);
+                file = new File("../roms/" + romInfo.system + "/" + chdName
+                    + "/" + fileInfo.filename);
               } else {
                 file = new File("../roms/" + romInfo.system + "/"
                     + fileInfo.filename);

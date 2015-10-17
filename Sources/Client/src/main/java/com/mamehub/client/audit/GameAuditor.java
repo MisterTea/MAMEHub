@@ -48,433 +48,431 @@ import com.mamehub.thrift.RomHashEntryValue;
 import com.mamehub.thrift.RomInfo;
 
 public class GameAuditor implements Runnable {
-	final Logger logger = LoggerFactory.getLogger(GameAuditor.class);
+  final Logger logger = LoggerFactory.getLogger(GameAuditor.class);
 
-	public static interface AuditHandler {
-		public void auditFinished(GameAuditor gameAuditor);
+  public static interface AuditHandler {
+    public void auditFinished(GameAuditor gameAuditor);
 
-		public void auditError(Exception e);
+    public void auditError(Exception e);
 
-		public void updateAuditStatus(String string);
-	}
+    public void updateAuditStatus(String string);
+  }
 
-	private AuditHandler handler;
-	public static boolean abort = false;
-	public boolean runScanner;
-	public Thread gameAuditorThread;
-	private HashScanner hashScanner;
-	private ConcurrentMap<String, ArrayList<RomHashEntryValue>> hashEntryMap = null;
-	private ConcurrentMap<String, String> chdMap = null;
-	private ConcurrentMap<String, Boolean> filesScanned = null;
-	ConcurrentMap<String, RomInfo> mameRoms = getMameRomInfoMap();
-	ConcurrentMap<String, RomInfo> messRoms = getMessRomInfoMap();
-	private File indexDir;
+  private AuditHandler handler;
+  public static boolean abort = false;
+  public boolean runScanner;
+  public Thread gameAuditorThread;
+  private HashScanner hashScanner;
+  private ConcurrentMap<String, ArrayList<RomHashEntryValue>> hashEntryMap = null;
+  private ConcurrentMap<String, String> chdMap = null;
+  private ConcurrentMap<String, Boolean> filesScanned = null;
+  ConcurrentMap<String, RomInfo> mameRoms = getMameRomInfoMap();
+  ConcurrentMap<String, RomInfo> messRoms = getMessRomInfoMap();
+  private File indexDir;
 
-	Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_40, CharArraySet.EMPTY_SET); // The standard
-																	// analyzer
-																	// does
-																	// stemming,
-																	// so don't
-																	// use it.
+  Analyzer analyzer = new StandardAnalyzer(Version.LUCENE_40,
+      CharArraySet.EMPTY_SET); // The standard
 
-	public GameAuditor(AuditHandler ah) throws IOException {
-		GameAuditor.abort = false;
-		this.handler = ah;
+  // analyzer
+  // does
+  // stemming,
+  // so don't
+  // use it.
 
-		indexDir = new File("AuditIndex" + Utils.AUDIT_DATABASE_VERSION);
+  public GameAuditor(AuditHandler ah) throws IOException {
+    GameAuditor.abort = false;
+    this.handler = ah;
 
-		runScanner = true;
-		hashEntryMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
-				"HashEntryMap2");
-		chdMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
-				"ChdMap");
-		filesScanned = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap("FilesScanned");
+    indexDir = new File("AuditIndex" + Utils.AUDIT_DATABASE_VERSION);
 
-		if (!hashEntryMap.isEmpty() && indexDir.exists()) {
-			runScanner = false;
-		}
+    runScanner = true;
+    hashEntryMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
+        "HashEntryMap2");
+    chdMap = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap("ChdMap");
+    filesScanned = Utils.getAuditDatabaseEngine().getOrCreatePrimitiveMap(
+        "FilesScanned");
 
-		startAudit(runScanner);
-	}
+    if (!hashEntryMap.isEmpty() && indexDir.exists()) {
+      runScanner = false;
+    }
 
-	public boolean startAudit(boolean runScanner) {
-		this.runScanner = runScanner;
+    startAudit(runScanner);
+  }
 
-		if (gameAuditorThread != null && gameAuditorThread.isAlive()) {
-			// Cancel previous request
-			cancelAudit();
-		}
-		GameAuditor.abort = false;
+  public boolean startAudit(boolean runScanner) {
+    this.runScanner = runScanner;
 
-		gameAuditorThread = new Thread(this);
-		gameAuditorThread.start();
-		return true;
-	}
+    if (gameAuditorThread != null && gameAuditorThread.isAlive()) {
+      // Cancel previous request
+      cancelAudit();
+    }
+    GameAuditor.abort = false;
 
-	@Override
-	public void run() {
-		try {
-			if (runScanner) {
-				scan();
-				audit();
-				updateCache();
-			}
-		} catch (Exception e) {
-			logger.error("Audit error!", e);
-			GameAuditor.abort = true;
-			Utils.deleteAuditDatabaseEngine();
-			if (handler != null) {
-				handler.auditError(new IOException(e));
-			}
-			return;
-		}
-		// Replace the existing db with the new one
-		if (handler != null && !GameAuditor.abort) {
-			handler.auditFinished(this);
-		}
-	}
+    gameAuditorThread = new Thread(this);
+    gameAuditorThread.start();
+    return true;
+  }
 
-	private void scan() throws Exception {
-		List<String> systemNames = new ArrayList<String>();
-		for(File softlist_file : Utils.getHashDirectory().listFiles()) {
-			systemNames.add(softlist_file.getName().split("\\.")[0]);
-		}
+  @Override
+  public void run() {
+    try {
+      if (runScanner) {
+        scan();
+        audit();
+        updateCache();
+      }
+    } catch (Exception e) {
+      logger.error("Audit error!", e);
+      GameAuditor.abort = true;
+      Utils.deleteAuditDatabaseEngine();
+      if (handler != null) {
+        handler.auditError(new IOException(e));
+      }
+      return;
+    }
+    // Replace the existing db with the new one
+    if (handler != null && !GameAuditor.abort) {
+      handler.auditFinished(this);
+    }
+  }
 
-		List<File> paths = new IniParser().getRomPaths();
-		hashScanner = new HashScanner(handler, hashEntryMap, chdMap, filesScanned, systemNames);
-		hashScanner.scan(paths);
-		hashScanner = null;
-		if (GameAuditor.abort) {
-			return;
-		}
-	}
+  private void scan() throws Exception {
+    List<String> systemNames = new ArrayList<String>();
+    for (File softlist_file : Utils.getHashDirectory().listFiles()) {
+      systemNames.add(softlist_file.getName().split("\\.")[0]);
+    }
 
-	private void audit() {
-		try {
-			logger.info("AUDIT: Creating in-memory hash entry map.");
-			handler.updateAuditStatus("AUDIT: Creating in-memory hash entry map.");
-			Map<String, ArrayList<RomHashEntryValue>> inMemoryHashEntryMap = new ConcurrentHashMap<String, ArrayList<RomHashEntryValue>>(
-					hashEntryMap);
-			handler.updateAuditStatus("AUDIT: Parsing MAME Roms");
-			logger.info("Parsing MAME roms");
-			new RomParser(Utils.getHashDirectory().getPath()+"/mameROMs.xml.gz")
-					.process(inMemoryHashEntryMap, chdMap, mameRoms, false,
-							false, false);
-			Utils.getAuditDatabaseEngine().commit();
+    List<File> paths = new IniParser().getRomPaths();
+    hashScanner = new HashScanner(handler, hashEntryMap, chdMap, filesScanned,
+        systemNames);
+    hashScanner.scan(paths);
+    hashScanner = null;
+    if (GameAuditor.abort) {
+      return;
+    }
+  }
 
-			handler.updateAuditStatus("AUDIT: Parsing MESS Systems");
-			// MESS Systems can't come from CHDs, so put a null here
-			new RomParser(Utils.getHashDirectory().getPath()+"/messROMs.xml.gz").process(
-					inMemoryHashEntryMap, null, messRoms, true, true, true);
-			Utils.getAuditDatabaseEngine().commit();
+  private void audit() {
+    try {
+      logger.info("AUDIT: Creating in-memory hash entry map.");
+      handler.updateAuditStatus("AUDIT: Creating in-memory hash entry map.");
+      Map<String, ArrayList<RomHashEntryValue>> inMemoryHashEntryMap = new ConcurrentHashMap<String, ArrayList<RomHashEntryValue>>(
+          hashEntryMap);
+      handler.updateAuditStatus("AUDIT: Parsing MAME Roms");
+      logger.info("Parsing MAME roms");
+      new RomParser(Utils.getHashDirectory().getPath() + "/mameROMs.xml.gz")
+          .process(inMemoryHashEntryMap, chdMap, mameRoms, false, false, false);
+      Utils.getAuditDatabaseEngine().commit();
 
-			final ExecutorService threadPool = Executors.newFixedThreadPool(8);
-			Set<String> systemsToRemove = new HashSet<String>();
-			String systems = "";
-			Queue<Future<?>> futures = new LinkedList<Future<?>>();
-			Map<String, ConcurrentMap<String, RomInfo>> systemRomMaps = new HashMap<String, ConcurrentMap<String, RomInfo>>();
-			for (String system : messRoms.keySet()) {
-				// Ensure that the maps exist before trying to create them in a
-				// thread-unsafe environment
-				systemRomMaps.put(system, getSystemRomInfoMap(system));
-			}
-			for (String system : messRoms.keySet()) {
-				if (GameAuditor.abort) {
-					return;
-				}
-				boolean missingSystem = false;
-				if (messRoms.get(system).isSetMissingReason()) {
-					missingSystem = true;
-				}
-				File file = new File(Utils.getHashDirectory().getPath()+"/" + system + ".xml");
-				if (file.exists()) {
-					Map<String, RomInfo> systemCarts = systemRomMaps
-							.get(system);
-					systemCarts.clear();
-					futures.add(threadPool.submit(new CartParser(system, file,
-							inMemoryHashEntryMap, systemCarts, chdMap,
-							missingSystem)));
-					if (!systems.isEmpty()) {
-						systems += ", ";
-					}
-					systems += system;
-				} else {
-					systemsToRemove.add(system);
-				}
-			}
-			for (String systemToRemove : systemsToRemove) {
-				messRoms.remove(systemToRemove);
-			}
-			while (!futures.isEmpty()) {
-				handler.updateAuditStatus("AUDIT: Parsing carts for " + systems);
-				futures.poll().get();
-				if (!futures.isEmpty())
-					systems = systems.substring(systems.indexOf(',') + 1);
-			}
-			threadPool.shutdown();
-			if (!threadPool.awaitTermination(5, TimeUnit.HOURS)) {
-				throw new IOException("Took too long to audit carts.");
-			}
-			Utils.getAuditDatabaseEngine().commit();
+      handler.updateAuditStatus("AUDIT: Parsing MESS Systems");
+      // MESS Systems can't come from CHDs, so put a null here
+      new RomParser(Utils.getHashDirectory().getPath() + "/messROMs.xml.gz")
+          .process(inMemoryHashEntryMap, null, messRoms, true, true, true);
+      Utils.getAuditDatabaseEngine().commit();
 
-		} catch (Exception e) {
-			logger.error("AUDIT EXCEPTION", e);
-			// Delete the database just in case
-			try {
-				Utils.getAuditDatabaseEngine().close();
-				Utils.wipeAuditDatabaseEngine();
-				Utils.getAuditDatabaseEngine();
-			} catch (IOException e1) {
-				// We couldn't delete the database, this is probably bad but not
-				// sure what else we can do at this point.
-			}
-			if (handler != null) {
-				handler.auditError(new IOException(e));
-			}
-			return;
-		}
-	}
+      final ExecutorService threadPool = Executors.newFixedThreadPool(8);
+      Set<String> systemsToRemove = new HashSet<String>();
+      String systems = "";
+      Queue<Future<?>> futures = new LinkedList<Future<?>>();
+      Map<String, ConcurrentMap<String, RomInfo>> systemRomMaps = new HashMap<String, ConcurrentMap<String, RomInfo>>();
+      for (String system : messRoms.keySet()) {
+        // Ensure that the maps exist before trying to create them in a
+        // thread-unsafe environment
+        systemRomMaps.put(system, getSystemRomInfoMap(system));
+      }
+      for (String system : messRoms.keySet()) {
+        if (GameAuditor.abort) {
+          return;
+        }
+        boolean missingSystem = false;
+        if (messRoms.get(system).isSetMissingReason()) {
+          missingSystem = true;
+        }
+        File file = new File(Utils.getHashDirectory().getPath() + "/" + system
+            + ".xml");
+        if (file.exists()) {
+          Map<String, RomInfo> systemCarts = systemRomMaps.get(system);
+          systemCarts.clear();
+          futures.add(threadPool.submit(new CartParser(system, file,
+              inMemoryHashEntryMap, systemCarts, chdMap, missingSystem)));
+          if (!systems.isEmpty()) {
+            systems += ", ";
+          }
+          systems += system;
+        } else {
+          systemsToRemove.add(system);
+        }
+      }
+      for (String systemToRemove : systemsToRemove) {
+        messRoms.remove(systemToRemove);
+      }
+      while (!futures.isEmpty()) {
+        handler.updateAuditStatus("AUDIT: Parsing carts for " + systems);
+        futures.poll().get();
+        if (!futures.isEmpty())
+          systems = systems.substring(systems.indexOf(',') + 1);
+      }
+      threadPool.shutdown();
+      if (!threadPool.awaitTermination(5, TimeUnit.HOURS)) {
+        throw new IOException("Took too long to audit carts.");
+      }
+      Utils.getAuditDatabaseEngine().commit();
 
-	private void updateCache() throws IOException {
-		handler.updateAuditStatus("AUDIT: Deleting old index");
-		FileUtils.deleteDirectory(indexDir);
-		indexDir.mkdir();
-		handler.updateAuditStatus("AUDIT: Creating new index");
-		Directory dir = FSDirectory.open(indexDir);
-		IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40,
-				analyzer);
+    } catch (Exception e) {
+      logger.error("AUDIT EXCEPTION", e);
+      // Delete the database just in case
+      try {
+        Utils.getAuditDatabaseEngine().close();
+        Utils.wipeAuditDatabaseEngine();
+        Utils.getAuditDatabaseEngine();
+      } catch (IOException e1) {
+        // We couldn't delete the database, this is probably bad but not
+        // sure what else we can do at this point.
+      }
+      if (handler != null) {
+        handler.auditError(new IOException(e));
+      }
+      return;
+    }
+  }
 
-		// Create a new index in the directory, removing any
-		// previously indexed documents:
-		iwc.setOpenMode(OpenMode.CREATE);
+  private void updateCache() throws IOException {
+    handler.updateAuditStatus("AUDIT: Deleting old index");
+    FileUtils.deleteDirectory(indexDir);
+    indexDir.mkdir();
+    handler.updateAuditStatus("AUDIT: Creating new index");
+    Directory dir = FSDirectory.open(indexDir);
+    IndexWriterConfig iwc = new IndexWriterConfig(Version.LUCENE_40, analyzer);
 
-		// Optional: for better indexing performance, if you
-		// are indexing many documents, increase the RAM
-		// buffer. But if you do this, increase the max heap
-		// size to the JVM (eg add -Xmx512m or -Xmx1g):
-		//
-		// iwc.setRAMBufferSizeMB(256.0);
+    // Create a new index in the directory, removing any
+    // previously indexed documents:
+    iwc.setOpenMode(OpenMode.CREATE);
 
-		IndexWriter writer = new IndexWriter(dir, iwc);
+    // Optional: for better indexing performance, if you
+    // are indexing many documents, increase the RAM
+    // buffer. But if you do this, increase the max heap
+    // size to the JVM (eg add -Xmx512m or -Xmx1g):
+    //
+    // iwc.setRAMBufferSizeMB(256.0);
 
-		{
-			handler.updateAuditStatus("AUDIT: Indexing Arcade roms");
-			for (RomInfo ri : mameRoms.values()) {
-				addIndexEntry(writer, "Arcade", ri.description, ri._id);
-			}
-		}
+    IndexWriter writer = new IndexWriter(dir, iwc);
 
-		for (String system : messRoms.keySet()) {
-			handler.updateAuditStatus("AUDIT: Indexing " + system);
-			Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
-			for (RomInfo ri : systemCarts.values()) {
-				addIndexEntry(writer, system, ri.description, ri._id);
-			}
-		}
+    {
+      handler.updateAuditStatus("AUDIT: Indexing Arcade roms");
+      for (RomInfo ri : mameRoms.values()) {
+        addIndexEntry(writer, "Arcade", ri.description, ri._id);
+      }
+    }
 
-		handler.updateAuditStatus("AUDIT: Merging index.");
+    for (String system : messRoms.keySet()) {
+      handler.updateAuditStatus("AUDIT: Indexing " + system);
+      Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
+      for (RomInfo ri : systemCarts.values()) {
+        addIndexEntry(writer, system, ri.description, ri._id);
+      }
+    }
 
-		// NOTE: if you want to maximize search performance,
-		// you can optionally call forceMerge here. This can be
-		// a terribly costly operation, so generally it's only
-		// worth it when your index is relatively static (ie
-		// you're done adding documents to it):
-		//
-		writer.forceMerge(1);
+    handler.updateAuditStatus("AUDIT: Merging index.");
 
-		handler.updateAuditStatus("AUDIT: Closing index.");
-		writer.close();
-	}
+    // NOTE: if you want to maximize search performance,
+    // you can optionally call forceMerge here. This can be
+    // a terribly costly operation, so generally it's only
+    // worth it when your index is relatively static (ie
+    // you're done adding documents to it):
+    //
+    writer.forceMerge(1);
 
-	private void addIndexEntry(IndexWriter writer, String system,
-			String description, String shortName) throws IOException {
-		Document doc = new Document();
+    handler.updateAuditStatus("AUDIT: Closing index.");
+    writer.close();
+  }
 
-		doc.add(new StringField("Machine", system, Field.Store.YES));
-		doc.add(new StringField("gameDescription", description, Field.Store.YES));
-		doc.add(new TextField("gameDescriptionLowerCase", description
-				.toLowerCase().replace("'", ""), Field.Store.YES));
-		doc.add(new StringField("gameName", shortName, Field.Store.YES));
+  private void addIndexEntry(IndexWriter writer, String system,
+      String description, String shortName) throws IOException {
+    Document doc = new Document();
 
-		writer.updateDocument(new Term("uniqueGame", system + "/" + shortName), doc);
-	}
+    doc.add(new StringField("Machine", system, Field.Store.YES));
+    doc.add(new StringField("gameDescription", description, Field.Store.YES));
+    doc.add(new TextField("gameDescriptionLowerCase", description.toLowerCase()
+        .replace("'", ""), Field.Store.YES));
+    doc.add(new StringField("gameName", shortName, Field.Store.YES));
 
-	public String getSystemForRom(String romId) {
-		for (Map.Entry<String, RomInfo> entry : mameRoms.entrySet()) {
-			if (entry.getKey().equals(romId)) {
-				return "Arcade";
-			}
-		}
+    writer
+        .updateDocument(new Term("uniqueGame", system + "/" + shortName), doc);
+  }
 
-		for (String system : messRoms.keySet()) {
-			Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
-			for (Map.Entry<String, RomInfo> entry : systemCarts.entrySet()) {
-				if (entry.getKey().equals(romId)) {
-					return system;
-				}
-			}
-		}
+  public String getSystemForRom(String romId) {
+    for (Map.Entry<String, RomInfo> entry : mameRoms.entrySet()) {
+      if (entry.getKey().equals(romId)) {
+        return "Arcade";
+      }
+    }
 
-		return null;
-	}
+    for (String system : messRoms.keySet()) {
+      Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
+      for (Map.Entry<String, RomInfo> entry : systemCarts.entrySet()) {
+        if (entry.getKey().equals(romId)) {
+          return system;
+        }
+      }
+    }
 
-	public ConcurrentMap<String, RomInfo> getSystemRomInfoMap(String system) {
-		return Utils.getAuditDatabaseEngine().getOrCreateMap(RomInfo.class,
-				system + "Roms");
-	}
+    return null;
+  }
 
-	public ConcurrentMap<String, RomInfo> getMameRomInfoMap() {
-		return Utils.getAuditDatabaseEngine().getOrCreateMap(RomInfo.class,
-				"MAMERoms");
-	}
+  public ConcurrentMap<String, RomInfo> getSystemRomInfoMap(String system) {
+    return Utils.getAuditDatabaseEngine().getOrCreateMap(RomInfo.class,
+        system + "Roms");
+  }
 
-	public ConcurrentMap<String, RomInfo> getMessRomInfoMap() {
-		return Utils.getAuditDatabaseEngine().getOrCreateMap(RomInfo.class,
-				"MESSRoms");
-	}
+  public ConcurrentMap<String, RomInfo> getMameRomInfoMap() {
+    return Utils.getAuditDatabaseEngine().getOrCreateMap(RomInfo.class,
+        "MAMERoms");
+  }
 
-	/**
-	 * @param args
-	 * @throws IOException
-	 */
-	public static void main(String[] args) throws IOException {
-		GameAuditor gameAuditor = new GameAuditor(null);
-		new Thread(gameAuditor).start();
-	}
+  public ConcurrentMap<String, RomInfo> getMessRomInfoMap() {
+    return Utils.getAuditDatabaseEngine().getOrCreateMap(RomInfo.class,
+        "MESSRoms");
+  }
 
-	public boolean isAuditing() {
-		// If there is no thread, the thread is dead, or we are scanning hashes,
-		// then we are NOT auditing
-		return !(gameAuditorThread == null
-				|| gameAuditorThread.isAlive() == false || hashScanner != null);
-	}
+  /**
+   * @param args
+   * @throws IOException
+   */
+  public static void main(String[] args) throws IOException {
+    GameAuditor gameAuditor = new GameAuditor(null);
+    new Thread(gameAuditor).start();
+  }
 
-	public void cancelAudit() {
-		GameAuditor.abort = true;
-		while (gameAuditorThread != null && gameAuditorThread.isAlive()) {
-			try {
-				gameAuditorThread.join();
-			} catch (InterruptedException e) {
-			}
-		}
-		GameAuditor.abort = false;
-	}
+  public boolean isAuditing() {
+    // If there is no thread, the thread is dead, or we are scanning hashes,
+    // then we are NOT auditing
+    return !(gameAuditorThread == null || gameAuditorThread.isAlive() == false || hashScanner != null);
+  }
 
-	public static class RomQueryResult {
-		public float score;
-		public RomInfo romInfo;
+  public void cancelAudit() {
+    GameAuditor.abort = true;
+    while (gameAuditorThread != null && gameAuditorThread.isAlive()) {
+      try {
+        gameAuditorThread.join();
+      } catch (InterruptedException e) {
+      }
+    }
+    GameAuditor.abort = false;
+  }
 
-		public RomQueryResult(float score, RomInfo romInfo) {
-			this.score = score;
-			this.romInfo = romInfo;
-		}
-	}
+  public static class RomQueryResult {
+    public float score;
+    public RomInfo romInfo;
 
-	public List<RomQueryResult> queryRoms(String inputQuery,
-			Map<String, Set<String>> cloudRoms) {
-		if (isAuditing()) {
-			return new ArrayList<RomQueryResult>();
-		}
+    public RomQueryResult(float score, RomInfo romInfo) {
+      this.score = score;
+      this.romInfo = romInfo;
+    }
+  }
 
-		IndexReader reader = null;
-		try {
-			Directory dir = FSDirectory.open(indexDir);
-			reader = DirectoryReader.open(dir);
-			IndexSearcher searcher = new IndexSearcher(reader);
+  public List<RomQueryResult> queryRoms(String inputQuery,
+      Map<String, Set<String>> cloudRoms) {
+    if (isAuditing()) {
+      return new ArrayList<RomQueryResult>();
+    }
 
-			QueryParser parser = new QueryParser(Version.LUCENE_40,
-					"gameDescriptionLowerCase", analyzer);
+    IndexReader reader = null;
+    try {
+      Directory dir = FSDirectory.open(indexDir);
+      reader = DirectoryReader.open(dir);
+      IndexSearcher searcher = new IndexSearcher(reader);
 
-			List<RomQueryResult> queryResult = new ArrayList<RomQueryResult>();
+      QueryParser parser = new QueryParser(Version.LUCENE_40,
+          "gameDescriptionLowerCase", analyzer);
 
-			// Do some initial subs
-			inputQuery = inputQuery.trim().replaceAll("\\s+", " ");
-			if (!inputQuery.endsWith("\"")) {
-				inputQuery += "*";
-			}
+      List<RomQueryResult> queryResult = new ArrayList<RomQueryResult>();
 
-			// Convert to lower case
-			inputQuery = inputQuery.toLowerCase();
+      // Do some initial subs
+      inputQuery = inputQuery.trim().replaceAll("\\s+", " ");
+      if (!inputQuery.endsWith("\"")) {
+        inputQuery += "*";
+      }
 
-			// Escape special characters: + - && || ! ( ) { } [ ] ^ " ~ * ? : \
-			inputQuery = inputQuery.replace("\\", "\\\\").replace(":", "\\:");
+      // Convert to lower case
+      inputQuery = inputQuery.toLowerCase();
 
-			// If the person put "machine:", actually put the colon back in and
-			// capitalize it
-			inputQuery = inputQuery.replace("machine\\:", "Machine:");
+      // Escape special characters: + - && || ! ( ) { } [ ] ^ " ~ * ? : \
+      inputQuery = inputQuery.replace("\\", "\\\\").replace(":", "\\:");
 
-			// Remove periods and apostrophes
-			inputQuery = inputQuery.replace("'", "").replace(".", "");
-			logger.info("Starting query: " + inputQuery);
+      // If the person put "machine:", actually put the colon back in and
+      // capitalize it
+      inputQuery = inputQuery.replace("machine\\:", "Machine:");
 
-			Query query;
-			try {
-				query = parser.parse(inputQuery);
-			} catch (ParseException ex) {
-				// TODO: Try to replace more special characters and requery
-				return queryResult;
-			}
-			TopDocs results = searcher.search(query, 10000);
-			// System.out.println("GOT " + results.scoreDocs.length +
-			// " RESULTS");
-			for (ScoreDoc scoreDoc : results.scoreDocs) {
-				// System.out.println(scoreDoc.score + ": " +
-				// searcher.doc(scoreDoc.doc).getField("gameDescription").stringValue());
-				// System.out.println(searcher.doc(scoreDoc.doc).getField("Machine").stringValue());
-				// System.out.println(searcher.doc(scoreDoc.doc).getField("gameName").stringValue());
-				String system = searcher.doc(scoreDoc.doc).getField("Machine")
-						.stringValue();
-				String romid = searcher.doc(scoreDoc.doc).getField("gameName")
-						.stringValue();
-				RomInfo romInfo = null;
-				if (system.toLowerCase().equals("arcade")) {
-					romInfo = getMameRomInfoMap().get(romid);
-				} else {
-					romInfo = getSystemRomInfoMap(system).get(romid);
-					}
-					// System.out.println(system + " : " + romid + " : " + romInfo);
-					if (romInfo.missingReason != null
-							&& (cloudRoms == null
-									|| !cloudRoms.containsKey(romInfo.system) || !cloudRoms
-								.get(romInfo.system).contains(romInfo._id))) {
-						continue;
-					}
-					// System.out.println("GOT ROM: " + romInfo);
-					queryResult.add(new RomQueryResult(scoreDoc.score, romInfo));
-					if (queryResult.size() >= 1000) {
-						break;
-				}
-			}
-			logger.info("Finished query");
+      // Remove periods and apostrophes
+      inputQuery = inputQuery.replace("'", "").replace(".", "");
+      logger.info("Starting query: " + inputQuery);
 
-			/*
-			 * query = query.toLowerCase(); // System.out.println("CHECKING " +
-			 * system + " " + query); for (Map.Entry<String, TreeMap<String,
-			 * String>> parentEntry : romSystemNameIdMap .entrySet()) { for
-			 * (Map.Entry<String, String> entry : parentEntry.getValue()
-			 * .entrySet()) { // NOTE: Lower score is better int score =
-			 * StringUtils.getLevenshteinDistance(query, entry
-			 * .getKey().toLowerCase()) - (entry.getKey().length()); if
-			 * (entry.getKey().toLowerCase().contains(query)) { score -= 1e6; }
-			 * if (entry.getKey().toLowerCase().startsWith(query)) { score -=
-			 * 1e6; } // System.out.println("ID " + entry.getValue() + " NAME "
-			 * + // entry.getKey()); queryResult.add(new RomQueryResult(score,
-			 * entry.getValue(), entry.getKey())); //
-			 * System.out.println(queryResult.size()); } }
-			 */
+      Query query;
+      try {
+        query = parser.parse(inputQuery);
+      } catch (ParseException ex) {
+        // TODO: Try to replace more special characters and requery
+        return queryResult;
+      }
+      TopDocs results = searcher.search(query, 10000);
+      // System.out.println("GOT " + results.scoreDocs.length +
+      // " RESULTS");
+      for (ScoreDoc scoreDoc : results.scoreDocs) {
+        // System.out.println(scoreDoc.score + ": " +
+        // searcher.doc(scoreDoc.doc).getField("gameDescription").stringValue());
+        // System.out.println(searcher.doc(scoreDoc.doc).getField("Machine").stringValue());
+        // System.out.println(searcher.doc(scoreDoc.doc).getField("gameName").stringValue());
+        String system = searcher.doc(scoreDoc.doc).getField("Machine")
+            .stringValue();
+        String romid = searcher.doc(scoreDoc.doc).getField("gameName")
+            .stringValue();
+        RomInfo romInfo = null;
+        if (system.toLowerCase().equals("arcade")) {
+          romInfo = getMameRomInfoMap().get(romid);
+        } else {
+          romInfo = getSystemRomInfoMap(system).get(romid);
+        }
+        // System.out.println(system + " : " + romid + " : " + romInfo);
+        if (romInfo.missingReason != null
+            && (cloudRoms == null || !cloudRoms.containsKey(romInfo.system) || !cloudRoms
+                .get(romInfo.system).contains(romInfo._id))) {
+          continue;
+        }
+        // System.out.println("GOT ROM: " + romInfo);
+        queryResult.add(new RomQueryResult(scoreDoc.score, romInfo));
+        if (queryResult.size() >= 1000) {
+          break;
+        }
+      }
+      logger.info("Finished query");
 
-			return queryResult;
-		} catch (IOException e) {
-			logger.error("Query Roms error", e);
-			throw new RuntimeException(e);
-		} finally {
-			if (reader != null) {
-				try {
-					reader.close();
-				} catch (IOException e) {
-					throw new RuntimeException(e);
-				}
-			}
-		}
-	}
+      /*
+       * query = query.toLowerCase(); // System.out.println("CHECKING " + system
+       * + " " + query); for (Map.Entry<String, TreeMap<String, String>>
+       * parentEntry : romSystemNameIdMap .entrySet()) { for (Map.Entry<String,
+       * String> entry : parentEntry.getValue() .entrySet()) { // NOTE: Lower
+       * score is better int score = StringUtils.getLevenshteinDistance(query,
+       * entry .getKey().toLowerCase()) - (entry.getKey().length()); if
+       * (entry.getKey().toLowerCase().contains(query)) { score -= 1e6; } if
+       * (entry.getKey().toLowerCase().startsWith(query)) { score -= 1e6; } //
+       * System.out.println("ID " + entry.getValue() + " NAME " + //
+       * entry.getKey()); queryResult.add(new RomQueryResult(score,
+       * entry.getValue(), entry.getKey())); //
+       * System.out.println(queryResult.size()); } }
+       */
+
+      return queryResult;
+    } catch (IOException e) {
+      logger.error("Query Roms error", e);
+      throw new RuntimeException(e);
+    } finally {
+      if (reader != null) {
+        try {
+          reader.close();
+        } catch (IOException e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+  }
 }
