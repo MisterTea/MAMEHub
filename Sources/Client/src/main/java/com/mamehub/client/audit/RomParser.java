@@ -107,8 +107,8 @@ public class RomParser extends DefaultHandler {
 			romInfo = new RomInfo();
 			romInfo.parentRom = attributes.getValue("romof");
 			romInfo.cloneRom = attributes.getValue("cloneof");
-			romInfo.id = attributes.getValue("name");
-			verbose = romInfo.id.equals("carpolo");
+			romInfo._id = attributes.getValue("name");
+			verbose = romInfo._id.equals("carpolo");
 			gameFailed = false;
 			chdFailed = false;
 			romsWithNoHash = goodRoms = 0;
@@ -170,7 +170,7 @@ public class RomParser extends DefaultHandler {
 			if (entries == null) {
 			    if (verbose) {
 	                logger.info(matchFileName + " GOT 0 FOR "
-	                        + romInfo.id + " : " + name);
+	                        + romInfo._id + " : " + name);
 			    }
 				gameFailed = true;
 				return;
@@ -178,17 +178,17 @@ public class RomParser extends DefaultHandler {
 
 			if (verbose) {
 				logger.info(matchFileName + " GOT " + entries.size() + " FOR "
-						+ romInfo.id + " : " + name);
+						+ romInfo._id + " : " + name);
 			}
 
 			if (matchFileName) {
 				for (RomHashEntryValue f : entries) {
 					if (verbose) {
 						logger.info("" + f.location + " "
-								+ romInfo.id.toLowerCase());
+								+ romInfo._id.toLowerCase());
 					}
 					if (new File(f.location).getName().toLowerCase()
-							.startsWith(romInfo.id.toLowerCase())) {
+							.startsWith(romInfo._id.toLowerCase())) {
 						if (possibleEntries == null) {
 							possibleEntries = new HashSet<String>();
 						}
@@ -272,7 +272,7 @@ public class RomParser extends DefaultHandler {
 			if (chdFailed) {
 				romInfo.missingReason = MR.MISSING_CHD;
 			}
-			roms.put(romInfo.id, romInfo);
+			roms.put(romInfo._id, romInfo);
 			count++;
 			if (count % 5000 == 0) {
 				Utils.getAuditDatabaseEngine().commit();

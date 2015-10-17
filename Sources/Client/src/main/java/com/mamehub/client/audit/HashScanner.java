@@ -121,7 +121,7 @@ public class HashScanner {
                                                 systemName));
                             }
                         } catch (ZipException ze) {
-                            FileInfo badFileInfo = new FileInfo().setId(
+                            FileInfo badFileInfo = new FileInfo().set_id(
                                     file.getAbsolutePath()).setBad(true);
                         } catch (Exception e) {
                             logger.info("GOT AN EXCEPTION", e);

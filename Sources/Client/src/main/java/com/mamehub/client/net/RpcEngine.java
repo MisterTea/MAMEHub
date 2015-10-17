@@ -227,7 +227,7 @@ public class RpcEngine implements Runnable {
 	public synchronized boolean checkExternalAuth() {
 		try {
 			Player player = gameClient.getMyself(token);
-			if (player.id == null) {
+			if (player._id == null) {
 				player = null;
 			} else {
 				// Now would be a good time to send any error logs
@@ -531,7 +531,7 @@ public class RpcEngine implements Runnable {
 	}
 
 	public synchronized PlayerProfile getMyProfile() {
-		return getProfile(getMyself().id);
+		return getProfile(getMyself()._id);
 	}
 
 	public synchronized PlayerProfile getProfile(String playerId) {

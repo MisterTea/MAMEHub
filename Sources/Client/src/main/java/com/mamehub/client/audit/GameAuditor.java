@@ -260,7 +260,7 @@ public class GameAuditor implements Runnable {
 		{
 			handler.updateAuditStatus("AUDIT: Indexing Arcade roms");
 			for (RomInfo ri : mameRoms.values()) {
-				addIndexEntry(writer, "Arcade", ri.description, ri.id);
+				addIndexEntry(writer, "Arcade", ri.description, ri._id);
 			}
 		}
 
@@ -268,7 +268,7 @@ public class GameAuditor implements Runnable {
 			handler.updateAuditStatus("AUDIT: Indexing " + system);
 			Map<String, RomInfo> systemCarts = getSystemRomInfoMap(system);
 			for (RomInfo ri : systemCarts.values()) {
-				addIndexEntry(writer, system, ri.description, ri.id);
+				addIndexEntry(writer, system, ri.description, ri._id);
 			}
 		}
 
@@ -436,7 +436,7 @@ public class GameAuditor implements Runnable {
 					if (romInfo.missingReason != null
 							&& (cloudRoms == null
 									|| !cloudRoms.containsKey(romInfo.system) || !cloudRoms
-								.get(romInfo.system).contains(romInfo.id))) {
+								.get(romInfo.system).contains(romInfo._id))) {
 						continue;
 					}
 					// System.out.println("GOT ROM: " + romInfo);

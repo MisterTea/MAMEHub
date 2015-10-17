@@ -88,12 +88,12 @@ public class PeerMonitor implements Runnable {
               gameProtocol);
 
           boolean transferFailed = false;
-          int numFiles = gameClient.getFileCount(romInfo.system, romInfo.id);
+          int numFiles = gameClient.getFileCount(romInfo.system, romInfo._id);
           if (numFiles==0) {
             continue;
           }
           for (int a = 0; a < numFiles; a++) {
-            fileInfo = gameClient.getFileInfo(romInfo.system, romInfo.id, a);
+            fileInfo = gameClient.getFileInfo(romInfo.system, romInfo._id, a);
             if (fileInfo.length == 0) {
               logger.info("Could not get from " + player.name + " : "
                   + fileInfo);
@@ -104,7 +104,7 @@ public class PeerMonitor implements Runnable {
             if (romInfo.system.equalsIgnoreCase("arcade")
                 || romInfo.system.equalsIgnoreCase("bios")) {
               if (fileInfo.filename.toLowerCase().endsWith(".chd")) {
-                String chdName = romInfo.id;
+                String chdName = romInfo._id;
                 new File("../roms/" + chdName).mkdirs();
                 file = new File("../roms/" + chdName + "/" + fileInfo.filename);
               } else {
@@ -117,7 +117,7 @@ public class PeerMonitor implements Runnable {
               }
 
               if (fileInfo.filename.toLowerCase().endsWith(".chd")) {
-                String chdName = romInfo.id;
+                String chdName = romInfo._id;
                 new File("../roms/" + romInfo.system + "/" + chdName).mkdirs();
                 file = new File("../roms/" + romInfo.system + "/" + chdName + "/" + fileInfo.filename);
               } else {
@@ -134,7 +134,7 @@ public class PeerMonitor implements Runnable {
             while (!cancel) {
               curTime = System.currentTimeMillis();
               FileResponse fr = gameClient.getFileChunk(new FileRequest(
-                  romInfo.id, romInfo.system, offset, chunkSize, a));
+                  romInfo._id, romInfo.system, offset, chunkSize, a));
               if (fr.code == FileResponseCode.ERROR) {
                 transferFailed = true;
                 break;
@@ -274,13 +274,13 @@ public class PeerMonitor implements Runnable {
   }
 
   public boolean containsPeer(Player peer) {
-    return idStateMap.containsKey(peer.id);
+    return idStateMap.containsKey(peer._id);
   }
 
   public void insertPeer(Player peer) {
     synchronized (idStateMap) {
       // Just pull out the parts of the player we care about
-      idStateMap.put(peer.id, new PeerState());
+      idStateMap.put(peer._id, new PeerState());
     }
   }
 
@@ -291,12 +291,12 @@ public class PeerMonitor implements Runnable {
   }
 
   public PeerState getPeer(Player player) {
-    return idStateMap.get(player.id);
+    return idStateMap.get(player._id);
   }
 
   public void removePeer(Player peer) {
     synchronized (idStateMap) {
-      idStateMap.remove(peer.id);
+      idStateMap.remove(peer._id);
     }
   }
 
@@ -351,7 +351,7 @@ public class PeerMonitor implements Runnable {
     if (player == null) {
       return;
     }
-    if (MainFrame.myPlayerId != null && player.id.equals(MainFrame.myPlayerId)) {
+    if (MainFrame.myPlayerId != null && player._id.equals(MainFrame.myPlayerId)) {
       // Don't try to connect to yourself
       return;
     }
@@ -383,7 +383,7 @@ public class PeerMonitor implements Runnable {
         if (romState.stale == false) {
           gotNewRoms = true;
           peerState.downloadableRoms = Utils.getApplicationDatabaseEngine()
-              .getOrCreatePrimitiveMap("DownloadableRoms" + player.id);
+              .getOrCreatePrimitiveMap("DownloadableRoms" + player._id);
           peerState.downloadableRoms.clear();
           peerState.downloadableRoms.putAll(romState.roms);
           peerState.lastCheckTime = System.currentTimeMillis();
@@ -395,7 +395,7 @@ public class PeerMonitor implements Runnable {
       }
     } catch (TException tte) {
       if (player.portsOpen) {
-        logger.warn("WARNING: Could not reach " + player.id
+        logger.warn("WARNING: Could not reach " + player._id
             + " even though ports were open.");
       }
       // We couldn't get through the client's firewall
@@ -424,7 +424,7 @@ public class PeerMonitor implements Runnable {
               + ps.downloadableRoms.containsKey(romNeeded.system));
           if (ps.downloadableRoms.containsKey(romNeeded.system)
               && ps.downloadableRoms.get(romNeeded.system).contains(
-                  romNeeded.id)) {
+                  romNeeded._id)) {
             romPlayerMap.get(romNeeded).add(p);
           }
         }

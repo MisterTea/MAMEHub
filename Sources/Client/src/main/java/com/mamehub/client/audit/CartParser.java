@@ -82,7 +82,7 @@ public class CartParser extends DefaultHandler implements Runnable {
         Node node = nList.item(temp);
 
         RomInfo romInfo = new RomInfo();
-        romInfo.id = node.getAttributes().getNamedItem("name").getTextContent();
+        romInfo._id = node.getAttributes().getNamedItem("name").getTextContent();
         romInfo.description = ((Element) node)
             .getElementsByTagName("description").item(0).getTextContent();
         romInfo.system = systemName;
@@ -174,7 +174,7 @@ public class CartParser extends DefaultHandler implements Runnable {
         if (verbose) {
           System.out.println("FINAL RESULT: " + romInfo);
         }
-        roms.put(romInfo.id, romInfo);
+        roms.put(romInfo._id, romInfo);
       }
     } catch (Exception e) {
       e.printStackTrace();

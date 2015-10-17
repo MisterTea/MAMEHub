@@ -358,20 +358,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
     public List<Object> romInfoToRow(RomInfo romInfo,
         PlayerProfile playerProfile) {
       PlayerRomProfile playerRomProfile = playerProfile.romProfiles
-          .get(romInfo.id);
+          .get(romInfo._id);
 
       String machine = romInfo.system;
       List<Object> retval = new ArrayList<Object>();
       if (romInfo.missingReason == null) {
         retval.add(noErrorsIcon);
       } else if (cloudRoms.containsKey(machine)
-          && cloudRoms.get(machine).contains(romInfo.id)) {
+          && cloudRoms.get(machine).contains(romInfo._id)) {
         retval.add(downloadIcon);
       } else {
         retval.add(errorsIcon);
       }
       if (romInfo.description == null) {
-        retval.add(romInfo.id);
+        retval.add(romInfo._id);
       } else {
         retval.add(romInfo.description);
       }
@@ -403,7 +403,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
       final ClientHttpServer clientHttpServer, GuiHttpServer guiHttpServer)
       throws IOException, NotAuthorizedException, TException {
     knownPlayers = new HashMap<String, Player>();
-    myPlayerId = rpcEngine.getMyself().id;
+    myPlayerId = rpcEngine.getMyself()._id;
     InputStream is = Utils.getResourceInputStream("/MAMEHub.png");
     BufferedImage bi = ImageIO.read(is);
     this.setIconImage(bi);
@@ -543,8 +543,8 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
                 logger.info("Giving " + gameRomInfo + " " + starCount
                     + " STARS");
                 PlayerProfile playerProfile = Utils.getPlayerProfile(rpcEngine);
-                playerProfile.romProfiles.put(gameRomInfo.id,
-                    new PlayerRomProfile(gameRomInfo.id, starCount, null));
+                playerProfile.romProfiles.put(gameRomInfo._id,
+                    new PlayerRomProfile(gameRomInfo._id, starCount, null));
                 Utils.commitProfile(rpcEngine);
                 updateGameTree(gameListModel);
               } catch (Exception e) {
@@ -614,7 +614,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
                           "There is already a game in progress.  Please close that game before starting a new one.");
                 } else {
                   Player myself = rpcEngine.getMyself();
-                  rpcEngine.hostGame(systemName, gameRomInfo.id, null);
+                  rpcEngine.hostGame(systemName, gameRomInfo._id, null);
                   boolean success = mameHubEngine.launchGame(myself.name,
                       systemName, gameRomInfo, true, null, myself.basePort,
                       myself.basePort);
@@ -1248,7 +1248,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
                   "There is already a game in progress.  Please close that game before starting a new one.");
         } else {
           logger.info("ROM INFO: " + gameRomInfo);
-          String errorMessage = rpcEngine.joinGame(game.id);
+          String errorMessage = rpcEngine.joinGame(game._id);
           logger.info("GAME INFO: " + game);
           if (errorMessage.length() == 0) {
             Player myself = rpcEngine.getMyself();
@@ -1427,7 +1427,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
         if (romInfo.missingReason == null) {
           gamesFound.put(romInfo.description, romInfo);
         } else if (cloudRoms.containsKey("Arcade")
-            && cloudRoms.get("Arcade").contains(romInfo.id)) {
+            && cloudRoms.get("Arcade").contains(romInfo._id)) {
           gamesCloud.put(romInfo.description, romInfo);
         } else {
           gamesMissing.put(romInfo.description, romInfo);
@@ -1524,7 +1524,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
           }
         }
         if (message.playerChanged != null) {
-          Player oldPlayer = knownPlayers.get(message.playerChanged.id);
+          Player oldPlayer = knownPlayers.get(message.playerChanged._id);
           Player newPlayer = message.playerChanged;
           if (oldPlayer == null || oldPlayer.loggedIn == false) {
             /*
@@ -1560,7 +1560,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
             peerMonitor.updatePeer(message.playerChanged);
           }
 
-          knownPlayers.put(message.playerChanged.id, message.playerChanged);
+          knownPlayers.put(message.playerChanged._id, message.playerChanged);
           playerTableModel.update();
           playerTableModel.fireTableDataChanged();
           updateJoinGameList();
@@ -1568,7 +1568,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
         }
         if (message.gameChanged != null) {
           for (Game game : knownGames.values()) {
-            if (game.id.equals(message.gameChanged.id)) {
+            if (game._id.equals(message.gameChanged._id)) {
               knownGames.remove(game);
               break;
             }
@@ -1598,7 +1598,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
               }
             }
           }
-          knownGames.put(message.gameChanged.id, message.gameChanged);
+          knownGames.put(message.gameChanged._id, message.gameChanged);
           logger.info("GAME CHANGED: " + message.gameChanged);
           updateJoinGameList();
         }
@@ -1630,7 +1630,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
       String playersInGame = "";
       for (Player player : knownPlayers.values()) {
-        if (player.inGame != null && player.inGame.equals(game.id)
+        if (player.inGame != null && player.inGame.equals(game._id)
             && player != hostPlayer) {
           if (playersInGame.length() > 0) {
             playersInGame += ", ";

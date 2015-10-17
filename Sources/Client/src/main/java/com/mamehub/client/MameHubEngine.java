@@ -118,7 +118,7 @@ public class MameHubEngine implements Runnable {
 			for (Entry<String, String> interfaceTypeNamePair : romOrCart.interfaceFileMap.entrySet()) {
 				cmdList.add("-" + interfaceTypeNamePair.getKey());
                 //cmdList.add(interfaceTypeNamePair.getValue());
-                cmdList.add(romOrCart.id);
+                cmdList.add(romOrCart._id);
 			}
 		}
 

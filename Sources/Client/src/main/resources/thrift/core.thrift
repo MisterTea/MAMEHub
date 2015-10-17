@@ -20,7 +20,7 @@ struct SoftwareList
 
 struct RomInfo
 {
-  1:string id, // id is the same as the shortname
+  1:string _id, // id is the same as the shortname
   2:string cloneRom,
   3:string parentRom,
   4:list<string> filenames = [],
@@ -34,7 +34,7 @@ struct RomInfo
 }
 
 struct FileInfo {
-  1:string id, //Also the path
+  1:string _id, //Also the path
   2:bool bad,
   3:string crc32,
   4:i64 length,
@@ -68,7 +68,7 @@ struct PlayerStatus {
 
 struct Player
 {
-  1:string id,
+  1:string _id,
   2:string name,
   3:string ipAddress,
   //4:i32 port = 6805,
@@ -81,6 +81,9 @@ struct Player
   11:PlayerStatus status,
   12:i32 basePort = 6805,
   13:i32 secondaryPort = 6806,
+  
+  14:string googleId,
+  15:string facebookId,
 }
 
 struct PlayerRomProfile
@@ -92,13 +95,13 @@ struct PlayerRomProfile
 
 struct PlayerProfile
 {
-  1:string id,
+  1:string _id,
   2:map<string, PlayerRomProfile> romProfiles = {};
 }
 
 struct ApplicationSettings
 {
-  1:string id = "1",
+  1:string _id = "1",
 
   // Chat Settings
   2:bool chatAudio = true,
@@ -116,7 +119,7 @@ struct ApplicationSettings
 
 struct PlayerInternalPassword
 {
-  1:string id,
+  1:string _id,
   2:string password,
   3:string emailAddress = "",
   4:string facbeookId,
@@ -125,7 +128,7 @@ struct PlayerInternalPassword
 
 struct Game
 {
-  1:string id,
+  1:string _id,
   10:string system,
   2:string rom,
   4:bool locked = false,
@@ -138,14 +141,14 @@ struct Game
 
 struct ArchivedGame
 {
-  1:string id,
+  1:string _id,
   2:Game game
 }
 
 
 struct UserSession
 {
-  1:string id,
+  1:string _id,
   2:string userId,
   3:i64 createTime,
   4:map<string, string> data,
@@ -163,13 +166,13 @@ struct Message
 
 struct MessageQueue
 {
-  1:string id,
+  1:string _id,
   2:list<Message> messages = [],
   3:i32 endIndex;
 }
 
 struct PlayerServerData {
-  1:string id,
+  1:string _id,
   //2: Obsolete
   3:i64 lastAccessTime,
 }
@@ -236,7 +239,7 @@ struct RomHashEntryValue
 
 struct PlayerFeedback
 {
-  1:string id,
+  1:string _id,
   2:string comment,
   3:string log,
   4:string playerId,
