@@ -1538,20 +1538,20 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
           Player oldPlayer = knownPlayers.get(message.playerChanged._id);
           Player newPlayer = message.playerChanged;
           if (oldPlayer == null || oldPlayer.loggedIn == false) {
-            /*
-             * addChat(message.timestamp, "*" + message.playerChanged.name +
-             * " joins");
-             */
+
+            addChat(message.timestamp, "*" + message.playerChanged.name
+                + " joins");
+
             if (getChatStatus() == ChatStatus.ONLINE) {
               // SoundEngine.instance.playSound("playerjoin");
             }
             peerMonitor.insertPeer(message.playerChanged);
           } else if (oldPlayer != null
               && message.playerChanged.loggedIn == false) {
-            /*
-             * addChat(message.timestamp, "*" + message.playerChanged.name +
-             * " leaves");
-             */
+
+            addChat(message.timestamp, "*" + message.playerChanged.name
+                + " leaves");
+
             peerMonitor.removePeer(message.playerChanged);
           } else {
             if (oldPlayer.inGame == null && newPlayer.inGame != null
