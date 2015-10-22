@@ -81,9 +81,6 @@ struct Player
   11:PlayerStatus status,
   12:i32 basePort = 6805,
   13:i32 secondaryPort = 6806,
-  
-  14:string googleId,
-  15:string facebookId,
 }
 
 struct PlayerRomProfile
@@ -97,15 +94,6 @@ struct PlayerProfile
 {
   1:string _id,
   2:map<string, PlayerRomProfile> romProfiles = {};
-}
-
-struct PlayerInternalPassword
-{
-  1:string _id,
-  2:string password,
-  3:string emailAddress = "",
-  4:string facbeookId,
-  5:string googleId,
 }
 
 struct Game
@@ -128,15 +116,6 @@ struct ArchivedGame
 }
 
 
-struct UserSession
-{
-  1:string _id,
-  2:string userId,
-  3:i64 createTime,
-  4:map<string, string> data,
-  5:i64 expirationTime = 0,
-}
-
 struct Message
 {
   1:i64 timestamp,
@@ -144,19 +123,6 @@ struct Message
   3:string chat,
   7:Player playerChanged,
   8:Game gameChanged,
-}
-
-struct MessageQueue
-{
-  1:string _id,
-  2:list<Message> messages = [],
-  3:i32 endIndex;
-}
-
-struct PlayerServerData {
-  1:string _id,
-  //2: Obsolete
-  3:i64 lastAccessTime,
 }
 
 struct RomPointer {
