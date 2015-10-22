@@ -40,8 +40,17 @@ public class IpCountryFetcher {
   }
 
   private long ipToBinary(String ipAddress) {
-    String[] octets = ipAddress.split("\\.");
-    return (Long.valueOf(octets[0]) << 24) + (Long.valueOf(octets[1]) << 16)
-        + (Long.valueOf(octets[2]) << 8) + (Long.valueOf(octets[3]));
+    if (ipAddress.contains(":")) {
+      // IPV6
+//      String[] octets = ipAddress.split("\\:");
+//      return (Long.valueOf(octets[0]) << 40) + (Long.valueOf(octets[1]) << 32)
+//          + (Long.valueOf(octets[2]) << 24) + (Long.valueOf(octets[3]) << 16)
+//          + (Long.valueOf(octets[4]) << 8) + (Long.valueOf(octets[5]));
+      return 0;
+    } else {
+      String[] octets = ipAddress.split("\\.");
+      return (Long.valueOf(octets[0]) << 24) + (Long.valueOf(octets[1]) << 16)
+          + (Long.valueOf(octets[2]) << 8) + (Long.valueOf(octets[3]));
+    }
   }
 }
