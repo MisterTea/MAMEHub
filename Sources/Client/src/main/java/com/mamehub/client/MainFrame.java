@@ -388,7 +388,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
 
   /**
    * Create the frame.
-   * 
+   *
    * @param rpcThread
    * @param rpcEngine
    * @param guiHttpServer
@@ -1188,7 +1188,7 @@ public class MainFrame extends JFrame implements AuditHandler, NetworkHandler,
     MainFrame.this.requestFocus();
     MainFrame.this.repaint();
 
-    setTitle("MAMEHub 3.2 (Based on UME 0.160)");
+    setTitle("MAMEHub 4.0 (Based on UME 0.160)");
   }
 
   protected void updateGameList() {

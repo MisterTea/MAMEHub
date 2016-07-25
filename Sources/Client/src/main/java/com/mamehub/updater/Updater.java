@@ -56,8 +56,6 @@ public class Updater {
   }
 
   public static void main(String[] args) throws Exception {
-    addToolsFirewallExceptions();
-
     Updater app = new Updater();
     System.out.println("Updating MAMEHub, please be patient!!!");
     System.out.println("Working Directory: " + new File(".").getAbsolutePath());
@@ -131,7 +129,6 @@ public class Updater {
       // "http://10ghost.net/MAMEHubDownloads/Frontend/MAMEHubClient.jar"),
       // "MAMEHubRepo/Binaries/dist");
 
-      addMainFirewallExceptions();
     } catch (Exception e) {
       System.out
           .println("Error getting updates, please copy the error from the console and file a bug here: https://github.com/MisterTea/MAMEHub/issues");
@@ -139,114 +136,6 @@ public class Updater {
       System.in.read();
     }
     app.finished = true;
-  }
-
-  private static void addToolsFirewallExceptions() throws IOException {
-    boolean firstTime = !(new File(UPDATER_DB_RAN_ONCE_TOOLS_TXT).exists());
-    if (firstTime && isWindows()) {
-      System.out.println("Configuring windows firewall for tools...");
-      // Configure the windows firewall
-      String[][] commands;
-      if (System.getProperty("os.version").equals("5.1")) {
-        // Windows XP
-        String[][] lCommands = {
-            { "netsh", "firewall", "add", "allowedprogram",
-                "program=Tools\\Updater.exe", "name=MAMEHub Updater" },
-            { "netsh", "firewall", "add", "allowedprogram",
-                "program=Tools\\wget.exe", "name=MAMEHub WGet" }, };
-        commands = lCommands;
-      } else {
-        // Vista or greater
-        String[][] lCommands = {
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=in",
-                "action=allow", "program=Tools\\Updater.exe",
-                "name=MAMEHub Updater In", "enable=yes" },
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=out",
-                "action=allow", "program=Tools\\Updater.exe",
-                "name=MAMEHub Updater Out", "enable=yes" },
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=in",
-                "action=allow", "program=Tools\\wget.exe",
-                "name=MAMEHub WGet In", "enable=yes" },
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=out",
-                "action=allow", "program=Tools\\wget.exe",
-                "name=MAMEHub WGet Out", "enable=yes" }, };
-        commands = lCommands;
-      }
-      for (String[] command : commands) {
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.redirectErrorStream(true);
-        Process process = pb.start();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(
-            process.getInputStream()));
-        String line = null;
-        while ((line = reader.readLine()) != null) {
-          System.out.println(line);
-        }
-      }
-    }
-    new File(UPDATER_DB_RAN_ONCE_TOOLS_TXT).createNewFile();
-  }
-
-  private static void addMainFirewallExceptions() throws IOException {
-    boolean firstTime = !(new File(UPDATER_DB_RAN_ONCE_MAIN_TXT).exists());
-    if (firstTime && isWindows()) {
-      System.out.println("Configuring windows firewall for main binaries...");
-      // Configure the windows firewall
-      String[][] commands;
-      if (System.getProperty("os.version").equals("5.1")) {
-        // Windows XP
-        String[][] lCommands = {
-            { "netsh", "firewall", "add", "allowedprogram",
-                "program=MAMEHubRepo\\Binaries\\dist\\MAMEHubClient.exe",
-                "name=MAMEHub Client" },
-            { "netsh", "firewall", "add", "allowedprogram",
-                "program=MAMEHubRepo\\Binaries\\dist\\csume.exe", "name=csume" },
-            { "netsh", "firewall", "add", "allowedprogram",
-                "program=MAMEHubRepo\\Binaries\\dist\\csume64.exe",
-                "name=csume" } };
-        commands = lCommands;
-      } else {
-        // Vista or greater
-        String[][] lCommands = {
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=in",
-                "action=allow",
-                "program=MAMEHubRepo\\Binaries\\dist\\MAMEHubClient.exe",
-                "name=MAMEHub Client In", "enable=yes" },
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=out",
-                "action=allow",
-                "program=MAMEHubRepo\\Binaries\\dist\\MAMEHubClient.exe",
-                "name=MAMEHub Client Out", "enable=yes" },
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=in",
-                "action=allow",
-                "program=MAMEHubRepo\\Binaries\\dist\\csume.exe",
-                "name=csume In", "enable=yes" },
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=out",
-                "action=allow",
-                "program=MAMEHubRepo\\Binaries\\dist\\csume.exe",
-                "name=csume Out", "enable=yes" },
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=in",
-                "action=allow",
-                "program=MAMEHubRepo\\Binaries\\dist\\csume64.exe",
-                "name=csume64 In", "enable=yes" },
-            { "netsh", "advfirewall", "firewall", "add", "rule", "dir=out",
-                "action=allow",
-                "program=MAMEHubRepo\\Binaries\\dist\\csume64.exe",
-                "name=csume64 Out", "enable=yes" } };
-        commands = lCommands;
-      }
-      for (String[] command : commands) {
-        ProcessBuilder pb = new ProcessBuilder(command);
-        pb.redirectErrorStream(true);
-        Process process = pb.start();
-        BufferedReader reader = new BufferedReader(new InputStreamReader(
-            process.getInputStream()));
-        String line = null;
-        while ((line = reader.readLine()) != null) {
-          System.out.println(line);
-        }
-      }
-    }
-    new File(UPDATER_DB_RAN_ONCE_MAIN_TXT).createNewFile();
   }
 
   public void wget(URL url, String destination) throws IOException,
